@@ -55,6 +55,7 @@
     <plugin.version.scala>3.2.1</plugin.version.scala>
     <plugin.version.antrun>1.8</plugin.version.antrun>
     <plugin.version.versions>2.5</plugin.version.versions>
+    <plugin.version.fmt>2.5.0</plugin.version.fmt>
   </properties>
 
   <dependencyManagement>
@@ -369,6 +370,20 @@
           <version>${plugin.version.versions}</version>
         </plugin>
 
+        <plugin>
+          <groupId>com.coveo</groupId>
+          <artifactId>fmt-maven-plugin</artifactId>
+          <version>${plugin.version.fmt}</version>
+          <executions>
+            <execution>
+              <phase>validate</phase>
+              <goals>
+                <goal>format</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+
       </plugins>
 
     </pluginManagement>
@@ -382,6 +397,11 @@
       <plugin>
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
+      </plugin>
+
+      <plugin>
+        <groupId>com.coveo</groupId>
+        <artifactId>fmt-maven-plugin</artifactId>
       </plugin>
 
       <plugin>
