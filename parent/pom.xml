@@ -21,10 +21,9 @@
     <license.header>com/mycila/maven/plugin/license/templates/APACHE-2.txt</license.header>
     <!-- disable jdk8 javadoc checks on release build -->
     <additionalparam>-Xdoclint:none</additionalparam>
-    <checkstyle.config.location>.checkstyle.xml</checkstyle.config.location>
 
     <!-- zb-build-tools -->
-    <version.build-tools>0.1.0</version.build-tools>
+    <version.build-tools>0.2.0-SNAPSHOT</version.build-tools>
 
     <!-- EXTERNAL LIBS -->
     <version.agrona>0.9.13</version.agrona>
@@ -45,7 +44,7 @@
 
     <!-- maven plugins -->
     <plugin.version.compiler>3.5.1</plugin.version.compiler>
-    <plugin.version.checkstyle>2.17</plugin.version.checkstyle>
+    <plugin.version.checkstyle>3.0.0</plugin.version.checkstyle>
     <plugin.version.license>3.0</plugin.version.license>
     <plugin.version.surefire>2.20</plugin.version.surefire>
     <plugin.version.build-helper>1.12</plugin.version.build-helper>
