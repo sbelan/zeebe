@@ -18,94 +18,68 @@ package io.zeebe.client.impl.data;
 import java.io.InputStream;
 import java.util.Map;
 
-public class PayloadField
-{
-    private final ZeebeObjectMapperImpl objectMapper;
-    private final MsgPackConverter msgPackConverter;
+public class PayloadField {
+  private final ZeebeObjectMapperImpl objectMapper;
+  private final MsgPackConverter msgPackConverter;
 
-    private byte[] msgPack;
+  private byte[] msgPack;
 
-    public PayloadField(ZeebeObjectMapperImpl objectMapper)
-    {
-        this.objectMapper = objectMapper;
-        this.msgPackConverter = objectMapper.getMsgPackConverter();
+  public PayloadField(ZeebeObjectMapperImpl objectMapper) {
+    this.objectMapper = objectMapper;
+    this.msgPackConverter = objectMapper.getMsgPackConverter();
+  }
+
+  public PayloadField(PayloadField other) {
+    this.objectMapper = other.objectMapper;
+    this.msgPackConverter = other.msgPackConverter;
+    this.msgPack = other.msgPack;
+  }
+
+  public byte[] getMsgPack() {
+    return msgPack;
+  }
+
+  public void setMsgPack(byte[] msgPack) {
+    this.msgPack = msgPack;
+  }
+
+  public String getAsJsonString() {
+    if (msgPack != null) {
+      return msgPackConverter.convertToJson(msgPack);
+    } else {
+      return null;
     }
+  }
 
-    public PayloadField(PayloadField other)
-    {
-        this.objectMapper = other.objectMapper;
-        this.msgPackConverter = other.msgPackConverter;
-        this.msgPack = other.msgPack;
+  public Map<String, Object> getAsMap() {
+    if (msgPack != null) {
+      return objectMapper.fromMsgpackAsMap(msgPack);
+    } else {
+      return null;
     }
+  }
 
-    public byte[] getMsgPack()
-    {
-        return msgPack;
+  public void setJson(String json) {
+    if (json != null) {
+      msgPack = msgPackConverter.convertToMsgPack(json);
+    } else {
+      msgPack = null;
     }
+  }
 
-    public void setMsgPack(byte[] msgPack)
-    {
-        this.msgPack = msgPack;
+  public void setJson(InputStream stream) {
+    if (stream != null) {
+      msgPack = this.msgPackConverter.convertToMsgPack(stream);
+    } else {
+      msgPack = null;
     }
+  }
 
-    public String getAsJsonString()
-    {
-        if (msgPack != null)
-        {
-            return msgPackConverter.convertToJson(msgPack);
-        }
-        else
-        {
-            return null;
-        }
+  public void setAsMap(Map<String, Object> payload) {
+    if (payload != null) {
+      msgPack = objectMapper.toMsgpack(payload);
+    } else {
+      msgPack = null;
     }
-
-    public Map<String, Object> getAsMap()
-    {
-        if (msgPack != null)
-        {
-            return objectMapper.fromMsgpackAsMap(msgPack);
-        }
-        else
-        {
-            return null;
-        }
-    }
-
-    public void setJson(String json)
-    {
-        if (json != null)
-        {
-            msgPack = msgPackConverter.convertToMsgPack(json);
-        }
-        else
-        {
-            msgPack = null;
-        }
-    }
-
-    public void setJson(InputStream stream)
-    {
-        if (stream != null)
-        {
-            msgPack = this.msgPackConverter.convertToMsgPack(stream);
-        }
-        else
-        {
-            msgPack = null;
-        }
-    }
-
-    public void setAsMap(Map<String, Object> payload)
-    {
-        if (payload != null)
-        {
-            msgPack = objectMapper.toMsgpack(payload);
-        }
-        else
-        {
-            msgPack = null;
-        }
-    }
-
+  }
 }

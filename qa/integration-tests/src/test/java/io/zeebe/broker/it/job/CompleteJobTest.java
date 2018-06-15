@@ -19,8 +19,6 @@ import static io.zeebe.test.util.TestUtil.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 
-import java.util.Collections;
-
 import io.zeebe.broker.it.ClientRule;
 import io.zeebe.broker.it.EmbeddedBrokerRule;
 import io.zeebe.broker.it.util.RecordingJobHandler;
@@ -28,119 +26,93 @@ import io.zeebe.client.api.clients.JobClient;
 import io.zeebe.client.api.events.JobEvent;
 import io.zeebe.client.api.events.JobState;
 import io.zeebe.client.cmd.ClientCommandRejectedException;
+import java.util.Collections;
 import org.junit.*;
 import org.junit.rules.*;
 
-public class CompleteJobTest
-{
+public class CompleteJobTest {
 
-    public EmbeddedBrokerRule brokerRule = new EmbeddedBrokerRule();
-    public ClientRule clientRule = new ClientRule();
+  public EmbeddedBrokerRule brokerRule = new EmbeddedBrokerRule();
+  public ClientRule clientRule = new ClientRule();
 
-    @Rule
-    public RuleChain ruleChain = RuleChain
-        .outerRule(brokerRule)
-        .around(clientRule);
+  @Rule public RuleChain ruleChain = RuleChain.outerRule(brokerRule).around(clientRule);
 
-    @Rule
-    public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
-    @Rule
-    public Timeout testTimeout = Timeout.seconds(15);
+  @Rule public Timeout testTimeout = Timeout.seconds(15);
 
-    private JobEvent jobEvent;
+  private JobEvent jobEvent;
 
-    @Before
-    public void init()
-    {
+  @Before
+  public void init() {
+    clientRule.getJobClient().newCreateCommand().jobType("test").send().join();
+
+    final RecordingJobHandler jobHandler = new RecordingJobHandler();
+    clientRule.getJobClient().newWorker().jobType("test").handler(jobHandler).open();
+
+    waitUntil(() -> !jobHandler.getHandledJobs().isEmpty());
+    jobEvent = jobHandler.getHandledJobs().get(0);
+  }
+
+  @Test
+  public void shouldCompleteJob() {
+    // when
+    final JobEvent job = clientRule.getJobClient().newCompleteCommand(jobEvent).send().join();
+
+    // then
+    assertThat(job.getState()).isEqualTo(JobState.COMPLETED);
+    assertThat(job.getPayload()).isEqualTo("null");
+    assertThat(job.getPayloadAsMap()).isNull();
+  }
+
+  @Test
+  public void shouldCompleteJobWithPayload() {
+    // when
+    final JobEvent job =
         clientRule
-            .getJobClient()
-            .newCreateCommand()
-            .jobType("test")
-            .send()
-            .join();
-
-        final RecordingJobHandler jobHandler = new RecordingJobHandler();
-        clientRule
-            .getJobClient()
-            .newWorker()
-            .jobType("test")
-            .handler(jobHandler)
-            .open();
-
-        waitUntil(() -> !jobHandler.getHandledJobs().isEmpty());
-        jobEvent = jobHandler.getHandledJobs().get(0);
-    }
-
-    @Test
-    public void shouldCompleteJob()
-    {
-        // when
-        final JobEvent job = clientRule
-            .getJobClient()
-            .newCompleteCommand(jobEvent)
-            .send()
-            .join();
-
-        // then
-        assertThat(job.getState()).isEqualTo(JobState.COMPLETED);
-        assertThat(job.getPayload()).isEqualTo("null");
-        assertThat(job.getPayloadAsMap()).isNull();
-    }
-
-    @Test
-    public void shouldCompleteJobWithPayload()
-    {
-        // when
-        final JobEvent job = clientRule
             .getJobClient()
             .newCompleteCommand(jobEvent)
             .payload("{\"foo\":\"bar\"}")
             .send()
             .join();
 
-        // then
-        assertThat(job.getPayload()).isEqualTo("{\"foo\":\"bar\"}");
-        assertThat(job.getPayloadAsMap()).containsOnly(entry("foo", "bar"));
-    }
+    // then
+    assertThat(job.getPayload()).isEqualTo("{\"foo\":\"bar\"}");
+    assertThat(job.getPayloadAsMap()).containsOnly(entry("foo", "bar"));
+  }
 
-    @Test
-    public void shouldCompleteJobWithPayloadAsMap()
-    {
-        // when
-        final JobEvent job = clientRule
+  @Test
+  public void shouldCompleteJobWithPayloadAsMap() {
+    // when
+    final JobEvent job =
+        clientRule
             .getJobClient()
             .newCompleteCommand(jobEvent)
             .payload(Collections.singletonMap("foo", "bar"))
             .send()
             .join();
 
-        // then
-        assertThat(job.getPayload()).isEqualTo("{\"foo\":\"bar\"}");
-        assertThat(job.getPayloadAsMap()).containsOnly(entry("foo", "bar"));
-    }
+    // then
+    assertThat(job.getPayload()).isEqualTo("{\"foo\":\"bar\"}");
+    assertThat(job.getPayloadAsMap()).containsOnly(entry("foo", "bar"));
+  }
 
-    @Test
-    public void shouldProvideReasonInExceptionMessageOnRejection()
-    {
-        // given
-        final JobClient jobClient = clientRule.getClient().topicClient().jobClient();
+  @Test
+  public void shouldProvideReasonInExceptionMessageOnRejection() {
+    // given
+    final JobClient jobClient = clientRule.getClient().topicClient().jobClient();
 
-        final JobEvent job = jobClient.newCreateCommand()
-            .jobType("bar")
-            .send()
-            .join();
+    final JobEvent job = jobClient.newCreateCommand().jobType("bar").send().join();
 
-        // then
-        thrown.expect(ClientCommandRejectedException.class);
-        thrown.expectMessage("Command (COMPLETE) for event with key " +
-                job.getKey() +
-                " was rejected. It is not applicable in the current state. " +
-                "Job is not in state: ACTIVATED, TIMED_OUT");
+    // then
+    thrown.expect(ClientCommandRejectedException.class);
+    thrown.expectMessage(
+        "Command (COMPLETE) for event with key "
+            + job.getKey()
+            + " was rejected. It is not applicable in the current state. "
+            + "Job is not in state: ACTIVATED, TIMED_OUT");
 
-        // when
-        jobClient.newCompleteCommand(job)
-            .send()
-            .join();
-    }
+    // when
+    jobClient.newCompleteCommand(job).send().join();
+  }
 }
