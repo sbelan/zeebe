@@ -276,7 +276,6 @@ public final class BpmnConstants {
   public static final String ZEEBE_ELEMENT_TASK_HEADER = "header";
 
   public static final String ZEEBE_ELEMENT_CORRELATION_DEFINITION = "correlation";
-  public static final String ZEEBE_ELEMENT_CORRELATION_EVENT_KEY_DEFINITION = "eventKey";
 
   // attributes //////////////////////////////////////
 
@@ -409,7 +408,6 @@ public final class BpmnConstants {
   public static final String ZEEBE_ATTRIBUTE_TASK_HEADER_VALUE = "value";
 
   public static final String ZEEBE_ATTRIBUTE_CORRELATION_MESSAGE_NAME = "messageName";
-  public static final String ZEEBE_ATTRIBUTE_CORRELATION_EVENT_KEY_NAME = "name";
-  public static final String ZEEBE_ATTRIBUTE_CORRELATION_EVENT_KEY_VALUE = "value";
+  public static final String ZEEBE_ATTRIBUTE_CORRELATION_EVENT_KEY = "eventKey";
 
 }

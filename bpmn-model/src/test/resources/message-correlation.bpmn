@@ -6,9 +6,7 @@
     </bpmn:startEvent>
     <bpmn:intermediateCatchEvent id="IntermediateCatchEvent_08jg1fb" name="cancel order">
       <bpmn:extensionElements>
-        <zeebe:correlation messageName="cancel order">
-          <zeebe:eventKey name="orderId" value="$.orderId" />
-        </zeebe:correlation>
+        <zeebe:correlation messageName="cancel order" eventKey="$.orderId"/>
       </bpmn:extensionElements>
       <bpmn:incoming>SequenceFlow_1yvnxzq</bpmn:incoming>
       <bpmn:outgoing>SequenceFlow_1mx4fqs</bpmn:outgoing>
