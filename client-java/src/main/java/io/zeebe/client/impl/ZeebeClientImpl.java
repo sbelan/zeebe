@@ -15,6 +15,7 @@
  */
 package io.zeebe.client.impl;
 
+import java.util.concurrent.*;
 import io.zeebe.client.ZeebeClient;
 import io.zeebe.client.ZeebeClientConfiguration;
 import io.zeebe.client.api.clients.TopicClient;
@@ -36,7 +37,6 @@ import io.zeebe.transport.impl.memory.UnboundedMemoryPool;
 import io.zeebe.util.ByteValue;
 import io.zeebe.util.sched.ActorScheduler;
 import io.zeebe.util.sched.clock.ActorClock;
-import java.util.concurrent.*;
 import org.slf4j.Logger;
 
 public class ZeebeClientImpl implements ZeebeClient {
@@ -65,6 +65,8 @@ public class ZeebeClientImpl implements ZeebeClient {
   protected boolean isClosed;
 
   private ClientTransport internalTransport;
+
+  protected final ClientTopicsMetada topicsMetada;
 
   public ZeebeClientImpl(final ZeebeClientConfiguration configuration) {
     this(configuration, null);
@@ -139,6 +141,8 @@ public class ZeebeClientImpl implements ZeebeClient {
             requestBlockTimeMs);
     this.scheduler.submitActor(apiCommandManager);
 
+    this.topicsMetada = new ClientTopicsMetada(apiCommandManager);
+
     this.subscriptionManager = new SubscriptionManager(this);
     this.transport.registerChannelListener(subscriptionManager);
     this.scheduler.submitActor(subscriptionManager);
@@ -211,6 +215,10 @@ public class ZeebeClientImpl implements ZeebeClient {
 
   public SubscriptionManager getSubscriptionManager() {
     return subscriptionManager;
+  }
+
+  public ClientTopicsMetada getTopicsMetada() {
+    return topicsMetada;
   }
 
   @Override

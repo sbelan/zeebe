@@ -17,15 +17,16 @@ package io.zeebe.client.impl.topic;
 
 import io.zeebe.client.api.commands.Partition;
 import io.zeebe.client.api.commands.Topic;
+import java.util.ArrayList;
 import java.util.List;
 
 public class TopicImpl implements Topic {
   private String name;
-  private List<Partition> partitions;
+  private List<Partition> partitions = new ArrayList<>();
 
   public TopicImpl(String name, List<Partition> partitions) {
     this.name = name;
-    this.partitions = partitions;
+    this.partitions.addAll(partitions);
   }
 
   @Override

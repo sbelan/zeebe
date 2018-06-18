@@ -51,7 +51,7 @@ public class TopicClientImpl implements TopicClient {
 
   @Override
   public MessageClient messageClient() {
-    return new MessageClientImpl(this);
+    return new MessageClientImpl(this, client.getTopicsMetada());
   }
 
   public String getTopic() {

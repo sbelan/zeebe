@@ -22,14 +22,16 @@ import io.zeebe.client.impl.message.PublishMessageCommandImpl;
 public class MessageClientImpl implements MessageClient {
 
   private final TopicClientImpl client;
+  private final ClientTopicsMetada topicsMetadata;
 
-  public MessageClientImpl(TopicClientImpl client) {
+  public MessageClientImpl(TopicClientImpl client, ClientTopicsMetada clientTopicsMetada) {
     this.client = client;
+    this.topicsMetadata = clientTopicsMetada;
   }
 
   @Override
   public PublishMessageCommandStep1 newPublishCommand() {
     return new PublishMessageCommandImpl(
-        client.getCommandManager(), client.getObjectMapper(), client.getTopic());
+        client.getCommandManager(), client.getObjectMapper(), client.getTopic(), topicsMetadata);
   }
 }
