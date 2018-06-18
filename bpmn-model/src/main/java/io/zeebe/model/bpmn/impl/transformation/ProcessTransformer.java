@@ -15,6 +15,8 @@
  */
 package io.zeebe.model.bpmn.impl.transformation;
 
+import java.util.*;
+
 import io.zeebe.model.bpmn.BpmnAspect;
 import io.zeebe.model.bpmn.impl.error.ErrorCollector;
 import io.zeebe.model.bpmn.impl.instance.FlowElementImpl;
@@ -23,14 +25,7 @@ import io.zeebe.model.bpmn.impl.instance.StartEventImpl;
 import io.zeebe.model.bpmn.impl.transformation.nodes.ExclusiveGatewayTransformer;
 import io.zeebe.model.bpmn.impl.transformation.nodes.SequenceFlowTransformer;
 import io.zeebe.model.bpmn.impl.transformation.nodes.task.ServiceTaskTransformer;
-import io.zeebe.model.bpmn.instance.ExclusiveGateway;
-import io.zeebe.model.bpmn.instance.FlowElement;
-import io.zeebe.model.bpmn.instance.FlowNode;
-import io.zeebe.model.bpmn.instance.SequenceFlow;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import io.zeebe.model.bpmn.instance.*;
 import org.agrona.DirectBuffer;
 
 public class ProcessTransformer {
@@ -62,6 +57,7 @@ public class ProcessTransformer {
     flowElements.addAll(process.getSequenceFlows());
     flowElements.addAll(process.getServiceTasks());
     flowElements.addAll(process.getExclusiveGateways());
+    flowElements.addAll(process.getIntermediateCatchEvents());
     return flowElements;
   }
 

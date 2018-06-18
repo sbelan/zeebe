@@ -19,12 +19,13 @@ import static io.zeebe.util.buffer.BufferUtil.wrapString;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.zeebe.model.bpmn.impl.error.InvalidModelException;
-import io.zeebe.model.bpmn.instance.*;
 import java.io.File;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.List;
+
+import io.zeebe.model.bpmn.impl.error.InvalidModelException;
+import io.zeebe.model.bpmn.instance.*;
 import org.assertj.core.util.Files;
 import org.junit.Rule;
 import org.junit.Test;
@@ -38,6 +39,7 @@ public class BpmnTransformTest {
   private static final String BPMN_NONE_PROCESS_FILE = "/none_output_process.bpmn";
   private static final String BPMN_MERGE_PROCESS_FILE = "/merge_output_process.bpmn";
   private static final String BPMN_XOR_GATEWAY_FILE = "/process-xor-gateway.bpmn";
+  private static final String BPMN_MESSAGE_CORRELATION = "/message-correlation.bpmn";
 
   @Rule public ExpectedException expectedException = ExpectedException.none();
 
@@ -287,6 +289,21 @@ public class BpmnTransformTest {
     assertThat(outgoingSequenceFlowsWithConditions)
         .extracting(s -> s.getCondition().getExpression())
         .containsExactly("$.foo < 5", "$.foo >= 5 && $.foo < 10");
+  }
+
+  @Test
+  public void shouldTransformMessageCorrelation() {
+    final InputStream stream = getClass().getResourceAsStream(BPMN_MESSAGE_CORRELATION);
+    final WorkflowDefinition workflowDefinition = Bpmn.readFromXmlStream(stream);
+
+    final Workflow workflow = workflowDefinition.getWorkflow(wrapString("Process_1"));
+
+    final IntermediateCatchEvent catchEvent = workflow.findFlowElementById(wrapString("IntermediateCatchEvent_08jg1fb"));
+
+    final CorrelationDefinition correlationDefinition = catchEvent.getCorrelationDefinition();
+    assertThat(correlationDefinition).isNotNull();
+
+    assertThat(correlationDefinition.getMessageName()).isEqualTo("cancel order");
   }
 
   @Test

@@ -15,41 +15,61 @@
  */
 package io.zeebe.model.bpmn.impl.instance;
 
-import io.zeebe.model.bpmn.BpmnConstants;
-import io.zeebe.model.bpmn.impl.metadata.*;
 import javax.xml.bind.annotation.XmlElement;
 
-public class ExtensionElementsImpl {
-  private TaskDefinitionImpl taskDefinition;
-  private TaskHeadersImpl taskHeaders;
-  private InputOutputMappingImpl inputOutputMapping;
+import io.zeebe.model.bpmn.BpmnConstants;
+import io.zeebe.model.bpmn.impl.metadata.*;
 
-  @XmlElement(
-      name = BpmnConstants.ZEEBE_ELEMENT_TASK_DEFINITION,
-      namespace = BpmnConstants.ZEEBE_NS)
-  public void setTaskDefinition(TaskDefinitionImpl taskDefinition) {
-    this.taskDefinition = taskDefinition;
-  }
+public class ExtensionElementsImpl
+{
+    private TaskDefinitionImpl taskDefinition;
+    private TaskHeadersImpl taskHeaders;
+    private InputOutputMappingImpl inputOutputMapping;
 
-  public TaskDefinitionImpl getTaskDefinition() {
-    return taskDefinition;
-  }
+    private CorrelationDefinitionImpl correlationDefinition;
 
-  @XmlElement(name = BpmnConstants.ZEEBE_ELEMENT_TASK_HEADERS, namespace = BpmnConstants.ZEEBE_NS)
-  public void setTaskHeaders(TaskHeadersImpl taskHeaders) {
-    this.taskHeaders = taskHeaders;
-  }
+    @XmlElement(name = BpmnConstants.ZEEBE_ELEMENT_TASK_DEFINITION, namespace = BpmnConstants.ZEEBE_NS)
+    public void setTaskDefinition(TaskDefinitionImpl taskDefinition)
+    {
+        this.taskDefinition = taskDefinition;
+    }
 
-  public TaskHeadersImpl getTaskHeaders() {
-    return taskHeaders;
-  }
+    public TaskDefinitionImpl getTaskDefinition()
+    {
+        return taskDefinition;
+    }
 
-  @XmlElement(name = BpmnConstants.ZEEBE_ELEMENT_MAPPING, namespace = BpmnConstants.ZEEBE_NS)
-  public void setInputOutputMapping(InputOutputMappingImpl inputOutputMapping) {
-    this.inputOutputMapping = inputOutputMapping;
-  }
+    @XmlElement(name = BpmnConstants.ZEEBE_ELEMENT_TASK_HEADERS, namespace = BpmnConstants.ZEEBE_NS)
+    public void setTaskHeaders(TaskHeadersImpl taskHeaders)
+    {
+        this.taskHeaders = taskHeaders;
+    }
 
-  public InputOutputMappingImpl getInputOutputMapping() {
-    return inputOutputMapping;
-  }
+    public TaskHeadersImpl getTaskHeaders()
+    {
+        return taskHeaders;
+    }
+
+    @XmlElement(name = BpmnConstants.ZEEBE_ELEMENT_MAPPING, namespace = BpmnConstants.ZEEBE_NS)
+    public void setInputOutputMapping(InputOutputMappingImpl inputOutputMapping)
+    {
+        this.inputOutputMapping = inputOutputMapping;
+    }
+
+    public InputOutputMappingImpl getInputOutputMapping()
+    {
+        return inputOutputMapping;
+    }
+
+    public CorrelationDefinitionImpl getCorrelationDefinition()
+    {
+        return correlationDefinition;
+    }
+
+    @XmlElement(name = BpmnConstants.ZEEBE_ELEMENT_CORRELATION_DEFINITION, namespace = BpmnConstants.ZEEBE_NS)
+    public void setCorrelationDefinition(CorrelationDefinitionImpl correlationDefinition)
+    {
+        this.correlationDefinition = correlationDefinition;
+    }
+
 }
