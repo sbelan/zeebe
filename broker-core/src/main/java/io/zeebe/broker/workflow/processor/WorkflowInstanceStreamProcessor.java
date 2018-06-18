@@ -1065,7 +1065,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
 
     @Override
     void processFlowElementEvent(
-        TypedRecord<WorkflowInstanceRecord> event, IntermediateCatchEvent intermediateCatchEvent) {
+        TypedRecord<WorkflowInstanceRecord> event, IntermediateCatchEvent intermediateCatchEvent, EventLifecycleContext ctx) {
 
         final CorrelationDefinition correlationDefinition = intermediateCatchEvent.getCorrelationDefinition();
         if (correlationDefinition == null)
@@ -1101,24 +1101,33 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
       final DeployedWorkflow deployedWorkflow = workflowCache.getWorkflowByKey(workflowKey);
 
       if (deployedWorkflow == null) {
-        fetchWorkflow(workflowKey, this::resolveCurrentFlowNode, ctx);
+        fetchWorkflow(workflowKey, w -> resolveCurrentFlowNode(w, ctx), ctx);
       } else {
-        resolveCurrentFlowNode(deployedWorkflow);
+        resolveCurrentFlowNode(deployedWorkflow, ctx);
       }
     }
 
     @SuppressWarnings("unchecked")
-    private void resolveCurrentFlowNode(DeployedWorkflow deployedWorkflow) {
+    private void resolveCurrentFlowNode(DeployedWorkflow deployedWorkflow, EventLifecycleContext ctx) {
       final DirectBuffer currentActivityId = event.getValue().getActivityId();
 
       final Workflow workflow = deployedWorkflow.getWorkflow();
       final FlowElement flowElement = workflow.findFlowElementById(currentActivityId);
 
-      processFlowElementEvent(event, (T) flowElement);
+      processFlowElementEvent(event, (T) flowElement, ctx);
     }
 
-    abstract void processFlowElementEvent(
-        TypedRecord<WorkflowInstanceRecord> event, T currentFlowNode);
+    @SuppressWarnings("unused")
+    void processFlowElementEvent(
+            TypedRecord<WorkflowInstanceRecord> event, T currentFlowNode, EventLifecycleContext ctx)
+    {
+        processFlowElementEvent(event, currentFlowNode);
+    }
+
+    void processFlowElementEvent(
+        TypedRecord<WorkflowInstanceRecord> event, T currentFlowNode) {
+
+    }
   }
 
   @SuppressWarnings("rawtypes")
