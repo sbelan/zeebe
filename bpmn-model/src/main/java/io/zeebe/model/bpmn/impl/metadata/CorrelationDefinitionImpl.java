@@ -10,6 +10,7 @@ public class CorrelationDefinitionImpl extends BaseElement implements Correlatio
 {
     private String messageName;
     private String eventKey;
+    private String eventTopic;
 
     @Override
     public String getMessageName()
@@ -23,6 +24,7 @@ public class CorrelationDefinitionImpl extends BaseElement implements Correlatio
         this.messageName = messageName;
     }
 
+    @Override
     public String getEventKey()
     {
         return eventKey;
@@ -32,6 +34,18 @@ public class CorrelationDefinitionImpl extends BaseElement implements Correlatio
     public void setEventKey(String eventKey)
     {
         this.eventKey = eventKey;
+    }
+
+    @Override
+    public String getEventTopic()
+    {
+        return eventTopic;
+    }
+
+    @XmlAttribute(name = BpmnConstants.ZEEBE_ATTRIBUTE_CORRELATION_EVENT_TOPIC)
+    public void setEventTopic(String eventTopic)
+    {
+        this.eventTopic = eventTopic;
     };
 
 }

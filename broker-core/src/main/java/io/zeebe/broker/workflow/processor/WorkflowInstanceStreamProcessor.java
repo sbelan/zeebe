@@ -20,6 +20,12 @@ package io.zeebe.broker.workflow.processor;
 import static io.zeebe.broker.util.PayloadUtil.isNilPayload;
 import static io.zeebe.broker.util.PayloadUtil.isValidPayload;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.*;
+import java.util.function.Consumer;
+
 import io.zeebe.broker.clustering.base.topology.TopologyManager;
 import io.zeebe.broker.incident.data.ErrorType;
 import io.zeebe.broker.incident.data.IncidentRecord;
@@ -34,19 +40,12 @@ import io.zeebe.logstreams.processor.EventLifecycleContext;
 import io.zeebe.logstreams.processor.StreamProcessorContext;
 import io.zeebe.model.bpmn.BpmnAspect;
 import io.zeebe.model.bpmn.instance.*;
-import io.zeebe.msgpack.el.CompiledJsonCondition;
-import io.zeebe.msgpack.el.JsonConditionException;
-import io.zeebe.msgpack.el.JsonConditionInterpreter;
-import io.zeebe.msgpack.mapping.Mapping;
-import io.zeebe.msgpack.mapping.MappingException;
-import io.zeebe.msgpack.mapping.MappingProcessor;
+import io.zeebe.msgpack.el.*;
+import io.zeebe.msgpack.mapping.*;
 import io.zeebe.protocol.clientapi.RejectionType;
 import io.zeebe.protocol.clientapi.ValueType;
 import io.zeebe.protocol.impl.RecordMetadata;
-import io.zeebe.protocol.intent.IncidentIntent;
-import io.zeebe.protocol.intent.Intent;
-import io.zeebe.protocol.intent.JobIntent;
-import io.zeebe.protocol.intent.WorkflowInstanceIntent;
+import io.zeebe.protocol.intent.*;
 import io.zeebe.transport.ClientResponse;
 import io.zeebe.transport.ClientTransport;
 import io.zeebe.util.metrics.Metric;
@@ -54,10 +53,6 @@ import io.zeebe.util.metrics.MetricsManager;
 import io.zeebe.util.sched.ActorControl;
 import io.zeebe.util.sched.future.ActorFuture;
 import io.zeebe.util.sched.future.CompletableActorFuture;
-import java.util.EnumMap;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Consumer;
 import org.agrona.DirectBuffer;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.concurrent.UnsafeBuffer;
@@ -130,6 +125,11 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
             WorkflowInstanceIntent.ACTIVITY_COMPLETING,
             w -> isActive(w.getWorkflowInstanceKey()),
             new ActivityCompletingEventProcessor())
+        .onEvent(
+             ValueType.WORKFLOW_INSTANCE,
+             WorkflowInstanceIntent.MESSAGE_CATCH_EVENT_ENTERED,
+             w -> isActive(w.getWorkflowInstanceKey()),
+             new MessageCatchEventProcessor())
         .onCommand(
             ValueType.WORKFLOW_INSTANCE,
             WorkflowInstanceIntent.UPDATE_PAYLOAD,
@@ -568,6 +568,8 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
         nextState = WorkflowInstanceIntent.ACTIVITY_READY;
       } else if (targetNode instanceof ExclusiveGateway) {
         nextState = WorkflowInstanceIntent.GATEWAY_ACTIVATED;
+      } else if (targetNode instanceof IntermediateCatchEvent && ((IntermediateCatchEvent) targetNode).getCorrelationDefinition() != null) {
+        nextState = WorkflowInstanceIntent.MESSAGE_CATCH_EVENT_ENTERED;
       } else {
         throw new RuntimeException(
             String.format("Flow node of type '%s' is not supported.", targetNode));
@@ -1043,6 +1045,49 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
           }
         });
   }
+
+  private final class MessageCatchEventProcessor
+      extends FlowElementEventProcessor<IntermediateCatchEvent> {
+
+        private final MessageDigest md;
+
+        MessageCatchEventProcessor()
+        {
+            try
+            {
+                md = MessageDigest.getInstance("MD5");
+            }
+            catch (NoSuchAlgorithmException e)
+            {
+                throw new RuntimeException("Failed to initialize hash function", e);
+            }
+        }
+
+    @Override
+    void processFlowElementEvent(
+        TypedRecord<WorkflowInstanceRecord> event, IntermediateCatchEvent intermediateCatchEvent) {
+
+        final CorrelationDefinition correlationDefinition = intermediateCatchEvent.getCorrelationDefinition();
+        if (correlationDefinition == null)
+        {
+            throw new IllegalStateException("correlation definition expected buf not found");
+        }
+
+        final String messageName = correlationDefinition.getMessageName();
+        final String eventKey = correlationDefinition.getEventKey();
+        final String eventTopic = correlationDefinition.getEventTopic();
+
+        md.update(eventKey.getBytes(StandardCharsets.UTF_8));
+        final byte[] digest = md.digest();
+
+        final int hashCode = Math.abs(Arrays.hashCode(digest));
+
+
+        // TODO open message subscription
+    }
+
+
+    }
 
   private abstract class FlowElementEventProcessor<T extends FlowElement>
       implements TypedRecordProcessor<WorkflowInstanceRecord> {

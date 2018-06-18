@@ -5,4 +5,6 @@ public interface CorrelationDefinition
     String getMessageName();
 
     String getEventKey();
+
+    String getEventTopic();
 }

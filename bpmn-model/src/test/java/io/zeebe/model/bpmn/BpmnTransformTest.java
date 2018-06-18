@@ -305,6 +305,7 @@ public class BpmnTransformTest {
 
     assertThat(correlationDefinition.getMessageName()).isEqualTo("cancel order");
     assertThat(correlationDefinition.getEventKey()).isEqualTo("$.orderId");
+    assertThat(correlationDefinition.getEventTopic()).isEqualTo("order-events");
   }
 
   @Test
