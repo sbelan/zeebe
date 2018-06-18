@@ -13,13 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.zeebe.model.bpmn.instance;
+package io.zeebe.client.api.commands;
 
-public interface CorrelationDefinition
-{
-    String getMessageName();
-
-    String getEventKey();
-
-    String getEventTopic();
+public enum MessageCommandName {
+  PUBLISH;
 }

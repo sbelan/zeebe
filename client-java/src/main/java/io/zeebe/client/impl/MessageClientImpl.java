@@ -13,13 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.zeebe.model.bpmn.instance;
+package io.zeebe.client.impl;
 
-public interface CorrelationDefinition
-{
-    String getMessageName();
+import io.zeebe.client.api.clients.MessageClient;
+import io.zeebe.client.api.commands.PublishMessageCommandStep1;
+import io.zeebe.client.impl.message.PublishMessageCommandImpl;
 
-    String getEventKey();
+public class MessageClientImpl implements MessageClient {
 
-    String getEventTopic();
+  private final TopicClientImpl client;
+
+  public MessageClientImpl(TopicClientImpl client) {
+    this.client = client;
+  }
+
+  @Override
+  public PublishMessageCommandStep1 newPublishCommand() {
+    return new PublishMessageCommandImpl(
+        client.getCommandManager(), client.getObjectMapper(), client.getTopic());
+  }
 }

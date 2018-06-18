@@ -15,10 +15,6 @@
  */
 package io.zeebe.model.bpmn.impl.validation;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
-
 import io.zeebe.model.bpmn.impl.ZeebeConstraints;
 import io.zeebe.model.bpmn.impl.error.ErrorCollector;
 import io.zeebe.model.bpmn.impl.instance.*;
@@ -28,6 +24,9 @@ import io.zeebe.model.bpmn.impl.validation.nodes.ExclusiveGatewayValidator;
 import io.zeebe.model.bpmn.impl.validation.nodes.task.ServiceTaskValidator;
 import io.zeebe.model.bpmn.instance.ExclusiveGateway;
 import io.zeebe.util.collection.Tuple;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.agrona.DirectBuffer;
 
 public class ProcessValidator {

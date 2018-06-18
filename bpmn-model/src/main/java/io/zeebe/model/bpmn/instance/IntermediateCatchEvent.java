@@ -17,6 +17,5 @@ package io.zeebe.model.bpmn.instance;
 
 public interface IntermediateCatchEvent extends FlowNode {
 
-
-    CorrelationDefinition getCorrelationDefinition();
+  CorrelationDefinition getCorrelationDefinition();
 }

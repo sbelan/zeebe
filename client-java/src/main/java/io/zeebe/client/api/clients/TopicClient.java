@@ -72,4 +72,6 @@ public interface TopicClient {
    * @return a builder for the subscription
    */
   TopicSubscriptionBuilderStep1 newSubscription();
+
+  MessageClient messageClient();
 }

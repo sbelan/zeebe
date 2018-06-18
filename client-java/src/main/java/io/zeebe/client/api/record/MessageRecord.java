@@ -13,13 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.zeebe.model.bpmn.instance;
+package io.zeebe.client.api.record;
 
-public interface CorrelationDefinition
-{
-    String getMessageName();
+import java.util.Map;
 
-    String getEventKey();
+public interface MessageRecord extends Record {
 
-    String getEventTopic();
+  String getMessageName();
+
+  String getMessageKey();
+
+  /** @return JSON-formatted payload */
+  String getPayload();
+
+  /** @return de-serialized payload as map */
+  Map<String, Object> getPayloadAsMap();
 }

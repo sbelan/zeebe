@@ -13,13 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.zeebe.model.bpmn.instance;
+package io.zeebe.client.api.events;
 
-public interface CorrelationDefinition
-{
-    String getMessageName();
+import io.zeebe.client.api.record.MessageRecord;
 
-    String getEventKey();
+public interface MessageEvent extends MessageRecord {
 
-    String getEventTopic();
+  MessageState getState();
 }

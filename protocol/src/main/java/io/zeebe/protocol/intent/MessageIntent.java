@@ -13,13 +13,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.zeebe.model.bpmn.instance;
+package io.zeebe.protocol.intent;
 
-public interface CorrelationDefinition
-{
-    String getMessageName();
+public enum MessageIntent implements Intent {
+  PUBLISH((short) 0),
+  PUBLISHED((short) 1);
 
-    String getEventKey();
+  private short value;
 
-    String getEventTopic();
+  MessageIntent(short value) {
+    this.value = value;
+  }
+
+  public short getIntent() {
+    return value;
+  }
+
+  public static Intent from(short value) {
+    switch (value) {
+      case 0:
+        return PUBLISH;
+      case 1:
+        return PUBLISHED;
+      default:
+        return Intent.UNKNOWN;
+    }
+  }
+
+  @Override
+  public short value() {
+    return value;
+  }
 }

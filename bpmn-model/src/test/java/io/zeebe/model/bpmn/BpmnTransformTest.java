@@ -19,13 +19,12 @@ import static io.zeebe.util.buffer.BufferUtil.wrapString;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.zeebe.model.bpmn.impl.error.InvalidModelException;
+import io.zeebe.model.bpmn.instance.*;
 import java.io.File;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.List;
-
-import io.zeebe.model.bpmn.impl.error.InvalidModelException;
-import io.zeebe.model.bpmn.instance.*;
 import org.assertj.core.util.Files;
 import org.junit.Rule;
 import org.junit.Test;
@@ -298,7 +297,8 @@ public class BpmnTransformTest {
 
     final Workflow workflow = workflowDefinition.getWorkflow(wrapString("Process_1"));
 
-    final IntermediateCatchEvent catchEvent = workflow.findFlowElementById(wrapString("IntermediateCatchEvent_08jg1fb"));
+    final IntermediateCatchEvent catchEvent =
+        workflow.findFlowElementById(wrapString("IntermediateCatchEvent_08jg1fb"));
 
     final CorrelationDefinition correlationDefinition = catchEvent.getCorrelationDefinition();
     assertThat(correlationDefinition).isNotNull();

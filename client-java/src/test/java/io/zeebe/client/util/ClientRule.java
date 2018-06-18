@@ -17,9 +17,7 @@ package io.zeebe.client.util;
 
 import io.zeebe.client.ZeebeClient;
 import io.zeebe.client.ZeebeClientBuilder;
-import io.zeebe.client.api.clients.JobClient;
-import io.zeebe.client.api.clients.TopicClient;
-import io.zeebe.client.api.clients.WorkflowClient;
+import io.zeebe.client.api.clients.*;
 import io.zeebe.client.impl.ZeebeClientBuilderImpl;
 import io.zeebe.client.impl.ZeebeClientImpl;
 import io.zeebe.test.broker.protocol.brokerapi.StubBrokerRule;
@@ -71,6 +69,10 @@ public class ClientRule extends ExternalResource {
 
   public JobClient jobClient() {
     return client.topicClient(getDefaultTopicName()).jobClient();
+  }
+
+  public MessageClient messageClient() {
+    return client.topicClient(getDefaultTopicName()).messageClient();
   }
 
   public TopicClient topicClient() {

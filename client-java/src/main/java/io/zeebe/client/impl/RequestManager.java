@@ -180,8 +180,11 @@ public class RequestManager extends Actor {
   }
 
   public <R extends Record> ResponseFuture<R> send(final CommandImpl<R> command) {
-    final CommandRequestHandler requestHandler = new CommandRequestHandler(objectMapper, command);
-    return executeAsync(requestHandler);
+    return send(new CommandRequestHandler(objectMapper, command));
+  }
+
+  public <R extends Record> ResponseFuture<R> send(CommandRequestHandler commandRequestHandler) {
+    return executeAsync(commandRequestHandler);
   }
 
   private <E> E waitAndResolve(Future<E> future) {

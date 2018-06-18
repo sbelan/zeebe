@@ -49,6 +49,11 @@ public class TopicClientImpl implements TopicClient {
     return new TopicSubscriptionBuilderImpl(this);
   }
 
+  @Override
+  public MessageClient messageClient() {
+    return new MessageClientImpl(this);
+  }
+
   public String getTopic() {
     return topic;
   }

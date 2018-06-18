@@ -15,12 +15,10 @@
  */
 package io.zeebe.model.bpmn.impl.instance;
 
-import java.util.*;
-
-import javax.xml.bind.annotation.*;
-
 import io.zeebe.model.bpmn.BpmnConstants;
 import io.zeebe.model.bpmn.instance.*;
+import java.util.*;
+import javax.xml.bind.annotation.*;
 import org.agrona.DirectBuffer;
 
 public class ProcessImpl extends FlowElementImpl implements Workflow {
@@ -74,15 +72,15 @@ public class ProcessImpl extends FlowElementImpl implements Workflow {
     return endEvents;
   }
 
-  @XmlElement(name = BpmnConstants.BPMN_ELEMENT_INTERMEDIATE_CATCH_EVENT, namespace = BpmnConstants.BPMN20_NS)
-  public void setIntermediateCatchEvents(List<IntermediateCatchEventImpl> intermediateCatchEvents)
-  {
-      this.intermediateCatchEvents = intermediateCatchEvents;
+  @XmlElement(
+      name = BpmnConstants.BPMN_ELEMENT_INTERMEDIATE_CATCH_EVENT,
+      namespace = BpmnConstants.BPMN20_NS)
+  public void setIntermediateCatchEvents(List<IntermediateCatchEventImpl> intermediateCatchEvents) {
+    this.intermediateCatchEvents = intermediateCatchEvents;
   }
 
-  public List<IntermediateCatchEventImpl> getIntermediateCatchEvents()
-  {
-      return intermediateCatchEvents;
+  public List<IntermediateCatchEventImpl> getIntermediateCatchEvents() {
+    return intermediateCatchEvents;
   }
 
   @XmlElement(name = BpmnConstants.BPMN_ELEMENT_SERVICE_TASK, namespace = BpmnConstants.BPMN20_NS)
@@ -148,6 +146,4 @@ public class ProcessImpl extends FlowElementImpl implements Workflow {
     builder.append("]");
     return builder.toString();
   }
-
-
 }

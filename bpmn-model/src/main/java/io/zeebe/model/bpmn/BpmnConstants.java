@@ -408,8 +408,8 @@ public final class BpmnConstants {
   public static final String ZEEBE_ATTRIBUTE_TASK_HEADER_VALUE = "value";
 
   public static final String ZEEBE_ATTRIBUTE_CORRELATION_MESSAGE_NAME = "messageName";
+
   public static final String ZEEBE_ATTRIBUTE_CORRELATION_EVENT_KEY = "eventKey";
   public static final String ZEEBE_ATTRIBUTE_CORRELATION_EVENT_TOPIC = "eventTopic";
-
 
 }

@@ -72,6 +72,8 @@ public interface Intent {
         return TopicIntent.from(intent);
       case WORKFLOW_INSTANCE:
         return WorkflowInstanceIntent.from(intent);
+      case MESSAGE:
+        return MessageIntent.from(intent);
       case NULL_VAL:
       case SBE_UNKNOWN:
         return Intent.UNKNOWN;

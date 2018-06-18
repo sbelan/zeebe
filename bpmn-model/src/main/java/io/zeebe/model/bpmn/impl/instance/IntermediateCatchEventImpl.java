@@ -18,24 +18,23 @@ package io.zeebe.model.bpmn.impl.instance;
 import io.zeebe.model.bpmn.instance.CorrelationDefinition;
 import io.zeebe.model.bpmn.instance.IntermediateCatchEvent;
 
-public class IntermediateCatchEventImpl extends FlowNodeImpl implements IntermediateCatchEvent
-{
+public class IntermediateCatchEventImpl extends FlowNodeImpl implements IntermediateCatchEvent {
 
-    @Override
-    public CorrelationDefinition getCorrelationDefinition()
-    {
-        return getExtensionElements() != null ? getExtensionElements().getCorrelationDefinition() : null;
-    }
+  @Override
+  public CorrelationDefinition getCorrelationDefinition() {
+    return getExtensionElements() != null
+        ? getExtensionElements().getCorrelationDefinition()
+        : null;
+  }
 
-    @Override
-    public String toString()
-    {
-        final StringBuilder builder = new StringBuilder();
-        builder.append("IntermediateCatchEvent [id=");
-        builder.append(getId());
-        builder.append(", name=");
-        builder.append(getName());
-        builder.append("]");
-        return builder.toString();
-    }
+  @Override
+  public String toString() {
+    final StringBuilder builder = new StringBuilder();
+    builder.append("IntermediateCatchEvent [id=");
+    builder.append(getId());
+    builder.append(", name=");
+    builder.append(getName());
+    builder.append("]");
+    return builder.toString();
+  }
 }

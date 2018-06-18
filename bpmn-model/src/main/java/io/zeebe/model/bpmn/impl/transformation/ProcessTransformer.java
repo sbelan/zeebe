@@ -15,8 +15,6 @@
  */
 package io.zeebe.model.bpmn.impl.transformation;
 
-import java.util.*;
-
 import io.zeebe.model.bpmn.BpmnAspect;
 import io.zeebe.model.bpmn.impl.error.ErrorCollector;
 import io.zeebe.model.bpmn.impl.instance.FlowElementImpl;
@@ -26,6 +24,7 @@ import io.zeebe.model.bpmn.impl.transformation.nodes.ExclusiveGatewayTransformer
 import io.zeebe.model.bpmn.impl.transformation.nodes.SequenceFlowTransformer;
 import io.zeebe.model.bpmn.impl.transformation.nodes.task.ServiceTaskTransformer;
 import io.zeebe.model.bpmn.instance.*;
+import java.util.*;
 import org.agrona.DirectBuffer;
 
 public class ProcessTransformer {
