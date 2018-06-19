@@ -21,6 +21,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 
 import io.zeebe.broker.test.EmbeddedBrokerRule;
+import io.zeebe.protocol.clientapi.ValueType;
 import io.zeebe.protocol.intent.WorkflowInstanceIntent;
 import io.zeebe.test.broker.protocol.clientapi.ClientApiRule;
 import io.zeebe.test.broker.protocol.clientapi.TestTopicClient;
@@ -57,5 +58,13 @@ public class MessageCorrelationTest {
     // then
     testClient.receiveFirstWorkflowInstanceEvent(
         WorkflowInstanceIntent.MESSAGE_CATCH_EVENT_ENTERED);
+
+    final TestTopicClient eventTopicClient = apiRule.topic(apiRule.getSinglePartitionId("order-events"));
+    eventTopicClient
+        .receiveRecords()
+        .filter(r -> r.valueType() == ValueType.MESSAGE_SUBSCRIPTION)
+        .findFirst()
+        .get();
+
   }
 }

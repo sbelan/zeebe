@@ -36,6 +36,7 @@ public class TransportServiceNames {
           "transport.replicationApi.messageHandler", RaftApiMessageHandler.class);
 
   public static final String CLIENT_API_SERVER_NAME = "clientApi.server";
+  public static final String CLIENT_API_CLIENT_NAME = "clientApi.client";
   public static final String MANAGEMENT_API_SERVER_NAME = "managementApi.server";
   public static final String REPLICATION_API_SERVER_NAME = "replicationApi.server";
   public static final String MANAGEMENT_API_CLIENT_NAME = "managementApi.client";

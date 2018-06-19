@@ -17,6 +17,9 @@
  */
 package io.zeebe.broker.workflow.correlation;
 
+import static io.zeebe.util.buffer.BufferUtil.wrapString;
+
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -25,12 +28,17 @@ import java.util.*;
 
 import io.zeebe.broker.Loggers;
 import io.zeebe.broker.clustering.base.topology.*;
+import io.zeebe.broker.message.record.MessageSubscriptionRecord;
 import io.zeebe.protocol.Protocol;
+import io.zeebe.protocol.clientapi.*;
+import io.zeebe.protocol.intent.MessageSubscriptionIntent;
 import io.zeebe.transport.*;
+import io.zeebe.util.buffer.BufferWriter;
 import io.zeebe.util.sched.ActorControl;
 import io.zeebe.util.sched.future.ActorFuture;
 import io.zeebe.util.sched.future.CompletableActorFuture;
 import org.agrona.DirectBuffer;
+import org.agrona.MutableDirectBuffer;
 import org.agrona.collections.IntArrayList;
 import org.slf4j.Logger;
 
@@ -45,7 +53,11 @@ public class MessageCorrelationManager implements TopologyPartitionListener {
   private final FetchCreatedTopicsRequest fetchCreatedTopicsRequest = new FetchCreatedTopicsRequest();
   private final FetchCreatedTopicsResponse fetchCreatedTopicsResponse = new FetchCreatedTopicsResponse();
 
-  private final ClientTransport clientTransport;
+  private MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
+  private ExecuteCommandRequestEncoder encoder = new ExecuteCommandRequestEncoder();
+
+  private final ClientTransport managementClient;
+  private final ClientTransport clientApiClient;
   private final TopologyManager topologyManager;
 
   private final ActorControl actor;
@@ -54,13 +66,19 @@ public class MessageCorrelationManager implements TopologyPartitionListener {
 
   private final MessageDigest md;
 
+  private final int currentPartitionId;
+
   public MessageCorrelationManager(
-      ClientTransport clientTransport,
+      ClientTransport managementClient,
+      ClientTransport clientApiClient,
       TopologyManager topologyManager,
-      ActorControl actor) {
-    this.clientTransport = clientTransport;
+      ActorControl actor,
+      int partitionId) {
+    this.managementClient = managementClient;
+    this.clientApiClient = clientApiClient;
     this.topologyManager = topologyManager;
     this.actor = actor;
+    this.currentPartitionId = partitionId;
 
     topologyManager.addTopologyPartitionListener(this);
 
@@ -77,7 +95,7 @@ public class MessageCorrelationManager implements TopologyPartitionListener {
 
   private ActorFuture<ClientResponse> sendFetchTopicsRequest() {
 
-    return clientTransport
+    return managementClient
         .getOutput()
         .sendRequestWithRetry(
             this::systemTopicLeader, this::checkResponse, fetchCreatedTopicsRequest, FETCH_TOPICS_TIMEOUT);
@@ -147,11 +165,82 @@ public class MessageCorrelationManager implements TopologyPartitionListener {
       }
   }
 
-  public void openSubscription(int partitionId, String eventKey)
+  public void openSubscription(int partitionId, String eventKey, String messageName, long workflowInstanceKey, long activityInstanceKey)
   {
-      LOG.info("open message subscription on partition '{}'", partitionId);
 
-      // TODO open message subscription
+      final MessageSubscriptionRecord sub = new MessageSubscriptionRecord();
+      sub.setMessageName(wrapString(messageName))
+          .setMessageKey(wrapString(eventKey))
+          .setWorkflowInstanceKey(workflowInstanceKey)
+          .setActivityInstaneId(activityInstanceKey)
+          .setPartitionId(currentPartitionId);
+
+      LOG.info("open message subscription on partition '{}': {}", partitionId, sub);
+
+      final MessageSubscriptionRequest request = new MessageSubscriptionRequest(sub, partitionId);
+
+      // TODO get address to partition id
+     RemoteAddress addr = systemTopicLeaderAddress;
+    clientApiClient.getOutput().sendRequest(addr, request, Duration.ofSeconds(5));
+  }
+
+  class MessageSubscriptionRequest implements BufferWriter
+  {
+    private final MessageSubscriptionRecord record;
+    private final int partitionId;
+
+    MessageSubscriptionRequest(MessageSubscriptionRecord record, int partitionId)
+    {
+        this.record = record;
+        this.partitionId = partitionId;
+    }
+
+      @Override
+    public void write(MutableDirectBuffer buffer, int offset)
+    {
+          headerEncoder
+              .wrap(buffer, offset)
+              .blockLength(encoder.sbeBlockLength())
+              .schemaId(encoder.sbeSchemaId())
+              .templateId(encoder.sbeTemplateId())
+              .version(encoder.sbeSchemaVersion());
+
+          offset += headerEncoder.encodedLength();
+
+          encoder.wrap(buffer, offset);
+
+          encoder
+              .partitionId(partitionId)
+              .sourceRecordPosition(ExecuteCommandRequestEncoder.sourceRecordPositionNullValue())
+              .position(ExecuteCommandRequestEncoder.positionNullValue())
+              .key(ExecuteCommandRequestEncoder.keyNullValue());
+
+          encoder.valueType(ValueType.MESSAGE_SUBSCRIPTION);
+          encoder.intent(MessageSubscriptionIntent.SUBSCRIBE.getIntent());
+
+          offset = encoder.limit();
+
+          buffer.putShort(offset, (short) record.getLength(), ByteOrder.LITTLE_ENDIAN);
+
+          offset += ExecuteCommandRequestEncoder.valueHeaderLength();
+
+          record.write(encoder.buffer(), offset);
+    }
+
+      @Override
+    public int getLength()
+    {
+        return MessageHeaderEncoder.ENCODED_LENGTH
+                + ExecuteCommandRequestEncoder.intentEncodingLength()
+                + ExecuteCommandRequestEncoder.keyEncodingLength()
+                + ExecuteCommandRequestEncoder.partitionIdEncodingLength()
+                + ExecuteCommandRequestEncoder.positionEncodingLength()
+                + ExecuteCommandRequestEncoder.sourceRecordPositionEncodingLength()
+                + ExecuteCommandRequestEncoder.valueTypeEncodingLength()
+                + ExecuteCommandRequestEncoder.valueHeaderLength()
+                + record.getLength();
+
+    }
   }
 
   @Override
@@ -162,7 +251,7 @@ public class MessageCorrelationManager implements TopologyPartitionListener {
       if (member.getLeaders().contains(partitionInfo)) {
         final SocketAddress managementApiAddress = member.getManagementApiAddress();
         if (currentLeader == null || currentLeader.getAddress().equals(managementApiAddress)) {
-          systemTopicLeaderAddress = clientTransport.registerRemoteAddress(managementApiAddress);
+          systemTopicLeaderAddress = managementClient.registerRemoteAddress(managementApiAddress);
         }
       }
     }

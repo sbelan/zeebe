@@ -23,6 +23,7 @@ import static io.zeebe.broker.util.PayloadUtil.isValidPayload;
 import java.util.*;
 import java.util.function.Consumer;
 
+import io.zeebe.broker.Loggers;
 import io.zeebe.broker.clustering.base.topology.TopologyManager;
 import io.zeebe.broker.incident.data.ErrorType;
 import io.zeebe.broker.incident.data.IncidentRecord;
@@ -70,6 +71,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
   private final JsonConditionInterpreter conditionInterpreter = new JsonConditionInterpreter();
 
   private ClientTransport managementApiClient;
+  private ClientTransport clientApiClient;
   private TopologyManager topologyManager;
   private WorkflowCache workflowCache;
   private MessageCorrelationManager messageCorrelationManager;
@@ -77,10 +79,11 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
   private ActorControl actor;
 
   public WorkflowInstanceStreamProcessor(
-      ClientTransport managementApiClient, TopologyManager topologyManager, int payloadCacheSize) {
+      ClientTransport managementApiClient, ClientTransport clientTransport, TopologyManager topologyManager, int payloadCacheSize) {
     this.managementApiClient = managementApiClient;
     this.payloadCache = new PayloadCache(payloadCacheSize);
     this.topologyManager = topologyManager;
+    this.clientApiClient = clientTransport;
   }
 
   public TypedStreamProcessor createStreamProcessor(TypedStreamEnvironment environment) {
@@ -181,7 +184,11 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     this.workflowCache =
         new WorkflowCache(managementApiClient, topologyManager, logStream.getTopicName());
 
-    this.messageCorrelationManager = new MessageCorrelationManager(managementApiClient, topologyManager, actor);
+    this.messageCorrelationManager = new MessageCorrelationManager(managementApiClient,
+                                                                   clientApiClient,
+                                                                   topologyManager,
+                                                                   actor,
+                                                                   logStream.getPartitionId());
 
     final StreamProcessorContext context = streamProcessor.getStreamProcessorContext();
     final MetricsManager metricsManager = context.getActorScheduler().getMetricsManager();
@@ -1068,10 +1075,13 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
       final String eventTopic = correlationDefinition.getEventTopic();
 
       final int partitionId = messageCorrelationManager.getPartitionForTopic(eventTopic, eventKey);
-
       if (partitionId > 0)
       {
-          messageCorrelationManager.openSubscription(partitionId, messageName);
+          messageCorrelationManager.openSubscription(partitionId,
+                                                     eventKey,
+                                                     messageName,
+                                                     event.getValue().getWorkflowInstanceKey(),
+                                                     event.getKey());
       }
       else
       {
@@ -1085,18 +1095,24 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
                   final int id = messageCorrelationManager.getPartitionForTopic(eventTopic, eventKey);
                   if (id > 0)
                   {
-                      messageCorrelationManager.openSubscription(id, eventKey);
-                      onCompleted.complete(null);
+                      messageCorrelationManager.openSubscription(id,
+                                                                 eventKey,
+                                                                 messageName,
+                                                                 event.getValue().getWorkflowInstanceKey(),
+                                                                 event.getKey());
                   }
                   else
                   {
-                      // TODO handle failure
-                      onCompleted.completeExceptionally(new RuntimeException("no event topic found: " + eventTopic));
+                      Loggers.STREAM_PROCESSING.error("Failed to subscribe for event. Topic '{}' not found.", eventTopic);
+
+                      // TODO create incident if event topic not exists
                   }
+
+                  onCompleted.complete(null);
               }
               else
               {
-                  // TODO handle failure
+                  // TODO handle failed topic request
                   onCompleted.completeExceptionally(failure);
               }
 

@@ -17,6 +17,9 @@
  */
 package io.zeebe.broker.transport.clientapi;
 
+import java.util.EnumMap;
+import java.util.function.Consumer;
+
 import io.zeebe.broker.clustering.base.partitions.Partition;
 import io.zeebe.broker.clustering.orchestration.topic.TopicRecord;
 import io.zeebe.broker.event.processor.TopicSubscriberEvent;
@@ -35,12 +38,7 @@ import io.zeebe.msgpack.UnpackedObject;
 import io.zeebe.protocol.Protocol;
 import io.zeebe.protocol.clientapi.*;
 import io.zeebe.protocol.impl.RecordMetadata;
-import io.zeebe.transport.RemoteAddress;
-import io.zeebe.transport.ServerMessageHandler;
-import io.zeebe.transport.ServerOutput;
-import io.zeebe.transport.ServerRequestHandler;
-import java.util.EnumMap;
-import java.util.function.Consumer;
+import io.zeebe.transport.*;
 import org.agrona.DirectBuffer;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.collections.Int2ObjectHashMap;
@@ -81,6 +79,8 @@ public class ClientApiMessageHandler implements ServerMessageHandler, ServerRequ
     recordsByType.put(ValueType.SUBSCRIPTION, new TopicSubscriptionEvent());
     recordsByType.put(ValueType.TOPIC, new TopicRecord());
     recordsByType.put(ValueType.MESSAGE, new MessageRecord());
+    // TODO send message subscription to own end point
+    recordsByType.put(ValueType.MESSAGE_SUBSCRIPTION, new MessageSubscriptionRecord());
   }
 
   private boolean handleExecuteCommandRequest(
@@ -130,6 +130,9 @@ public class ClientApiMessageHandler implements ServerMessageHandler, ServerRequ
       // verify that the event / command is valid
       event.wrap(buffer, eventOffset, eventLength);
     } catch (Throwable t) {
+
+        t.printStackTrace();
+
       return errorResponseWriter
           .errorCode(ErrorCode.INVALID_MESSAGE)
           .errorMessage("Cannot deserialize command: '%s'.", concatErrorMessages(t))
