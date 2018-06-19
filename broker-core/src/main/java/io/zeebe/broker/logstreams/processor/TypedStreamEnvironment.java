@@ -17,18 +17,19 @@
  */
 package io.zeebe.broker.logstreams.processor;
 
+import java.util.EnumMap;
 import io.zeebe.broker.clustering.orchestration.id.IdRecord;
 import io.zeebe.broker.clustering.orchestration.topic.TopicRecord;
 import io.zeebe.broker.incident.data.IncidentRecord;
 import io.zeebe.broker.job.data.JobRecord;
 import io.zeebe.broker.message.record.MessageRecord;
+import io.zeebe.broker.message.record.MessageSubscriptionRecord;
 import io.zeebe.broker.system.workflow.repository.data.DeploymentRecord;
 import io.zeebe.broker.workflow.data.WorkflowInstanceRecord;
 import io.zeebe.logstreams.log.LogStream;
 import io.zeebe.msgpack.UnpackedObject;
 import io.zeebe.protocol.clientapi.ValueType;
 import io.zeebe.transport.ServerOutput;
-import java.util.EnumMap;
 
 public class TypedStreamEnvironment {
   protected final ServerOutput output;
@@ -44,6 +45,7 @@ public class TypedStreamEnvironment {
     EVENT_REGISTRY.put(ValueType.INCIDENT, IncidentRecord.class);
     EVENT_REGISTRY.put(ValueType.ID, IdRecord.class);
     EVENT_REGISTRY.put(ValueType.MESSAGE, MessageRecord.class);
+    EVENT_REGISTRY.put(ValueType.MESSAGE_SUBSCRIPTION, MessageSubscriptionRecord.class);
   }
 
   private TypedStreamReader reader;

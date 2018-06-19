@@ -17,8 +17,7 @@
  */
 package io.zeebe.broker.message;
 
-import static org.assertj.core.api.Assertions.*;
-
+import static org.assertj.core.api.Assertions.assertThat;
 import io.zeebe.broker.test.EmbeddedBrokerRule;
 import io.zeebe.protocol.clientapi.RecordType;
 import io.zeebe.protocol.intent.MessageIntent;

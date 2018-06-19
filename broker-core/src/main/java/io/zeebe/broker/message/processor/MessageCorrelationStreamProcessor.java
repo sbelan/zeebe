@@ -2,9 +2,12 @@ package io.zeebe.broker.message.processor;
 
 import io.zeebe.broker.clustering.base.topology.TopologyManager;
 import io.zeebe.broker.logstreams.processor.*;
+import io.zeebe.broker.message.processor.MessageCorrelationStreamProcessor.SubscribeCommandHandler;
 import io.zeebe.broker.message.record.MessageRecord;
+import io.zeebe.broker.message.record.MessageSubscriptionRecord;
 import io.zeebe.protocol.clientapi.ValueType;
 import io.zeebe.protocol.intent.MessageIntent;
+import io.zeebe.protocol.intent.MessageSubscriptionIntent;
 import io.zeebe.transport.ClientTransport;
 
 public class MessageCorrelationStreamProcessor implements StreamProcessorLifecycleAware {
@@ -22,7 +25,9 @@ public class MessageCorrelationStreamProcessor implements StreamProcessorLifecyc
 
         return environment.newStreamProcessor()
            .onCommand(ValueType.MESSAGE, MessageIntent.PUBLISH,
-                new PublishMessageEventHandler()).build();
+                new PublishMessageEventHandler())
+           .onCommand(ValueType.MESSAGE_SUBSCRIPTION, MessageSubscriptionIntent.SUBSCRIBE,
+                new SubscribeCommandHandler()).build();
     }
 
     public class PublishMessageEventHandler implements TypedRecordProcessor<MessageRecord> {
@@ -39,4 +44,18 @@ public class MessageCorrelationStreamProcessor implements StreamProcessorLifecyc
         }
     }
 
+    public class SubscribeCommandHandler implements TypedRecordProcessor<MessageSubscriptionRecord> {
+
+        @Override
+        public boolean executeSideEffects(TypedRecord<MessageSubscriptionRecord> record,
+                TypedResponseWriter responseWriter) {
+            return responseWriter.writeEvent(MessageSubscriptionIntent.SUBSCRIBED, record);
+        }
+
+        @Override
+        public long writeRecord(TypedRecord<MessageSubscriptionRecord> record, TypedStreamWriter writer) {
+            return writer.writeFollowUpEvent(record.getKey(), MessageSubscriptionIntent.SUBSCRIBED, record.getValue());
+        }
+
+    }
 }

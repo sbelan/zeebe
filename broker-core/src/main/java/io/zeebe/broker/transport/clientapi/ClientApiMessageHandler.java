@@ -23,6 +23,7 @@ import io.zeebe.broker.event.processor.TopicSubscriberEvent;
 import io.zeebe.broker.event.processor.TopicSubscriptionEvent;
 import io.zeebe.broker.job.data.JobRecord;
 import io.zeebe.broker.message.record.MessageRecord;
+import io.zeebe.broker.message.record.MessageSubscriptionRecord;
 import io.zeebe.broker.system.workflow.repository.data.DeploymentRecord;
 import io.zeebe.broker.transport.controlmessage.ControlMessageRequestHeaderDescriptor;
 import io.zeebe.broker.workflow.data.WorkflowInstanceRecord;
