@@ -78,6 +78,14 @@ public class BpmnBuilder {
     sourceNode = targetNode;
   }
 
+  public BpmnBuilder connectTo(String targetId)
+  {
+    final FlowNodeImpl target = getFlowNode(targetId);
+    connectToSequenceFlow(target);
+
+    return this;
+  }
+
   public BpmnBuilder startEvent() {
     return startEvent(generateId("start-event"));
   }
@@ -179,6 +187,19 @@ public class BpmnBuilder {
     this.exclusiveGateway = exclusiveGateway;
 
     return this;
+  }
+
+  public BpmnBuilder parallelGateway(String id)
+  {
+    final ParallelGatewayImpl gateway = new ParallelGatewayImpl();
+    gateway.setId(id);
+
+    connectToSequenceFlow(gateway);
+    process.getParallelGateways().add(gateway);
+    addFlowNode(gateway);
+
+    return this;
+
   }
 
   private FlowNodeImpl getFlowNode(String activityId) {

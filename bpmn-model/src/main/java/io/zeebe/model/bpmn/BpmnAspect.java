@@ -33,6 +33,11 @@ public enum BpmnAspect {
   // and-gateway
   PARALLEL_SPLIT,
 
+  ACTIVATE_GATEWAY,
+  TRIGGER_NONE_EVENT,
+  START_ACTIVITY,
+
+
   // joining and-/or-gateway
-  MERGE,
+  PARALLEL_MERGE,
 }

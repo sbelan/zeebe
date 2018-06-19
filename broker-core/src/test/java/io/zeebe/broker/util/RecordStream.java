@@ -22,7 +22,9 @@ import io.zeebe.broker.incident.data.IncidentRecord;
 import io.zeebe.broker.job.data.JobRecord;
 import io.zeebe.broker.system.workflow.repository.data.DeploymentRecord;
 import io.zeebe.broker.topic.Records;
+import io.zeebe.broker.workflow.data.WorkflowInstanceRecord;
 import io.zeebe.logstreams.log.LoggedEvent;
+import io.zeebe.msgpack.UnpackedObject;
 import io.zeebe.test.util.stream.StreamWrapper;
 import java.util.stream.Stream;
 
@@ -35,6 +37,11 @@ public class RecordStream extends StreamWrapper<LoggedEvent> {
   public TypedRecordStream<JobRecord> onlyJobRecords() {
     return new TypedRecordStream<>(
         filter(Records::isJobRecord).map(e -> CopiedTypedEvent.toTypedEvent(e, JobRecord.class)));
+  }
+
+  public TypedRecordStream<WorkflowInstanceRecord> onlyWorkflowInstanceRecords() {
+    return new TypedRecordStream<>(
+        filter(Records::isWorkflowInstanceRecord).map(e -> CopiedTypedEvent.toTypedEvent(e, WorkflowInstanceRecord.class)));
   }
 
   public TypedRecordStream<IncidentRecord> onlyIncidentRecords() {
@@ -53,5 +60,10 @@ public class RecordStream extends StreamWrapper<LoggedEvent> {
     return new TypedRecordStream<>(
         filter(Records::isTopicRecord)
             .map(e -> CopiedTypedEvent.toTypedEvent(e, TopicRecord.class)));
+  }
+
+  public TypedRecordStream<UnpackedObject> asTypedRecords()
+  {
+    return new TypedRecordStream<>(map(e -> CopiedTypedEvent.toTypedEvent(e, UnpackedObject.class)));
   }
 }

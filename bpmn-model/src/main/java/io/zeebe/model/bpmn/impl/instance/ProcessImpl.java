@@ -15,11 +15,18 @@
  */
 package io.zeebe.model.bpmn.impl.instance;
 
-import io.zeebe.model.bpmn.BpmnConstants;
-import io.zeebe.model.bpmn.instance.*;
-import java.util.*;
-import javax.xml.bind.annotation.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import javax.xml.bind.annotation.XmlAttribute;
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlTransient;
 import org.agrona.DirectBuffer;
+import io.zeebe.model.bpmn.BpmnConstants;
+import io.zeebe.model.bpmn.instance.FlowElement;
+import io.zeebe.model.bpmn.instance.StartEvent;
+import io.zeebe.model.bpmn.instance.Workflow;
 
 public class ProcessImpl extends FlowElementImpl implements Workflow {
   private boolean isExecutable = true;
@@ -29,6 +36,7 @@ public class ProcessImpl extends FlowElementImpl implements Workflow {
   private List<EndEventImpl> endEvents = new ArrayList<>();
   private List<ServiceTaskImpl> serviceTasks = new ArrayList<>();
   private List<ExclusiveGatewayImpl> exclusiveGateways = new ArrayList<>();
+  private List<ParallelGatewayImpl> parallelGateways = new ArrayList<>();
 
   private StartEvent initialStartEvent;
   private final List<FlowElement> flowElements = new ArrayList<>();
@@ -91,6 +99,17 @@ public class ProcessImpl extends FlowElementImpl implements Workflow {
     return exclusiveGateways;
   }
 
+  @XmlElement(
+      name = BpmnConstants.BPMN_ELEMENT_PARALLEL_GATEWAY,
+      namespace = BpmnConstants.BPMN20_NS)
+  public void setParallelGateways(List<ParallelGatewayImpl> parallelGateways) {
+    this.parallelGateways = parallelGateways;
+  }
+
+  public List<ParallelGatewayImpl> getParallelGateways() {
+    return parallelGateways;
+  }
+
   @Override
   public DirectBuffer getBpmnProcessId() {
     return getIdAsBuffer();
@@ -115,6 +134,17 @@ public class ProcessImpl extends FlowElementImpl implements Workflow {
   @Override
   public <T extends FlowElement> T findFlowElementById(DirectBuffer id) {
     return (T) flowElementMap.get(id);
+  }
+
+  public List<FlowElementImpl> collectFlowElements() {
+    final List<FlowElementImpl> flowElements = new ArrayList<>();
+    flowElements.addAll(startEvents);
+    flowElements.addAll(endEvents);
+    flowElements.addAll(sequenceFlows);
+    flowElements.addAll(serviceTasks);
+    flowElements.addAll(exclusiveGateways);
+    flowElements.addAll(parallelGateways);
+    return flowElements;
   }
 
   @Override

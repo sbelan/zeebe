@@ -54,11 +54,10 @@ public class ProcessValidator {
   }
 
   private void validateFlowNodes(ErrorCollector validationResult, ProcessImpl process) {
-    final List<FlowNodeImpl> flowNodes = new ArrayList<>();
-    flowNodes.addAll(process.getStartEvents());
-    flowNodes.addAll(process.getEndEvents());
-    flowNodes.addAll(process.getExclusiveGateways());
-    flowNodes.addAll(process.getServiceTasks());
+    final List<FlowNodeImpl> flowNodes = process.collectFlowElements().stream()
+        .filter(e -> e instanceof FlowNodeImpl)
+        .map(e -> (FlowNodeImpl) e)
+        .collect(Collectors.toList());
 
     validateStartEvent(validationResult, process, flowNodes);
     validateSequenceFlows(validationResult, process, flowNodes);

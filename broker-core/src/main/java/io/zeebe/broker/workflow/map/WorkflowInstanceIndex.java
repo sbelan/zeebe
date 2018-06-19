@@ -45,7 +45,7 @@ public class WorkflowInstanceIndex implements AutoCloseable {
 
   private static final ByteOrder BYTE_ORDER = ByteOrder.LITTLE_ENDIAN;
 
-  private final WorkflowInstance workflowInstance = new WorkflowInstance();
+  private final OldWorkflowInstance workflowInstance = new OldWorkflowInstance();
   private final WorkflowInstanceIterator iterator = new WorkflowInstanceIterator();
 
   private final Long2BytesZbMap map;
@@ -62,7 +62,7 @@ public class WorkflowInstanceIndex implements AutoCloseable {
     map.remove(workflowInstanceKey);
   }
 
-  public WorkflowInstance get(long key) {
+  public OldWorkflowInstance get(long key) {
     final DirectBuffer currentValue = map.get(key);
     if (currentValue != null) {
       workflowInstance.wrap(key, currentValue);
@@ -72,12 +72,12 @@ public class WorkflowInstanceIndex implements AutoCloseable {
     }
   }
 
-  public WorkflowInstance newWorkflowInstance(long workflowInstanceKey) {
+  public OldWorkflowInstance newWorkflowInstance(long workflowInstanceKey) {
     workflowInstance.reset(workflowInstanceKey);
     return workflowInstance;
   }
 
-  public Iterator<WorkflowInstance> iterator() {
+  public Iterator<OldWorkflowInstance> iterator() {
     iterator.reset();
     return iterator;
   }
@@ -87,9 +87,9 @@ public class WorkflowInstanceIndex implements AutoCloseable {
     map.close();
   }
 
-  public class WorkflowInstanceIterator implements Iterator<WorkflowInstance> {
+  public class WorkflowInstanceIterator implements Iterator<OldWorkflowInstance> {
     private Iterator<Long2BytesZbMapEntry> iterator;
-    private WorkflowInstance workflowInstance = new WorkflowInstance();
+    private OldWorkflowInstance workflowInstance = new OldWorkflowInstance();
 
     public void reset() {
       iterator = map.iterator();
@@ -101,7 +101,7 @@ public class WorkflowInstanceIndex implements AutoCloseable {
     }
 
     @Override
-    public WorkflowInstance next() {
+    public OldWorkflowInstance next() {
       final Long2BytesZbMapEntry entry = iterator.next();
       workflowInstance.wrap(entry.getKey(), entry.getValue());
 
@@ -109,7 +109,7 @@ public class WorkflowInstanceIndex implements AutoCloseable {
     }
   }
 
-  public class WorkflowInstance {
+  public class OldWorkflowInstance {
     private long workflowInstanceKey;
     private final UnsafeBuffer currentValue = new UnsafeBuffer(new byte[INDEX_VALUE_SIZE]);
 
@@ -143,22 +143,22 @@ public class WorkflowInstanceIndex implements AutoCloseable {
       return currentValue.getLong(WORKFLOW_KEY_OFFSET, BYTE_ORDER);
     }
 
-    public WorkflowInstance setPosition(long position) {
+    public OldWorkflowInstance setPosition(long position) {
       currentValue.putLong(POSITION_OFFSET, position, BYTE_ORDER);
       return this;
     }
 
-    public WorkflowInstance setWorkflowKey(long workflowKey) {
+    public OldWorkflowInstance setWorkflowKey(long workflowKey) {
       currentValue.putLong(WORKFLOW_KEY_OFFSET, workflowKey, BYTE_ORDER);
       return this;
     }
 
-    public WorkflowInstance setActivityInstanceKey(long activityInstanceKey) {
+    public OldWorkflowInstance setActivityInstanceKey(long activityInstanceKey) {
       currentValue.putLong(ACTIVITY_INSTANCE_KEY_OFFSET, activityInstanceKey, BYTE_ORDER);
       return this;
     }
 
-    public WorkflowInstance setActiveTokenCount(int activeTokenCount) {
+    public OldWorkflowInstance setActiveTokenCount(int activeTokenCount) {
       currentValue.putInt(TOKEN_COUNT_OFFSET, activeTokenCount, BYTE_ORDER);
       return this;
     }

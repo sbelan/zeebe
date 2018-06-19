@@ -18,15 +18,18 @@ package io.zeebe.model.bpmn.impl.transformation;
 import io.zeebe.model.bpmn.BpmnAspect;
 import io.zeebe.model.bpmn.impl.error.ErrorCollector;
 import io.zeebe.model.bpmn.impl.instance.FlowElementImpl;
+import io.zeebe.model.bpmn.impl.instance.ParallelGatewayImpl;
 import io.zeebe.model.bpmn.impl.instance.ProcessImpl;
 import io.zeebe.model.bpmn.impl.instance.StartEventImpl;
 import io.zeebe.model.bpmn.impl.transformation.nodes.ExclusiveGatewayTransformer;
 import io.zeebe.model.bpmn.impl.transformation.nodes.SequenceFlowTransformer;
 import io.zeebe.model.bpmn.impl.transformation.nodes.task.ServiceTaskTransformer;
+import io.zeebe.model.bpmn.instance.EndEvent;
 import io.zeebe.model.bpmn.instance.ExclusiveGateway;
 import io.zeebe.model.bpmn.instance.FlowElement;
 import io.zeebe.model.bpmn.instance.FlowNode;
 import io.zeebe.model.bpmn.instance.SequenceFlow;
+import io.zeebe.model.bpmn.instance.ServiceTask;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -40,7 +43,7 @@ public class ProcessTransformer {
       new ExclusiveGatewayTransformer();
 
   public void transform(ErrorCollector errorCollector, ProcessImpl process) {
-    final List<FlowElementImpl> flowElements = collectFlowElements(process);
+    final List<FlowElementImpl> flowElements = process.collectFlowElements();
     process.getFlowElements().addAll(flowElements);
 
     final Map<DirectBuffer, FlowElementImpl> flowElementsById = getFlowElementsById(flowElements);
@@ -53,16 +56,6 @@ public class ProcessTransformer {
     exclusiveGatewayTransformer.transform(process.getExclusiveGateways());
 
     transformBpmnAspects(process);
-  }
-
-  private List<FlowElementImpl> collectFlowElements(final ProcessImpl process) {
-    final List<FlowElementImpl> flowElements = new ArrayList<>();
-    flowElements.addAll(process.getStartEvents());
-    flowElements.addAll(process.getEndEvents());
-    flowElements.addAll(process.getSequenceFlows());
-    flowElements.addAll(process.getServiceTasks());
-    flowElements.addAll(process.getExclusiveGateways());
-    return flowElements;
   }
 
   private Map<DirectBuffer, FlowElementImpl> getFlowElementsById(
@@ -99,7 +92,47 @@ public class ProcessTransformer {
         } else if (flowElement instanceof ExclusiveGateway) {
           flowElement.setBpmnAspect(BpmnAspect.EXCLUSIVE_SPLIT);
         }
+        else if (flowElement instanceof ParallelGatewayImpl) {
+          if (((ParallelGatewayImpl) flowElement).getOutgoing().size() == 1)
+          {
+            flowElement.setBpmnAspect(BpmnAspect.TAKE_SEQUENCE_FLOW);
+          }
+          else
+          {
+            flowElement.setBpmnAspect(BpmnAspect.PARALLEL_SPLIT);
+          }
+        }
       }
+      else if (flowElement instanceof SequenceFlow)
+      {
+        final SequenceFlow flow = (SequenceFlow) flowElement;
+        final FlowNode target = flow.getTargetNode();
+
+        if (target instanceof ExclusiveGateway)
+        {
+          flowElement.setBpmnAspect(BpmnAspect.ACTIVATE_GATEWAY);
+        }
+        else if (target instanceof ParallelGatewayImpl)
+        {
+          if (target.getIncomingSequenceFlows().size() == 1)
+          {
+            flowElement.setBpmnAspect(BpmnAspect.ACTIVATE_GATEWAY);
+          }
+          else
+          {
+            flowElement.setBpmnAspect(BpmnAspect.PARALLEL_MERGE);
+          }
+        }
+        else if (target instanceof EndEvent)
+        {
+          flowElement.setBpmnAspect(BpmnAspect.TRIGGER_NONE_EVENT);
+        }
+        else if (target instanceof ServiceTask)
+        {
+          flowElement.setBpmnAspect(BpmnAspect.START_ACTIVITY);
+        }
+      }
+
     }
   }
 }
