@@ -98,5 +98,4 @@ public class MessageSubscriptionRecord extends UnpackedObject {
       activityInstanceIdProp.setValue(val);
       return this;
   }
-
 }

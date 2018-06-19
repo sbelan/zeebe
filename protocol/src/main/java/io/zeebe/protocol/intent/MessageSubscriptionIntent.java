@@ -17,7 +17,8 @@ package io.zeebe.protocol.intent;
 
 public enum MessageSubscriptionIntent implements Intent {
   SUBSCRIBE((short) 0),
-  SUBSCRIBED((short) 1);
+  SUBSCRIBED((short) 1),
+  CORRELATED((short) 2);
 
   private short value;
 
