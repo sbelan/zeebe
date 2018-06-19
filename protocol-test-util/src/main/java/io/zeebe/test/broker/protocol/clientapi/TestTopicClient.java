@@ -166,6 +166,17 @@ public class TestTopicClient {
         .sendAndAwait();
   }
 
+  public ExecuteCommandResponse publishMessage(String messageName, String messageKey) {
+      return apiRule
+          .createCmdRequest()
+          .type(ValueType.MESSAGE, MessageIntent.PUBLISH)
+          .command()
+          .put("messageName", messageName)
+          .put("messageKey", messageKey)
+          .done()
+          .sendAndAwait();
+    }
+
   public void completeJobOfType(String jobType) {
     completeJobOfType(jobType, (byte[]) null);
   }

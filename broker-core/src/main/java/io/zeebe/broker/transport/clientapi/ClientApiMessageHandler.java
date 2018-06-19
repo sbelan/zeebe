@@ -22,6 +22,7 @@ import io.zeebe.broker.clustering.orchestration.topic.TopicRecord;
 import io.zeebe.broker.event.processor.TopicSubscriberEvent;
 import io.zeebe.broker.event.processor.TopicSubscriptionEvent;
 import io.zeebe.broker.job.data.JobRecord;
+import io.zeebe.broker.message.record.MessageRecord;
 import io.zeebe.broker.system.workflow.repository.data.DeploymentRecord;
 import io.zeebe.broker.transport.controlmessage.ControlMessageRequestHeaderDescriptor;
 import io.zeebe.broker.workflow.data.WorkflowInstanceRecord;
@@ -78,6 +79,7 @@ public class ClientApiMessageHandler implements ServerMessageHandler, ServerRequ
     recordsByType.put(ValueType.SUBSCRIBER, new TopicSubscriberEvent());
     recordsByType.put(ValueType.SUBSCRIPTION, new TopicSubscriptionEvent());
     recordsByType.put(ValueType.TOPIC, new TopicRecord());
+    recordsByType.put(ValueType.MESSAGE, new MessageRecord());
   }
 
   private boolean handleExecuteCommandRequest(
