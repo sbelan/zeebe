@@ -22,10 +22,13 @@ import static io.zeebe.broker.logstreams.LogStreamServiceNames.STREAM_PROCESSOR_
 import static io.zeebe.broker.system.SystemServiceNames.*;
 import static io.zeebe.broker.transport.TransportServiceNames.*;
 
+import io.zeebe.broker.clustering.orchestration.ClusterOrchestrationLayerServiceNames;
 import io.zeebe.broker.system.metrics.MetricsFileWriterService;
 import io.zeebe.broker.system.workflow.repository.api.management.DeploymentManagerRequestHandler;
 import io.zeebe.broker.system.workflow.repository.service.DeploymentManager;
 import io.zeebe.broker.transport.TransportServiceNames;
+import io.zeebe.broker.workflow.correlation.FetchCreatedTopicsRequestHandlerManager;
+import io.zeebe.broker.workflow.correlation.FetchCreatedTopicsRequestHandlerService;
 import io.zeebe.servicecontainer.ServiceContainer;
 
 public class SystemComponent implements Component {
@@ -65,5 +68,20 @@ public class SystemComponent implements Component {
             LEADER_PARTITION_SYSTEM_GROUP_NAME,
             deploymentManagerService.getPartitionsGroupReference())
         .install();
+
+    final FetchCreatedTopicsRequestHandlerManager fetchTopicsHandlerManagerService =
+            new FetchCreatedTopicsRequestHandlerManager();
+        serviceContainer
+            .createService(FETCH_TOPICS_REQUEST_HANDLER_MANAGER, fetchTopicsHandlerManagerService)
+            .dependency(
+                bufferingServerTransport(MANAGEMENT_API_SERVER_NAME),
+                fetchTopicsHandlerManagerService.getManagementApiServerTransportInjector())
+            .install();
+
+     final FetchCreatedTopicsRequestHandlerService fetchTopicsHandlerService = new FetchCreatedTopicsRequestHandlerService();
+     serviceContainer.createService(FETCH_TOPICS_REQUEST_HANDLER, fetchTopicsHandlerService)
+         .dependency(FETCH_TOPICS_REQUEST_HANDLER_MANAGER, fetchTopicsHandlerService.getManagerInjector())
+         .dependency(ClusterOrchestrationLayerServiceNames.KNOWN_TOPICS_SERVICE_NAME, fetchTopicsHandlerService.getKnownTopicsInjector())
+         .install();
   }
 }

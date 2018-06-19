@@ -20,9 +20,6 @@ package io.zeebe.broker.workflow.processor;
 import static io.zeebe.broker.util.PayloadUtil.isNilPayload;
 import static io.zeebe.broker.util.PayloadUtil.isValidPayload;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.function.Consumer;
 
@@ -32,6 +29,7 @@ import io.zeebe.broker.incident.data.IncidentRecord;
 import io.zeebe.broker.job.data.JobHeaders;
 import io.zeebe.broker.job.data.JobRecord;
 import io.zeebe.broker.logstreams.processor.*;
+import io.zeebe.broker.workflow.correlation.MessageCorrelationManager;
 import io.zeebe.broker.workflow.data.WorkflowInstanceRecord;
 import io.zeebe.broker.workflow.map.*;
 import io.zeebe.broker.workflow.map.WorkflowInstanceIndex.WorkflowInstance;
@@ -74,6 +72,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
   private ClientTransport managementApiClient;
   private TopologyManager topologyManager;
   private WorkflowCache workflowCache;
+  private MessageCorrelationManager messageCorrelationManager;
 
   private ActorControl actor;
 
@@ -126,10 +125,10 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
             w -> isActive(w.getWorkflowInstanceKey()),
             new ActivityCompletingEventProcessor())
         .onEvent(
-             ValueType.WORKFLOW_INSTANCE,
-             WorkflowInstanceIntent.MESSAGE_CATCH_EVENT_ENTERED,
-             w -> isActive(w.getWorkflowInstanceKey()),
-             new MessageCatchEventProcessor())
+            ValueType.WORKFLOW_INSTANCE,
+            WorkflowInstanceIntent.MESSAGE_CATCH_EVENT_ENTERED,
+            w -> isActive(w.getWorkflowInstanceKey()),
+            new MessageCatchEventProcessor())
         .onCommand(
             ValueType.WORKFLOW_INSTANCE,
             WorkflowInstanceIntent.UPDATE_PAYLOAD,
@@ -181,6 +180,8 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     final LogStream logStream = streamProcessor.getEnvironment().getStream();
     this.workflowCache =
         new WorkflowCache(managementApiClient, topologyManager, logStream.getTopicName());
+
+    this.messageCorrelationManager = new MessageCorrelationManager(managementApiClient, topologyManager, actor);
 
     final StreamProcessorContext context = streamProcessor.getStreamProcessorContext();
     final MetricsManager metricsManager = context.getActorScheduler().getMetricsManager();
@@ -568,7 +569,8 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
         nextState = WorkflowInstanceIntent.ACTIVITY_READY;
       } else if (targetNode instanceof ExclusiveGateway) {
         nextState = WorkflowInstanceIntent.GATEWAY_ACTIVATED;
-      } else if (targetNode instanceof IntermediateCatchEvent && ((IntermediateCatchEvent) targetNode).getCorrelationDefinition() != null) {
+      } else if (targetNode instanceof IntermediateCatchEvent
+          && ((IntermediateCatchEvent) targetNode).getCorrelationDefinition() != null) {
         nextState = WorkflowInstanceIntent.MESSAGE_CATCH_EVENT_ENTERED;
       } else {
         throw new RuntimeException(
@@ -1049,45 +1051,60 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
   private final class MessageCatchEventProcessor
       extends FlowElementEventProcessor<IntermediateCatchEvent> {
 
-        private final MessageDigest md;
-
-        MessageCatchEventProcessor()
-        {
-            try
-            {
-                md = MessageDigest.getInstance("MD5");
-            }
-            catch (NoSuchAlgorithmException e)
-            {
-                throw new RuntimeException("Failed to initialize hash function", e);
-            }
-        }
-
     @Override
     void processFlowElementEvent(
-        TypedRecord<WorkflowInstanceRecord> event, IntermediateCatchEvent intermediateCatchEvent, EventLifecycleContext ctx) {
+        TypedRecord<WorkflowInstanceRecord> event,
+        IntermediateCatchEvent intermediateCatchEvent,
+        EventLifecycleContext ctx) {
 
-        final CorrelationDefinition correlationDefinition = intermediateCatchEvent.getCorrelationDefinition();
-        if (correlationDefinition == null)
-        {
-            throw new IllegalStateException("correlation definition expected buf not found");
-        }
+      final CorrelationDefinition correlationDefinition =
+          intermediateCatchEvent.getCorrelationDefinition();
+      if (correlationDefinition == null) {
+        throw new IllegalStateException("correlation definition expected buf not found");
+      }
 
-        final String messageName = correlationDefinition.getMessageName();
-        final String eventKey = correlationDefinition.getEventKey();
-        final String eventTopic = correlationDefinition.getEventTopic();
+      final String messageName = correlationDefinition.getMessageName();
+      final String eventKey = correlationDefinition.getEventKey();
+      final String eventTopic = correlationDefinition.getEventTopic();
 
-        md.update(eventKey.getBytes(StandardCharsets.UTF_8));
-        final byte[] digest = md.digest();
+      final int partitionId = messageCorrelationManager.getPartitionForTopic(eventTopic, eventKey);
 
-        final int hashCode = Math.abs(Arrays.hashCode(digest));
+      if (partitionId > 0)
+      {
+          messageCorrelationManager.openSubscription(partitionId, messageName);
+      }
+      else
+      {
+          final ActorFuture<Void> onCompleted = new CompletableActorFuture<>();
+          ctx.async(onCompleted);
 
+          actor.runOnCompletion(messageCorrelationManager.fetchTopics(), (v,failure) ->
+          {
+              if (failure == null)
+              {
+                  final int id = messageCorrelationManager.getPartitionForTopic(eventTopic, eventKey);
+                  if (id > 0)
+                  {
+                      messageCorrelationManager.openSubscription(id, eventKey);
+                      onCompleted.complete(null);
+                  }
+                  else
+                  {
+                      // TODO handle failure
+                      onCompleted.completeExceptionally(new RuntimeException("no event topic found: " + eventTopic));
+                  }
+              }
+              else
+              {
+                  // TODO handle failure
+                  onCompleted.completeExceptionally(failure);
+              }
 
-        // TODO open message subscription
+          });
+      }
+
     }
-
-
-    }
+  }
 
   private abstract class FlowElementEventProcessor<T extends FlowElement>
       implements TypedRecordProcessor<WorkflowInstanceRecord> {
@@ -1108,7 +1125,8 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     }
 
     @SuppressWarnings("unchecked")
-    private void resolveCurrentFlowNode(DeployedWorkflow deployedWorkflow, EventLifecycleContext ctx) {
+    private void resolveCurrentFlowNode(
+        DeployedWorkflow deployedWorkflow, EventLifecycleContext ctx) {
       final DirectBuffer currentActivityId = event.getValue().getActivityId();
 
       final Workflow workflow = deployedWorkflow.getWorkflow();
@@ -1117,17 +1135,12 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
       processFlowElementEvent(event, (T) flowElement, ctx);
     }
 
-    @SuppressWarnings("unused")
     void processFlowElementEvent(
-            TypedRecord<WorkflowInstanceRecord> event, T currentFlowNode, EventLifecycleContext ctx)
-    {
-        processFlowElementEvent(event, currentFlowNode);
+        TypedRecord<WorkflowInstanceRecord> event, T currentFlowNode, EventLifecycleContext ctx) {
+      processFlowElementEvent(event, currentFlowNode);
     }
 
-    void processFlowElementEvent(
-        TypedRecord<WorkflowInstanceRecord> event, T currentFlowNode) {
-
-    }
+    void processFlowElementEvent(TypedRecord<WorkflowInstanceRecord> event, T currentFlowNode) {}
   }
 
   @SuppressWarnings("rawtypes")

@@ -77,7 +77,7 @@ public interface Intent {
       case MESSAGE:
         return MessageIntent.from(intent);
       case MESSAGE_SUBSCRIPTION:
-          return MessageSubscriptionIntent.from(intent);
+        return MessageSubscriptionIntent.from(intent);
       case NULL_VAL:
       case SBE_UNKNOWN:
         return Intent.UNKNOWN;

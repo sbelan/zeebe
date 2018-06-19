@@ -44,15 +44,18 @@ public class MessageCorrelationTest {
   @Test
   public void shouldEnterMessageCatchEvent() throws Exception {
     // given
-      final byte[] bytes = Files.readAllBytes(Paths.get(getClass().getResource("/workflows/message-correlation.bpmn").toURI()));
-        testClient.deployWithResponse(ClientApiRule.DEFAULT_TOPIC_NAME, bytes);
+    final byte[] bytes =
+        Files.readAllBytes(
+            Paths.get(getClass().getResource("/workflows/message-correlation.bpmn").toURI()));
+    testClient.deployWithResponse(ClientApiRule.DEFAULT_TOPIC_NAME, bytes);
+
+    apiRule.createTopic("order-events", 1);
 
     // when
     testClient.createWorkflowInstance("Process_1");
 
-
     // then
-    testClient.receiveFirstWorkflowInstanceEvent(WorkflowInstanceIntent.MESSAGE_CATCH_EVENT_ENTERED);
+    testClient.receiveFirstWorkflowInstanceEvent(
+        WorkflowInstanceIntent.MESSAGE_CATCH_EVENT_ENTERED);
   }
-
 }

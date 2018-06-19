@@ -19,7 +19,10 @@ package io.zeebe.broker.system;
 
 import io.zeebe.broker.system.metrics.MetricsFileWriter;
 import io.zeebe.broker.system.workflow.repository.api.management.DeploymentManagerRequestHandler;
-import io.zeebe.broker.system.workflow.repository.service.*;
+import io.zeebe.broker.system.workflow.repository.service.DeploymentManager;
+import io.zeebe.broker.system.workflow.repository.service.WorkflowRepositoryService;
+import io.zeebe.broker.workflow.correlation.FetchCreatedTopicsRequestHandlerManager;
+import io.zeebe.broker.workflow.correlation.FetchCreatedTopicsRequestHandlerService;
 import io.zeebe.servicecontainer.ServiceName;
 
 public class SystemServiceNames {
@@ -33,6 +36,17 @@ public class SystemServiceNames {
       DEPLOYMENT_MANAGER_REQUEST_HANDLER =
           ServiceName.newServiceName(
               "broker.deployment.requestHandler", DeploymentManagerRequestHandler.class);
+
+  public static final ServiceName<FetchCreatedTopicsRequestHandlerManager>
+      FETCH_TOPICS_REQUEST_HANDLER_MANAGER =
+          ServiceName.newServiceName(
+                                     "broker.topics.requestHandlerManager", FetchCreatedTopicsRequestHandlerManager.class);
+
+  public static final ServiceName<FetchCreatedTopicsRequestHandlerService>
+  FETCH_TOPICS_REQUEST_HANDLER =
+      ServiceName.newServiceName(
+                                 "broker.topics.requestHandler", FetchCreatedTopicsRequestHandlerService.class);
+
 
   public static final ServiceName<WorkflowRepositoryService> REPOSITORY_SERVICE =
       ServiceName.newServiceName(
