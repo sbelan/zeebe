@@ -1,9 +1,11 @@
 package io.zeebe.broker.workflow.processor;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.agrona.DirectBuffer;
+import org.agrona.collections.Long2ObjectHashMap;
 import io.zeebe.util.CollectionUtil;
 import io.zeebe.util.buffer.BufferUtil;
 
@@ -14,6 +16,8 @@ public class Scope {
   private Map<String, List<Long>> suspendedTokens = new HashMap<>();
   private int activeTokens;
 
+  private Long2ObjectHashMap<Job> jobs = new Long2ObjectHashMap<>();
+
   public Scope(long key)
   {
     this.key = key;
@@ -21,6 +25,19 @@ public class Scope {
 
 
   // TODO: methods to index something because it is interruptible
+
+  public void onJobCreated(long key, long position)
+  {
+    final Job job = new Job();
+    job.setPosition(position);
+    jobs.put(key, job);
+  }
+
+  // canceled or completed
+  public void onJobFinished(long key)
+  {
+    jobs.remove(key);
+  }
 
   public void consumeTokens(int i)
   {

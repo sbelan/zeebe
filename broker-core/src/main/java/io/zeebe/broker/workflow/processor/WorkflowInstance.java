@@ -17,4 +17,19 @@ public class WorkflowInstance {
   {
     return scopes.get(scopeKey);
   }
+
+  public Scope newScope(long parentScopeKey, long scopeKey)
+  {
+    final Scope parentScope = scopes.get(parentScopeKey);
+    // TODO: wire scopes
+    final Scope newScope = new Scope(scopeKey);
+    scopes.put(scopeKey, newScope);
+    return newScope;
+  }
+
+  public void removeScope(long key)
+  {
+    scopes.remove(key);
+    // TODO: wiring
+  }
 }

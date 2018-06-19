@@ -40,6 +40,7 @@ public class JobHeaders extends UnpackedObject {
   private final StringProperty activityIdProp =
       new StringProperty(PROP_WORKFLOW_ACTIVITY_ID, EMPTY_STRING);
   private final LongProperty activityInstanceKeyProp = new LongProperty("activityInstanceKey", -1L);
+  private final LongProperty scopeKey = new LongProperty("scopeKey", -1L);
 
   public JobHeaders() {
     this.declareProperty(bpmnProcessIdProp)
@@ -47,7 +48,8 @@ public class JobHeaders extends UnpackedObject {
         .declareProperty(workflowKeyProp)
         .declareProperty(workflowInstanceKeyProp)
         .declareProperty(activityIdProp)
-        .declareProperty(activityInstanceKeyProp);
+        .declareProperty(activityInstanceKeyProp)
+        .declareProperty(scopeKey);
   }
 
   public long getWorkflowInstanceKey() {
@@ -106,5 +108,16 @@ public class JobHeaders extends UnpackedObject {
   public JobHeaders setWorkflowKey(long workflowKey) {
     this.workflowKeyProp.setValue(workflowKey);
     return this;
+  }
+
+  public JobHeaders setScopeKey(long scopeKey)
+  {
+    this.scopeKey.setValue(scopeKey);
+    return this;
+  }
+
+  public long getScopeKey()
+  {
+    return scopeKey.getValue();
   }
 }
