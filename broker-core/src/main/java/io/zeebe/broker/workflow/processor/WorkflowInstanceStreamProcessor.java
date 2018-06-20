@@ -1255,6 +1255,12 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
         }
 
       @Override
+        public boolean executeSideEffects(TypedRecord<MessageSubscriptionRecord> record, TypedResponseWriter responseWriter)
+        {
+              return responseWriter.writeEventUnchanged(record);
+        }
+
+      @Override
         public void updateState(TypedRecord<MessageSubscriptionRecord> record)
         {
             if (subscription != null) {
