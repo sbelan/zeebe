@@ -22,7 +22,7 @@ public enum BpmnAspect {
   TAKE_SEQUENCE_FLOW,
 
   // end event, no outgoing sequence flow
-  CONSUME_TOKEN,
+  SCOPE_MERGE,
 
   // xor-gateway
   EXCLUSIVE_SPLIT,
@@ -36,7 +36,6 @@ public enum BpmnAspect {
   ACTIVATE_GATEWAY,
   TRIGGER_NONE_EVENT,
   START_ACTIVITY,
-
 
   // joining and-/or-gateway
   PARALLEL_MERGE,

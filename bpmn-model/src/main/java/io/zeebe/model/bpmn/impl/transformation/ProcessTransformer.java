@@ -100,7 +100,7 @@ public class ProcessTransformer {
 
         final List<SequenceFlow> outgoingSequenceFlows = flowNode.getOutgoingSequenceFlows();
         if (outgoingSequenceFlows.isEmpty()) {
-          flowElement.setBpmnAspect(BpmnAspect.CONSUME_TOKEN);
+          flowElement.setBpmnAspect(BpmnAspect.SCOPE_MERGE);
         } else if (outgoingSequenceFlows.size() == 1
             && !outgoingSequenceFlows.get(0).hasCondition()) {
           flowElement.setBpmnAspect(BpmnAspect.TAKE_SEQUENCE_FLOW);

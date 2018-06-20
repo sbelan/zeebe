@@ -53,6 +53,9 @@ import io.zeebe.logstreams.log.LogStream;
 import io.zeebe.logstreams.processor.EventLifecycleContext;
 import io.zeebe.logstreams.processor.StreamProcessorContext;
 import io.zeebe.model.bpmn.BpmnAspect;
+import io.zeebe.model.bpmn.impl.instance.FlowElementContainer;
+import io.zeebe.model.bpmn.impl.instance.FlowElementImpl;
+import io.zeebe.model.bpmn.impl.instance.ProcessImpl;
 import io.zeebe.model.bpmn.impl.instance.ServiceTaskImpl;
 import io.zeebe.model.bpmn.impl.instance.SubProcessImpl;
 import io.zeebe.model.bpmn.instance.EndEvent;
@@ -512,18 +515,30 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     }
   }
 
-  private final class ConsumeTokenAspectHandler extends FlowElementEventProcessor<FlowElement> {
+  private final class ScopeMergeAspectHandler extends FlowElementEventProcessor<FlowElementImpl> {
     private boolean isCompleted;
     private int activeTokenCount;
 
+    private WorkflowInstanceIntent completionIntent;
+
     @Override
     void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
-        TypedRecord<WorkflowInstanceRecord> event, FlowElement currentFlowNode) {
+        TypedRecord<WorkflowInstanceRecord> event, FlowElementImpl currentFlowNode) {
       final WorkflowInstanceRecord workflowInstanceEvent = event.getValue();
 
       isCompleted = true; // TODO: currently always completes the scope
       if (isCompleted) {
-        workflowInstanceEvent.setActivityId("");
+        final FlowElementContainer parentScope = currentFlowNode.getParent();
+        if (currentFlowNode.getParent() instanceof ProcessImpl)
+        {
+          workflowInstanceEvent.setActivityId("");
+          completionIntent = WorkflowInstanceIntent.COMPLETED;
+        }
+        else
+        {
+          workflowInstanceEvent.setActivityId(parentScope.getIdAsBuffer());
+          completionIntent = WorkflowInstanceIntent.ACTIVITY_COMPLETING;
+        }
       }
     }
 
@@ -531,8 +546,8 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     public long writeRecord(TypedRecord<WorkflowInstanceRecord> record, TypedStreamWriter writer) {
       if (isCompleted) {
         return writer.writeFollowUpEvent(
-            record.getValue().getWorkflowInstanceKey(),
-            WorkflowInstanceIntent.COMPLETED,
+            record.getValue().getScopeKey(),
+            completionIntent,
             record.getValue());
       } else {
         return 0L;
@@ -1187,7 +1202,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
       aspectHandlers = new EnumMap<>(BpmnAspect.class);
 
       aspectHandlers.put(BpmnAspect.TAKE_SEQUENCE_FLOW, new TakeSequenceFlowAspectHandler());
-      aspectHandlers.put(BpmnAspect.CONSUME_TOKEN, new ConsumeTokenAspectHandler());
+      aspectHandlers.put(BpmnAspect.SCOPE_MERGE, new ScopeMergeAspectHandler());
       aspectHandlers.put(BpmnAspect.EXCLUSIVE_SPLIT, new ExclusiveSplitAspectHandler());
 
       aspectHandlers.put(BpmnAspect.PARALLEL_MERGE, new ParallelMergeProcessor());

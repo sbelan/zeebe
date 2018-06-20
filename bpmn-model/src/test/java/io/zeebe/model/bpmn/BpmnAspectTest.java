@@ -49,7 +49,7 @@ public class BpmnAspectTest {
     final Workflow workflow = workflowDefinition.getWorkflow(wrapString("process"));
 
     final EndEvent endEvent = workflow.findFlowElementById(wrapString("end"));
-    assertThat(endEvent.getBpmnAspect()).isEqualTo(BpmnAspect.CONSUME_TOKEN);
+    assertThat(endEvent.getBpmnAspect()).isEqualTo(BpmnAspect.SCOPE_MERGE);
   }
 
   @Test
@@ -63,7 +63,7 @@ public class BpmnAspectTest {
     final Workflow workflow = workflowDefinition.getWorkflow(wrapString("process"));
 
     final ServiceTask serviceTask = workflow.findFlowElementById(wrapString("task"));
-    assertThat(serviceTask.getBpmnAspect()).isEqualTo(BpmnAspect.CONSUME_TOKEN);
+    assertThat(serviceTask.getBpmnAspect()).isEqualTo(BpmnAspect.SCOPE_MERGE);
   }
 
   @Test
@@ -107,6 +107,6 @@ public class BpmnAspectTest {
     final Workflow workflow = workflowDefinition.getWorkflow(wrapString("workflow"));
 
     final ExclusiveGateway exclusiveGateway = workflow.findFlowElementById(wrapString("xor"));
-    assertThat(exclusiveGateway.getBpmnAspect()).isEqualTo(BpmnAspect.CONSUME_TOKEN);
+    assertThat(exclusiveGateway.getBpmnAspect()).isEqualTo(BpmnAspect.SCOPE_MERGE);
   }
 }
