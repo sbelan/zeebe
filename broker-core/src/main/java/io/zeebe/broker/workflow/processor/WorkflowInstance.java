@@ -9,7 +9,7 @@ public class WorkflowInstance {
 
   public WorkflowInstance(long key)
   {
-    this.rootScope = new Scope(key);
+    this.rootScope = new Scope(key, -1);
     scopes.put(key, rootScope);
   }
 
@@ -22,7 +22,7 @@ public class WorkflowInstance {
   {
     final Scope parentScope = scopes.get(parentScopeKey);
     // TODO: wire scopes
-    final Scope newScope = new Scope(scopeKey);
+    final Scope newScope = new Scope(scopeKey, parentScopeKey);
     scopes.put(scopeKey, newScope);
     return newScope;
   }

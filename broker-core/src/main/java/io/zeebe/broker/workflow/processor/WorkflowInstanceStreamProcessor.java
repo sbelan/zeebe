@@ -248,6 +248,28 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     return workflowInstances.get(workflowInstanceKey) != null;
   }
 
+  private DirectBuffer mergePayloads(TypedStreamReader streamReader,
+      DirectBuffer srcPayload, List<Long> mergingPositions)
+  {
+    final ExpandableArrayBuffer mergedPayload = new ExpandableArrayBuffer();
+    mergedPayload.putBytes(0, srcPayload, 0, srcPayload.capacity());
+
+    // TODO: extra view because merge processor does not work with buffer offset and length; can be avoided
+    final UnsafeBuffer mergedPayloadView = new UnsafeBuffer(mergedPayload, 0, srcPayload.capacity());
+
+    for (long position : mergingPositions)
+    {
+      final TypedRecord<WorkflowInstanceRecord> mergingValue =
+          streamReader.readValue(position, WorkflowInstanceRecord.class);
+      final int resultLength = payloadMappingProcessor.merge(mergedPayloadView, mergingValue.getValue().getPayload());
+
+      mergedPayload.putBytes(0, payloadMappingProcessor.getResultBuffer(), 0, resultLength);
+      mergedPayloadView.wrap(mergedPayload, 0, resultLength);
+    }
+
+    return mergedPayloadView;
+  }
+
   private final class CreateWorkflowInstanceEventProcessor
       implements TypedRecordProcessor<WorkflowInstanceRecord> {
     private boolean accepted;
@@ -517,26 +539,51 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
 
   private final class ScopeMergeAspectHandler extends FlowElementEventProcessor<FlowElementImpl> {
     private boolean isCompleted;
-    private int activeTokenCount;
+    private Scope scope;
 
     private WorkflowInstanceIntent completionIntent;
+
+    private TypedStreamReader streamReader;
+
+    @Override
+    public void onOpen(TypedStreamProcessor streamProcessor) {
+      streamReader = streamProcessor.getEnvironment().getStreamReader();
+    }
 
     @Override
     void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
         TypedRecord<WorkflowInstanceRecord> event, FlowElementImpl currentFlowNode) {
       final WorkflowInstanceRecord workflowInstanceEvent = event.getValue();
+      this.scope = scope;
 
-      isCompleted = true; // TODO: currently always completes the scope
-      if (isCompleted) {
+      if (scope.getActiveTokens() > 1)
+      {
+        isCompleted = false;
+      }
+      else
+      {
+        isCompleted = true;
+
+        final List<Long> positionsToMerge = scope.getSuspendedTokens();
+
+        final DirectBuffer mergedPayload = mergePayloads(streamReader, event.getValue().getPayload(), positionsToMerge);
+
+        // TODO: hack assuming we don't require the additional payload downstream
+        event.getValue().setPayload(mergedPayload);
+
         final FlowElementContainer parentScope = currentFlowNode.getParent();
+
+        // TODO: we can distinguish these cases at parse time
         if (currentFlowNode.getParent() instanceof ProcessImpl)
         {
           workflowInstanceEvent.setActivityId("");
+          workflowInstanceEvent.setScopeKey(-1);
           completionIntent = WorkflowInstanceIntent.COMPLETED;
         }
         else
         {
           workflowInstanceEvent.setActivityId(parentScope.getIdAsBuffer());
+          workflowInstanceEvent.setScopeKey(scope.getParentKey());
           completionIntent = WorkflowInstanceIntent.ACTIVITY_COMPLETING;
         }
       }
@@ -546,7 +593,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     public long writeRecord(TypedRecord<WorkflowInstanceRecord> record, TypedStreamWriter writer) {
       if (isCompleted) {
         return writer.writeFollowUpEvent(
-            record.getValue().getScopeKey(),
+            scope.getKey(),
             completionIntent,
             record.getValue());
       } else {
@@ -560,6 +607,11 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
         final long workflowInstanceKey = record.getValue().getWorkflowInstanceKey();
         payloadCache.remove(workflowInstanceKey);
         workflowInstances.onWorkflowInstanceFinished(record.getKey());
+      }
+      else
+      {
+        scope.suspendToken(record.getValue().getActivityId(), record.getPosition());
+        scope.consumeTokens(1);
       }
     }
   }
@@ -966,12 +1018,14 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
   {
 
     private List<SequenceFlow> flowsToTake;
+    private Scope scope;
 
     @Override
     void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
         TypedRecord<WorkflowInstanceRecord> event,
         FlowNode currentFlowNode) {
       flowsToTake = currentFlowNode.getOutgoingSequenceFlows();
+      this.scope = scope;
     }
 
     @Override
@@ -987,7 +1041,12 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
       }
 
       return batchWriter.write();
+    }
 
+    @Override
+    public void updateState(TypedRecord<WorkflowInstanceRecord> record) {
+      scope.spawnTokens(flowsToTake.size());
+      scope.consumeTokens(1);
     }
   }
 
@@ -998,9 +1057,6 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     private boolean merges;
     private Scope scope;
 
-    private MutableDirectBuffer mergedPayload = new ExpandableArrayBuffer();
-    // TODO: extra view because merge processor does not work with buffer offset and length; can be avoided
-    private UnsafeBuffer mergedPayloadView;
     private List<Long> mergedRecords = new ArrayList<>();
 
     @Override
@@ -1016,8 +1072,6 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
       final WorkflowInstanceRecord value = record.getValue();
 
       final FlowNode mergingGateway = sequenceFlow.getTargetNode();
-
-      scope = workflowInstance.getScope(value.getWorkflowInstanceKey());
 
       final List<SequenceFlow> incomingSequenceFlows = mergingGateway.getIncomingSequenceFlows();
 
@@ -1040,23 +1094,12 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
         }
       }
 
-      mergedPayload.putBytes(0, value.getPayload(), 0, value.getPayload().capacity());
-      mergedPayloadView = new UnsafeBuffer(mergedPayload, 0, value.getPayload().capacity());
-
-      for (long position : mergedRecords)
-      {
-        final TypedRecord<WorkflowInstanceRecord> mergingValue =
-            streamReader.readValue(position, WorkflowInstanceRecord.class);
-        final int resultLength = payloadMappingProcessor.merge(mergedPayloadView, mergingValue.getValue().getPayload());
-
-        mergedPayload.putBytes(0, payloadMappingProcessor.getResultBuffer(), 0, resultLength);
-        mergedPayloadView.wrap(mergedPayload, 0, resultLength);
-      }
+      final DirectBuffer mergedPayload = mergePayloads(streamReader, value.getPayload(), mergedRecords);
 
       // TODO: this is a hack to write the next event assuming that in case of a merge, we no longer need
       // the sequence flow id or the previous payload in downstream methods
       record.getValue().setActivityId(mergingGateway.getIdAsBuffer());
-      record.getValue().setPayload(mergedPayloadView);
+      record.getValue().setPayload(mergedPayload);
     }
 
     @Override
@@ -1080,6 +1123,10 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
         {
           scope.consumeSuspendedToken(position);
         }
+
+        // not consuming the token represented by current event
+        // because this token is activating the gateway
+        scope.consumeTokens(mergedRecords.size());
       }
       else
       {
@@ -1090,10 +1137,13 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
 
   private class SubProcessActivatedProcessor extends FlowElementEventProcessor<SubProcessImpl>
   {
+    private Scope scope;
 
     @Override
     void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
         TypedRecord<WorkflowInstanceRecord> event, SubProcessImpl subprocess) {
+      this.scope = workflowInstance.getScope(event.getKey());
+
       final StartEvent startEvent = subprocess.getInitialStartEvent();
 
       final WorkflowInstanceRecord value = event.getValue();
@@ -1106,6 +1156,11 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     @Override
     public long writeRecord(TypedRecord<WorkflowInstanceRecord> record, TypedStreamWriter writer) {
       return writer.writeNewEvent(WorkflowInstanceIntent.START_EVENT_OCCURRED, record.getValue());
+    }
+
+    @Override
+    public void updateState(TypedRecord<WorkflowInstanceRecord> record) {
+      scope.spawnTokens(1);
     }
   }
 

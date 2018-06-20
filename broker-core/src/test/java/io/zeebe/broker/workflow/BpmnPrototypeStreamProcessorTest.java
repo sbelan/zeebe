@@ -66,6 +66,21 @@ public class BpmnPrototypeStreamProcessorTest {
       .done()
       .getWorkflow(BufferUtil.wrapString("foo"));
 
+  private static final Workflow PARALLEL_SUB_PROCESS_FLOW = Bpmn.createExecutableWorkflow("foo")
+      .startEvent()
+      .subprocess("subprocess")
+      .startEvent()
+      .parallelGateway("fork")
+      .serviceTask("task1", t -> t.taskType("foo"))
+      .endEvent()
+      .continueAt("fork")
+      .serviceTask("task2", t -> t.taskType("foo"))
+      .endEvent()
+      .leaveScope()
+      .endEvent()
+      .done()
+      .getWorkflow(BufferUtil.wrapString("foo"));
+
   @Rule
   public StreamProcessorRule rule = new StreamProcessorRule();
   private WorkflowCache workflowCache;
@@ -340,15 +355,49 @@ public class BpmnPrototypeStreamProcessorTest {
   @Test
   public void shouldSynchronizeOnSubprocessCompletion()
   {
-    fail("implement");
+    // given
+    deploy(WORKFLOW_KEY, PARALLEL_SUB_PROCESS_FLOW);
+    rule.writeCommand(WorkflowInstanceIntent.CREATE, startWorkflowInstance(WORKFLOW_KEY));
+    final List<TypedRecord<JobRecord>> jobs = doRepeatedly(() -> rule.events().onlyJobRecords()
+        .withIntent(JobIntent.CREATE).collect(Collectors.toList())).until(l -> l.size() == 2);
 
+    // when
+    completeJob(jobs.get(0));
+    completeJob(jobs.get(1));
+
+    // then
+    waitUntil(() -> rule.events().onlyWorkflowInstanceRecords()
+        .withIntent(WorkflowInstanceIntent.COMPLETED).findFirst().isPresent());
+
+    final List<TypedRecord<WorkflowInstanceRecord>> completedEvents = rule.events().onlyWorkflowInstanceRecords()
+      .withIntent(WorkflowInstanceIntent.ACTIVITY_COMPLETED)
+      .collect(Collectors.toList());
+
+    assertThat(completedEvents).hasSize(3); // two service tasks and sub process
+
+    fail("assert events");
   }
 
   @Test
   public void shouldMergePayloadOnSubprocessCompletion()
   {
-    fail("implement");
+    // given
+    deploy(WORKFLOW_KEY, PARALLEL_SUB_PROCESS_FLOW);
+    rule.writeCommand(WorkflowInstanceIntent.CREATE, startWorkflowInstance(WORKFLOW_KEY));
+    final List<TypedRecord<JobRecord>> jobs = doRepeatedly(() -> rule.events().onlyJobRecords()
+        .withIntent(JobIntent.CREATE).collect(Collectors.toList())).until(l -> l.size() == 2);
 
+    // when
+    completeJob(jobs.get(0), MsgPackUtil.asMsgPack("key1", "val1"));
+    completeJob(jobs.get(1), MsgPackUtil.asMsgPack("key2", "val2"));
+
+    // then
+    final TypedRecord<WorkflowInstanceRecord> completedEvent = doRepeatedly(() -> rule.events().onlyWorkflowInstanceRecords()
+        .withIntent(WorkflowInstanceIntent.COMPLETED).findFirst()).until(e -> e.isPresent()).get();
+
+    final DirectBuffer mergedPayload = completedEvent.getValue().getPayload();
+    assertThat(msgPackAsMap(mergedPayload))
+      .containsExactly(entry("key1", "val1"), entry("key2", "val2"));
   }
 
   private void deploy(long key, Workflow workflow) {

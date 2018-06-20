@@ -18,8 +18,9 @@ public class Scope {
    *   - find tokens that can be joined on parallel gw or scope completion
    *   - find payload that must be merged in these cases
    */
+  // TODO: naming
   private Map<String, List<Long>> suspendedTokens = new HashMap<>();
-  private int activeTokens;
+  private int activeTokens = 0;
 
   /*
    * purpose:
@@ -27,9 +28,16 @@ public class Scope {
    */
   private Long2ObjectHashMap<Job> jobs = new Long2ObjectHashMap<>();
 
-  public Scope(long key)
+  /*
+   * purpose:
+   *   - subprocess completion
+   */
+  private final long parentKey;
+
+  public Scope(long key, long parentKey)
   {
     this.key = key;
+    this.parentKey = parentKey;
   }
 
 
@@ -50,12 +58,12 @@ public class Scope {
 
   public void consumeTokens(int i)
   {
-
+    activeTokens -= i;
   }
 
   public void spawnTokens(int i)
   {
-
+    activeTokens += i;
   }
 
   public void suspendToken(DirectBuffer elementId, long position)
@@ -79,6 +87,14 @@ public class Scope {
     return -1;
   }
 
+  public List<Long> getSuspendedTokens()
+  {
+    final List<Long> result = new ArrayList<>();
+    this.suspendedTokens.values().forEach(result::addAll);
+
+    return result;
+  }
+
   public void consumeSuspendedToken(long position)
   {
     suspendedTokens.forEach((element, tokens) -> {
@@ -87,6 +103,18 @@ public class Scope {
         tokens.remove(position);
       }
     });
+  }
+
+  public int getActiveTokens() {
+    return activeTokens;
+  }
+
+  public long getParentKey() {
+    return parentKey;
+  }
+
+  public long getKey() {
+    return key;
   }
 
 }
