@@ -13,9 +13,18 @@ public class Scope {
 
   private long key;
 
+  /*
+   * purpose:
+   *   - find tokens that can be joined on parallel gw or scope completion
+   *   - find payload that must be merged in these cases
+   */
   private Map<String, List<Long>> suspendedTokens = new HashMap<>();
   private int activeTokens;
 
+  /*
+   * purpose:
+   *   - create a CANCEL job command on activity instance cancellation
+   */
   private Long2ObjectHashMap<Job> jobs = new Long2ObjectHashMap<>();
 
   public Scope(long key)

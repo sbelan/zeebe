@@ -2,15 +2,23 @@ package io.zeebe.broker.workflow;
 
 import static io.zeebe.test.util.TestUtil.doRepeatedly;
 import static io.zeebe.test.util.TestUtil.waitUntil;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
+import org.agrona.DirectBuffer;
+import org.agrona.io.DirectBufferInputStream;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.msgpack.jackson.dataformat.MessagePackFactory;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.zeebe.broker.job.data.JobRecord;
 import io.zeebe.broker.logstreams.processor.TypedRecord;
 import io.zeebe.broker.topic.StreamProcessorControl;
@@ -19,17 +27,18 @@ import io.zeebe.broker.workflow.data.WorkflowInstanceRecord;
 import io.zeebe.broker.workflow.map.DeployedWorkflow;
 import io.zeebe.broker.workflow.map.WorkflowCache;
 import io.zeebe.broker.workflow.processor.WorkflowInstanceStreamProcessor;
-import io.zeebe.logstreams.log.LoggedEvent;
 import io.zeebe.model.bpmn.Bpmn;
 import io.zeebe.model.bpmn.instance.Workflow;
 import io.zeebe.msgpack.UnpackedObject;
 import io.zeebe.protocol.impl.RecordMetadata;
 import io.zeebe.protocol.intent.JobIntent;
 import io.zeebe.protocol.intent.WorkflowInstanceIntent;
+import io.zeebe.test.util.MsgPackUtil;
 import io.zeebe.util.buffer.BufferUtil;
 
 public class BpmnPrototypeStreamProcessorTests {
 
+  public static final ObjectMapper MSGPACK_MAPPER = new ObjectMapper(new MessagePackFactory());
   private static final long WORKFLOW_KEY = 1;
 
   private static final Workflow FORK_JOIN_FLOW = Bpmn.createExecutableWorkflow("foo")
@@ -64,6 +73,7 @@ public class BpmnPrototypeStreamProcessorTests {
   public void tearDown()
   {
 
+    // TODO: this could go as a configurable option into the test rule
     final List<TypedRecord<UnpackedObject>> records = rule.events()
         .asTypedRecords()
         .collect(Collectors.toList());
@@ -120,24 +130,115 @@ public class BpmnPrototypeStreamProcessorTests {
     waitUntil(() -> rule.events().onlyWorkflowInstanceRecords()
         .withIntent(WorkflowInstanceIntent.END_EVENT_OCCURRED).findFirst().isPresent());
 
-    final List<TypedRecord<WorkflowInstanceRecord>> workflowInstanceRecords = rule.events()
+    final List<TypedRecord<WorkflowInstanceRecord>> workflowInstanceEvents = rule.events()
         .onlyWorkflowInstanceRecords()
         .onlyEvents()
         .collect(Collectors.toList());
 
-    System.out.println(workflowInstanceRecords);
 
-    fail("assert");
+    assertThat(workflowInstanceEvents).extracting(e -> e.getMetadata().getIntent())
+    .containsExactly(
+        WorkflowInstanceIntent.CREATED,
+        WorkflowInstanceIntent.START_EVENT_OCCURRED,
+        WorkflowInstanceIntent.SEQUENCE_FLOW_TAKEN,
+        WorkflowInstanceIntent.GATEWAY_ACTIVATED,
+        WorkflowInstanceIntent.SEQUENCE_FLOW_TAKEN,
+        WorkflowInstanceIntent.SEQUENCE_FLOW_TAKEN,
+        WorkflowInstanceIntent.ACTIVITY_READY,
+        WorkflowInstanceIntent.ACTIVITY_READY,
+        WorkflowInstanceIntent.ACTIVITY_ACTIVATED,
+        WorkflowInstanceIntent.ACTIVITY_ACTIVATED,
+        // TODO: to assert concurrent execution correctly, we would need subsequence matching whe
+        // each element is matched at most once, which assertj doesn't provide out of the box
+        WorkflowInstanceIntent.ACTIVITY_COMPLETING,
+        WorkflowInstanceIntent.ACTIVITY_COMPLETING,
+        WorkflowInstanceIntent.ACTIVITY_COMPLETED,
+        WorkflowInstanceIntent.ACTIVITY_COMPLETED,
+        WorkflowInstanceIntent.SEQUENCE_FLOW_TAKEN,
+        WorkflowInstanceIntent.SEQUENCE_FLOW_TAKEN,
+        WorkflowInstanceIntent.GATEWAY_ACTIVATED,
+        WorkflowInstanceIntent.SEQUENCE_FLOW_TAKEN,
+        WorkflowInstanceIntent.END_EVENT_OCCURRED,
+        WorkflowInstanceIntent.COMPLETED);
 
+  }
+
+  @Test
+  public void shouldPropagatePayloadOnSplit()
+  {
+    // given
+    deploy(WORKFLOW_KEY, FORK_JOIN_FLOW);
+    final WorkflowInstanceRecord startCommand = startWorkflowInstance(WORKFLOW_KEY);
+    startCommand.setPayload(MsgPackUtil.asMsgPack("foo", "bar"));
+
+    // when
+    rule.writeCommand(WorkflowInstanceIntent.CREATE, startCommand);
+
+    // then
+    final List<TypedRecord<JobRecord>> jobCommands =
+        doRepeatedly(() -> rule.events().onlyJobRecords().withIntent(JobIntent.CREATE)
+            .collect(Collectors.toList())).until(c -> c.size() == 2);
+
+    assertThat(jobCommands).extracting(c -> c.getValue().getPayload())
+      .allMatch(payload -> payload.equals(startCommand.getPayload()));
   }
 
   @Test
   public void shouldSynchronizeProcessCompletion() {
-    fail("implement");
+    fail("implement; build when scopes are in place as we have the same problem there");
   }
 
   @Test
   public void shouldMergePayloadsOnParallelMerge()
+  {
+    // given
+    deploy(WORKFLOW_KEY, FORK_JOIN_FLOW);
+    rule.writeCommand(WorkflowInstanceIntent.CREATE, startWorkflowInstance(WORKFLOW_KEY));
+
+    final List<TypedRecord<JobRecord>> jobCommands =
+        doRepeatedly(() -> rule.events().onlyJobRecords().withIntent(JobIntent.CREATE)
+            .collect(Collectors.toList())).until(c -> c.size() == 2);
+
+    for (TypedRecord<JobRecord> createCommand : jobCommands)
+    {
+      rule.writeEvent(createCommand.getKey(), JobIntent.CREATED, createCommand.getValue()); // => required for workflow stream processor indexing
+    }
+
+    final TypedRecord<JobRecord> job1 = jobCommands.get(0);
+    job1.getValue().setPayload(MsgPackUtil.asMsgPack("key1", "val1"));
+
+    final TypedRecord<JobRecord> job2 = jobCommands.get(1);
+    job2.getValue().setPayload(MsgPackUtil.asMsgPack("key2", "val2"));
+
+    // when
+    rule.writeEvent(job1.getKey(), JobIntent.COMPLETED, job1.getValue());
+    rule.writeEvent(job2.getKey(), JobIntent.COMPLETED, job2.getValue());
+
+    // then
+    final TypedRecord<WorkflowInstanceRecord> endEvent = doRepeatedly(() -> rule.events().onlyWorkflowInstanceRecords()
+        .withIntent(WorkflowInstanceIntent.END_EVENT_OCCURRED).findFirst()).until(e -> e.isPresent()).get();
+
+    final DirectBuffer mergedPayload = endEvent.getValue().getPayload();
+    assertThat(msgPackAsMap(mergedPayload))
+      .containsExactly(entry("key1", "val1"), entry("key2", "val2"));
+  }
+
+  /**
+   * XML:
+   *
+   * <pre>
+   * <bpmn:parallelGateway id="gw">
+   *  <extensionElements>
+   *    <zeebe:mapping operation="PUT" element="flow1" ="$.foo" target="$.bar"/>
+   *    <zeebe:mapping operation="REMOVE" target="$.foo"/>
+   *  </extensionElements>
+   *  <bpmn:incoming>flow1</bpmn:incoming>
+   *  <bpmn:incoming>flow2</bpmn:incoming>
+   *</bpmn:parallelGateway>
+   *</pre>
+   */
+  @Test
+  public void shouldMergePayloadsAndApplyMappingsOnParallelMerge()
   {
     fail("implement");
 
@@ -164,5 +265,15 @@ public class BpmnPrototypeStreamProcessorTests {
     final WorkflowInstanceRecord record = new WorkflowInstanceRecord();
     record.setWorkflowKey(key);
     return record;
+  }
+
+  public static Map<String, Object> msgPackAsMap(DirectBuffer msgPack)
+  {
+
+    try {
+      return MSGPACK_MAPPER.readValue(new DirectBufferInputStream(msgPack), Map.class);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 }
