@@ -16,6 +16,7 @@
 package io.zeebe.model.bpmn.impl.instance;
 
 import io.zeebe.model.bpmn.BpmnConstants;
+import io.zeebe.model.bpmn.impl.metadata.InputOutputMappingImpl;
 import io.zeebe.model.bpmn.instance.FlowNode;
 import io.zeebe.model.bpmn.instance.SequenceFlow;
 import java.util.ArrayList;
@@ -57,6 +58,11 @@ public class FlowNodeImpl extends FlowElementImpl implements FlowNode {
   @Override
   public List<SequenceFlow> getOutgoingSequenceFlows() {
     return (List) outgoing;
+  }
+
+  @Override
+  public InputOutputMappingImpl getInputOutputMapping() {
+    return getExtensionElements() != null ? getExtensionElements().getInputOutputMapping() : null;
   }
 
   @Override

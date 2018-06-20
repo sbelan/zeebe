@@ -21,4 +21,7 @@ public interface FlowNode extends FlowElement {
   List<SequenceFlow> getIncomingSequenceFlows();
 
   List<SequenceFlow> getOutgoingSequenceFlows();
+
+  // TODO: this should be on an Activity interface
+  InputOutputMapping getInputOutputMapping();
 }

@@ -20,6 +20,7 @@ package io.zeebe.broker.workflow.processor;
 import static io.zeebe.broker.workflow.data.WorkflowInstanceRecord.EMPTY_PAYLOAD;
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -52,6 +53,8 @@ import io.zeebe.logstreams.log.LogStream;
 import io.zeebe.logstreams.processor.EventLifecycleContext;
 import io.zeebe.logstreams.processor.StreamProcessorContext;
 import io.zeebe.model.bpmn.BpmnAspect;
+import io.zeebe.model.bpmn.impl.instance.ServiceTaskImpl;
+import io.zeebe.model.bpmn.impl.instance.SubProcessImpl;
 import io.zeebe.model.bpmn.instance.EndEvent;
 import io.zeebe.model.bpmn.instance.ExclusiveGateway;
 import io.zeebe.model.bpmn.instance.FlowElement;
@@ -141,7 +144,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
             ValueType.WORKFLOW_INSTANCE,
             WorkflowInstanceIntent.ACTIVITY_ACTIVATED,
             w -> isActive(w.getWorkflowInstanceKey()),
-            new ActivityActivatedEventProcessor())
+            new ActivityActivatedProcessor())
         .onEvent(
             ValueType.WORKFLOW_INSTANCE,
             WorkflowInstanceIntent.ACTIVITY_COMPLETING,
@@ -546,7 +549,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     }
   }
 
-  private final class ActivityReadyEventProcessor extends FlowElementEventProcessor<ServiceTask> {
+  private final class ActivityReadyEventProcessor extends FlowElementEventProcessor<FlowNode> {
     private final IncidentRecord incidentCommand = new IncidentRecord();
 
     private boolean createsIncident;
@@ -557,7 +560,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
 
     @Override
     void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
-        TypedRecord<WorkflowInstanceRecord> event, ServiceTask serviceTask) {
+        TypedRecord<WorkflowInstanceRecord> event, FlowNode serviceTask) {
       this.workflowInstance = workflowInstance;
       createsIncident = false;
       isResolvingIncident = event.getMetadata().hasIncidentKey();
@@ -621,7 +624,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     }
   }
 
-  private final class ActivityActivatedEventProcessor
+  private final class ServiceTaskActivatedProcessor
       extends FlowElementEventProcessor<ServiceTask> {
     private final JobRecord jobCommand = new JobRecord();
 
@@ -746,7 +749,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
   }
 
   private final class ActivityCompletingEventProcessor
-      extends FlowElementEventProcessor<ServiceTask> {
+      extends FlowElementEventProcessor<FlowNode> {
     private final IncidentRecord incidentCommand = new IncidentRecord();
     private boolean hasIncident;
     private boolean isResolvingIncident;
@@ -754,7 +757,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
 
     @Override
     void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
-        TypedRecord<WorkflowInstanceRecord> event, ServiceTask serviceTask) {
+        TypedRecord<WorkflowInstanceRecord> event, FlowNode serviceTask) {
       this.workflowInstance = workflowInstance;
       hasIncident = false;
       isResolvingIncident = event.getMetadata().hasIncidentKey();
@@ -1070,6 +1073,27 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     }
   }
 
+  private class SubProcessActivatedProcessor extends FlowElementEventProcessor<SubProcessImpl>
+  {
+
+    @Override
+    void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
+        TypedRecord<WorkflowInstanceRecord> event, SubProcessImpl subprocess) {
+      final StartEvent startEvent = subprocess.getInitialStartEvent();
+
+      final WorkflowInstanceRecord value = event.getValue();
+
+      value.setActivityId(startEvent.getIdAsBuffer());
+      value.setScopeKey(event.getKey());
+    }
+
+
+    @Override
+    public long writeRecord(TypedRecord<WorkflowInstanceRecord> record, TypedStreamWriter writer) {
+      return writer.writeNewEvent(WorkflowInstanceIntent.START_EVENT_OCCURRED, record.getValue());
+    }
+  }
+
   private abstract class FlowElementEventProcessor<T extends FlowElement>
       implements TypedRecordProcessor<WorkflowInstanceRecord> {
     private TypedRecord<WorkflowInstanceRecord> event;
@@ -1106,7 +1130,54 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
         WorkflowInstance workflowInstance, Scope scope, TypedRecord<WorkflowInstanceRecord> event, T currentFlowNode);
   }
 
-  @SuppressWarnings("rawtypes")
+  // TODO: delegation aspect can be consolidated with BpmnAspectEventProcessor
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  private class ActivityActivatedProcessor extends FlowElementEventProcessor<FlowNode>
+  {
+    private FlowElementEventProcessor delegate;
+
+    private Map<Class<?>, FlowElementEventProcessor> delegates = new HashMap<>();
+
+    ActivityActivatedProcessor()
+    {
+      delegates.put(ServiceTaskImpl.class, new ServiceTaskActivatedProcessor());
+      delegates.put(SubProcessImpl.class, new SubProcessActivatedProcessor());
+    }
+
+    @Override
+    void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
+        TypedRecord<WorkflowInstanceRecord> event, FlowNode currentFlowNode) {
+
+      final Class<? extends FlowElement> flowElementType = currentFlowNode.getClass();
+      delegate = delegates.get(flowElementType);
+
+      if (delegate == null)
+      {
+        throw new RuntimeException("No processor registered for activity of type " + flowElementType);
+
+      }
+
+      delegate.processFlowElementEvent(workflowInstance, scope, event, currentFlowNode);
+    }
+
+    @Override
+    public boolean executeSideEffects(
+        TypedRecord<WorkflowInstanceRecord> record, TypedResponseWriter responseWriter) {
+      return delegate.executeSideEffects(record, responseWriter);
+    }
+
+    @Override
+    public long writeRecord(TypedRecord<WorkflowInstanceRecord> record, TypedStreamWriter writer) {
+      return delegate.writeRecord(record, writer);
+    }
+
+    @Override
+    public void updateState(TypedRecord<WorkflowInstanceRecord> record) {
+      delegate.updateState(record);
+    }
+  }
+
+  @SuppressWarnings({"rawtypes", "unchecked"})
   private final class BpmnAspectEventProcessor extends FlowElementEventProcessor<FlowElement> {
     private FlowElementEventProcessor delegate;
 
@@ -1138,7 +1209,6 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
 
 
     @Override
-    @SuppressWarnings("unchecked")
     void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
         TypedRecord<WorkflowInstanceRecord> event, FlowElement currentFlowNode) {
       final BpmnAspect bpmnAspect = currentFlowNode.getBpmnAspect();

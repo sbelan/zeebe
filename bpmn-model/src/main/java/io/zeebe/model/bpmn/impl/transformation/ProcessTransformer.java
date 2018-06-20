@@ -15,47 +15,62 @@
  */
 package io.zeebe.model.bpmn.impl.transformation;
 
-import io.zeebe.model.bpmn.BpmnAspect;
-import io.zeebe.model.bpmn.impl.error.ErrorCollector;
-import io.zeebe.model.bpmn.impl.instance.FlowElementImpl;
-import io.zeebe.model.bpmn.impl.instance.ParallelGatewayImpl;
-import io.zeebe.model.bpmn.impl.instance.ProcessImpl;
-import io.zeebe.model.bpmn.impl.instance.StartEventImpl;
-import io.zeebe.model.bpmn.impl.transformation.nodes.ExclusiveGatewayTransformer;
-import io.zeebe.model.bpmn.impl.transformation.nodes.SequenceFlowTransformer;
-import io.zeebe.model.bpmn.impl.transformation.nodes.task.ServiceTaskTransformer;
-import io.zeebe.model.bpmn.instance.EndEvent;
-import io.zeebe.model.bpmn.instance.ExclusiveGateway;
-import io.zeebe.model.bpmn.instance.FlowElement;
-import io.zeebe.model.bpmn.instance.FlowNode;
-import io.zeebe.model.bpmn.instance.SequenceFlow;
-import io.zeebe.model.bpmn.instance.ServiceTask;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.agrona.DirectBuffer;
+import io.zeebe.model.bpmn.BpmnAspect;
+import io.zeebe.model.bpmn.impl.error.ErrorCollector;
+import io.zeebe.model.bpmn.impl.instance.ExclusiveGatewayImpl;
+import io.zeebe.model.bpmn.impl.instance.FlowElementContainer;
+import io.zeebe.model.bpmn.impl.instance.FlowElementImpl;
+import io.zeebe.model.bpmn.impl.instance.FlowNodeImpl;
+import io.zeebe.model.bpmn.impl.instance.ParallelGatewayImpl;
+import io.zeebe.model.bpmn.impl.instance.ProcessImpl;
+import io.zeebe.model.bpmn.impl.instance.SequenceFlowImpl;
+import io.zeebe.model.bpmn.impl.instance.ServiceTaskImpl;
+import io.zeebe.model.bpmn.impl.instance.StartEventImpl;
+import io.zeebe.model.bpmn.impl.instance.SubProcessImpl;
+import io.zeebe.model.bpmn.impl.transformation.nodes.ExclusiveGatewayTransformer;
+import io.zeebe.model.bpmn.impl.transformation.nodes.SequenceFlowTransformer;
+import io.zeebe.model.bpmn.impl.transformation.nodes.task.FlowNodeTransformer;
+import io.zeebe.model.bpmn.impl.transformation.nodes.task.ServiceTaskTransformer;
+import io.zeebe.model.bpmn.instance.EndEvent;
+import io.zeebe.model.bpmn.instance.ExclusiveGateway;
+import io.zeebe.model.bpmn.instance.FlowNode;
+import io.zeebe.model.bpmn.instance.SequenceFlow;
+import io.zeebe.model.bpmn.instance.ServiceTask;
 
 public class ProcessTransformer {
+  private final FlowNodeTransformer flowNodeTransformer = new FlowNodeTransformer();
   private final SequenceFlowTransformer sequenceFlowTransformer = new SequenceFlowTransformer();
   private final ServiceTaskTransformer serviceTaskTransformer = new ServiceTaskTransformer();
   private final ExclusiveGatewayTransformer exclusiveGatewayTransformer =
       new ExclusiveGatewayTransformer();
 
   public void transform(ErrorCollector errorCollector, ProcessImpl process) {
-    final List<FlowElementImpl> flowElements = process.collectFlowElements();
-    process.getFlowElements().addAll(flowElements);
+    final ParseContext context = new ParseContext(process);
 
-    final Map<DirectBuffer, FlowElementImpl> flowElementsById = getFlowElementsById(flowElements);
+    final Map<DirectBuffer, FlowElementImpl> flowElementsById = getFlowElementsById(context.getFlowElements());
     process.getFlowElementMap().putAll(flowElementsById);
 
-    setInitialStartEvent(process);
+    final List<FlowElementContainer> flowElementContainers = context.getElementsOfType(FlowElementContainer.class);
 
-    sequenceFlowTransformer.transform(errorCollector, process.getSequenceFlows(), flowElementsById);
-    serviceTaskTransformer.transform(errorCollector, process.getServiceTasks());
-    exclusiveGatewayTransformer.transform(process.getExclusiveGateways());
+    for (FlowElementContainer container : flowElementContainers)
+    {
+      setInitialStartEvent(container);
+    }
 
-    transformBpmnAspects(process);
+    final List<FlowNodeImpl> flowNodes = context.getElementsOfType(FlowNodeImpl.class);
+
+    sequenceFlowTransformer.transform(errorCollector, context.getElementsOfType(SequenceFlowImpl.class), flowElementsById);
+    flowNodeTransformer.transform(errorCollector, flowNodes);
+    serviceTaskTransformer.transform(errorCollector, context.getElementsOfType(ServiceTaskImpl.class));
+    exclusiveGatewayTransformer.transform(context.getElementsOfType(ExclusiveGatewayImpl.class));
+
+    transformBpmnAspects(context);
   }
 
   private Map<DirectBuffer, FlowElementImpl> getFlowElementsById(
@@ -67,16 +82,16 @@ public class ProcessTransformer {
     return map;
   }
 
-  private void setInitialStartEvent(final ProcessImpl process) {
-    final List<StartEventImpl> startEvents = process.getStartEvents();
+  private void setInitialStartEvent(final FlowElementContainer container) {
+    final List<StartEventImpl> startEvents = container.getStartEvents();
     if (startEvents.size() >= 1) {
       final StartEventImpl startEvent = startEvents.get(0);
-      process.setInitialStartEvent(startEvent);
+      container.setInitialStartEvent(startEvent);
     }
   }
 
-  private void transformBpmnAspects(ProcessImpl process) {
-    final List<FlowElement> flowElements = process.getFlowElements();
+  private void transformBpmnAspects(ParseContext context) {
+    final List<FlowElementImpl> flowElements = context.getFlowElements();
     for (int f = 0; f < flowElements.size(); f++) {
       final FlowElementImpl flowElement = (FlowElementImpl) flowElements.get(f);
 
@@ -127,12 +142,35 @@ public class ProcessTransformer {
         {
           flowElement.setBpmnAspect(BpmnAspect.TRIGGER_NONE_EVENT);
         }
-        else if (target instanceof ServiceTask)
+        else if (target instanceof ServiceTask || target instanceof SubProcessImpl)
         {
           flowElement.setBpmnAspect(BpmnAspect.START_ACTIVITY);
         }
       }
 
+    }
+  }
+
+  private static class ParseContext
+  {
+    List<FlowElementImpl> flowElements = new ArrayList<>();
+
+    ParseContext(ProcessImpl process)
+    {
+      this.flowElements.add(process);
+      this.flowElements.addAll(process.collectFlowElements());
+    }
+
+    public <T extends FlowElementImpl> List<T> getElementsOfType(Class<T> type)
+    {
+      return flowElements.stream()
+          .filter(e -> type.isAssignableFrom(e.getClass()))
+          .map(type::cast)
+          .collect(Collectors.toCollection(ArrayList::new));
+    }
+
+    public List<FlowElementImpl> getFlowElements() {
+      return flowElements;
     }
   }
 }

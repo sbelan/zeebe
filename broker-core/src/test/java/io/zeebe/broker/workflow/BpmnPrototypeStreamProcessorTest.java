@@ -19,6 +19,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.msgpack.jackson.dataformat.MessagePackFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.zeebe.broker.job.data.JobHeaders;
 import io.zeebe.broker.job.data.JobRecord;
 import io.zeebe.broker.logstreams.processor.TypedRecord;
 import io.zeebe.broker.topic.StreamProcessorControl;
@@ -50,6 +51,18 @@ public class BpmnPrototypeStreamProcessorTest {
       .continueAt("fork")
       .serviceTask("bar", t -> t.taskType("bar"))
       .connectTo("join")
+      .done()
+      .getWorkflow(BufferUtil.wrapString("foo"));
+
+
+  private static final Workflow SUB_PROCESS_FLOW = Bpmn.createExecutableWorkflow("foo")
+      .startEvent()
+      .subprocess("subprocess")
+      .startEvent()
+      .serviceTask("task", t -> t.taskType("foo"))
+      .endEvent()
+      .leaveScope()
+      .endEvent()
       .done()
       .getWorkflow(BufferUtil.wrapString("foo"));
 
@@ -122,8 +135,7 @@ public class BpmnPrototypeStreamProcessorTest {
     // when
     for (TypedRecord<JobRecord> createCommand : jobCommands)
     {
-      rule.writeEvent(createCommand.getKey(), JobIntent.CREATED, createCommand.getValue()); // => required for workflow stream processor indexing
-      rule.writeEvent(createCommand.getKey(), JobIntent.COMPLETED, createCommand.getValue());
+      completeJob(createCommand);
     }
 
     // then
@@ -199,20 +211,9 @@ public class BpmnPrototypeStreamProcessorTest {
         doRepeatedly(() -> rule.events().onlyJobRecords().withIntent(JobIntent.CREATE)
             .collect(Collectors.toList())).until(c -> c.size() == 2);
 
-    for (TypedRecord<JobRecord> createCommand : jobCommands)
-    {
-      rule.writeEvent(createCommand.getKey(), JobIntent.CREATED, createCommand.getValue()); // => required for workflow stream processor indexing
-    }
-
-    final TypedRecord<JobRecord> job1 = jobCommands.get(0);
-    job1.getValue().setPayload(MsgPackUtil.asMsgPack("key1", "val1"));
-
-    final TypedRecord<JobRecord> job2 = jobCommands.get(1);
-    job2.getValue().setPayload(MsgPackUtil.asMsgPack("key2", "val2"));
-
     // when
-    rule.writeEvent(job1.getKey(), JobIntent.COMPLETED, job1.getValue());
-    rule.writeEvent(job2.getKey(), JobIntent.COMPLETED, job2.getValue());
+    completeJob(jobCommands.get(0), MsgPackUtil.asMsgPack("key1", "val1"));
+    completeJob(jobCommands.get(1), MsgPackUtil.asMsgPack("key2", "val2"));
 
     // then
     final TypedRecord<WorkflowInstanceRecord> endEvent = doRepeatedly(() -> rule.events().onlyWorkflowInstanceRecords()
@@ -263,20 +264,9 @@ public class BpmnPrototypeStreamProcessorTest {
         doRepeatedly(() -> rule.events().onlyJobRecords().withIntent(JobIntent.CREATE)
             .collect(Collectors.toList())).until(c -> c.size() == 2);
 
-    for (TypedRecord<JobRecord> createCommand : jobCommands)
-    {
-      rule.writeEvent(createCommand.getKey(), JobIntent.CREATED, createCommand.getValue()); // => required for workflow stream processor indexing
-    }
-
-    final TypedRecord<JobRecord> job1 = jobCommands.get(0);
-    job1.getValue().setPayload(MsgPackUtil.asMsgPack("key1", "val1"));
-
-    final TypedRecord<JobRecord> job2 = jobCommands.get(1);
-    job2.getValue().setPayload(MsgPackUtil.asMsgPack("key2", "val2"));
-
     // when
-    rule.writeEvent(job1.getKey(), JobIntent.COMPLETED, job1.getValue());
-    rule.writeEvent(job2.getKey(), JobIntent.COMPLETED, job2.getValue());
+    completeJob(jobCommands.get(0), MsgPackUtil.asMsgPack("key1", "val1"));
+    completeJob(jobCommands.get(1), MsgPackUtil.asMsgPack("key2", "val2"));
 
     // then
     final TypedRecord<WorkflowInstanceRecord> endEvent = doRepeatedly(() -> rule.events().onlyWorkflowInstanceRecords()
@@ -305,7 +295,60 @@ public class BpmnPrototypeStreamProcessorTest {
   @Test
   public void shouldEnterEmbeddedSubprocess()
   {
+    // given
+    deploy(WORKFLOW_KEY, SUB_PROCESS_FLOW);
+
+    // when
+    rule.writeCommand(WorkflowInstanceIntent.CREATE, startWorkflowInstance(WORKFLOW_KEY));
+
+    // then
+    final TypedRecord<JobRecord> job = doRepeatedly(() -> rule.events().onlyJobRecords()
+        .withIntent(JobIntent.CREATE).findFirst()).until(e -> e.isPresent()).get();
+
+    final JobHeaders headers = job.getValue().headers();
+    assertThat(headers.getActivityId()).isEqualTo(BufferUtil.wrapString("task"));
+
+    fail("assert events");
+  }
+
+  @Test
+  public void shouldCompleteProcessWithEmbeddedSubprocess()
+  {
+    // given
+    deploy(WORKFLOW_KEY, SUB_PROCESS_FLOW);
+    rule.writeCommand(WorkflowInstanceIntent.CREATE, startWorkflowInstance(WORKFLOW_KEY));
+    final TypedRecord<JobRecord> job = doRepeatedly(() -> rule.events().onlyJobRecords()
+        .withIntent(JobIntent.CREATE).findFirst()).until(e -> e.isPresent()).get();
+
+    // when
+    completeJob(job);
+
+    // then
+    waitUntil(() -> rule.events().onlyWorkflowInstanceRecords()
+        .withIntent(WorkflowInstanceIntent.COMPLETED).findFirst().isPresent());
+
+    final List<TypedRecord<WorkflowInstanceRecord>> completedEvents = rule.events().onlyWorkflowInstanceRecords()
+      .withIntent(WorkflowInstanceIntent.ACTIVITY_COMPLETED)
+      .collect(Collectors.toList());
+
+    assertThat(completedEvents).hasSize(2); // service task and sub process
+
+    fail("assert events");
+
+  }
+
+  @Test
+  public void shouldSynchronizeOnSubprocessCompletion()
+  {
     fail("implement");
+
+  }
+
+  @Test
+  public void shouldMergePayloadOnSubprocessCompletion()
+  {
+    fail("implement");
+
   }
 
   private void deploy(long key, Workflow workflow) {
@@ -326,5 +369,22 @@ public class BpmnPrototypeStreamProcessorTest {
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  private void completeJob(TypedRecord<JobRecord> createCommand, DirectBuffer msgpackPayload)
+  {
+    rule.writeEvent(createCommand.getKey(), JobIntent.CREATED, createCommand.getValue()); // => required for workflow stream processor indexing
+
+    if (msgpackPayload != null)
+    {
+      createCommand.getValue().setPayload(msgpackPayload);
+    }
+
+    rule.writeEvent(createCommand.getKey(), JobIntent.COMPLETED, createCommand.getValue());
+  }
+
+  private void completeJob(TypedRecord<JobRecord> createCommand)
+  {
+    completeJob(createCommand, null);
   }
 }

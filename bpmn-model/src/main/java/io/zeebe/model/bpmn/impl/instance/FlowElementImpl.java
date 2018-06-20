@@ -30,6 +30,8 @@ public class FlowElementImpl extends BaseElement implements FlowElement {
 
   private ExtensionElementsImpl extensionElements;
 
+  private FlowElementContainer parent;
+
   private BpmnAspect bpmnAspect = BpmnAspect.NONE;
 
   @XmlID
@@ -79,6 +81,17 @@ public class FlowElementImpl extends BaseElement implements FlowElement {
   @XmlTransient
   public void setBpmnAspect(BpmnAspect bpmnAspect) {
     this.bpmnAspect = bpmnAspect;
+  }
+
+  // TODO: can use #afterUnmarshal callback to call this on unmarshaling
+  // https://docs.oracle.com/javase/6/docs/api/javax/xml/bind/Unmarshaller.html#unmarshalEventCallback
+  @XmlTransient
+  public void setParent(FlowElementContainer parent) {
+    this.parent = parent;
+  }
+
+  public FlowElementContainer getParent() {
+    return parent;
   }
 
   @Override

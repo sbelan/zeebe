@@ -36,9 +36,4 @@ public class ServiceTaskImpl extends FlowNodeImpl implements ServiceTask {
   public TaskHeadersImpl getTaskHeaders() {
     return getExtensionElements() != null ? getExtensionElements().getTaskHeaders() : null;
   }
-
-  @Override
-  public InputOutputMappingImpl getInputOutputMapping() {
-    return getExtensionElements() != null ? getExtensionElements().getInputOutputMapping() : null;
-  }
 }

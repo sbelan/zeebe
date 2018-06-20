@@ -34,6 +34,7 @@ public class BpmnBuilder {
   private final List<FlowNodeImpl> flowNodes = new ArrayList<>();
 
   private ProcessImpl process;
+  private FlowElementContainer scope;
   private FlowNodeImpl sourceNode;
   private SequenceFlowImpl sequenceFlow;
   private ExclusiveGatewayImpl exclusiveGateway;
@@ -49,6 +50,7 @@ public class BpmnBuilder {
     this.process = new ProcessImpl();
     process.setId(bpmnProcessId);
     process.setExecutable(true);
+    this.scope = process;
 
     sourceNode = null;
     sequenceFlow = null;
@@ -63,6 +65,7 @@ public class BpmnBuilder {
   }
 
   private void addFlowNode(FlowNodeImpl flowNode) {
+    flowNode.setParent(scope);
     flowNodes.add(flowNode);
   }
 
@@ -94,10 +97,38 @@ public class BpmnBuilder {
     final StartEventImpl startEvent = new StartEventImpl();
     startEvent.setId(id);
 
-    process.getStartEvents().add(startEvent);
+    scope.getStartEvents().add(startEvent);
     addFlowNode(startEvent);
 
     sourceNode = startEvent;
+
+    return this;
+  }
+
+  public BpmnBuilder subprocess(String id)
+  {
+    final SubProcessImpl subprocess = new SubProcessImpl();
+    subprocess.setId(id);
+
+    connectToSequenceFlow(subprocess);
+
+    scope.getSubprocesses().add(subprocess);
+    addFlowNode(subprocess);
+
+    scope = subprocess;
+
+    return this;
+  }
+
+  public BpmnBuilder leaveScope()
+  {
+    sourceNode = scope;
+    scope = scope.getParent();
+    if (scope == null)
+    {
+      throw new RuntimeException("cannot leave process definition scope");
+    }
+
 
     return this;
   }
@@ -121,7 +152,7 @@ public class BpmnBuilder {
     sequenceFlow.setSourceRef(sourceNode.getId());
     sourceNode.getOutgoing().add(sequenceFlow);
 
-    process.getSequenceFlows().add(sequenceFlow);
+    scope.getSequenceFlows().add(sequenceFlow);
 
     final BpmnSequenceFlowBuilder sequenceFlowBuilder =
         new BpmnSequenceFlowBuilder(this, sequenceFlow, sourceNode);
@@ -143,7 +174,7 @@ public class BpmnBuilder {
 
     connectToSequenceFlow(endEvent);
 
-    process.getEndEvents().add(endEvent);
+    scope.getEndEvents().add(endEvent);
     addFlowNode(endEvent);
 
     return endCurrentFlow();
@@ -159,7 +190,7 @@ public class BpmnBuilder {
 
     connectToSequenceFlow(serviceTask);
 
-    process.getServiceTasks().add(serviceTask);
+    scope.getServiceTasks().add(serviceTask);
     addFlowNode(serviceTask);
 
     return new BpmnServiceTaskBuilder(this, serviceTask);
@@ -181,7 +212,7 @@ public class BpmnBuilder {
 
     connectToSequenceFlow(exclusiveGateway);
 
-    process.getExclusiveGateways().add(exclusiveGateway);
+    scope.getExclusiveGateways().add(exclusiveGateway);
     addFlowNode(exclusiveGateway);
 
     this.exclusiveGateway = exclusiveGateway;
@@ -200,7 +231,7 @@ public class BpmnBuilder {
     gateway.setId(id);
 
     connectToSequenceFlow(gateway);
-    process.getParallelGateways().add(gateway);
+    scope.getParallelGateways().add(gateway);
     addFlowNode(gateway);
 
     return this;
