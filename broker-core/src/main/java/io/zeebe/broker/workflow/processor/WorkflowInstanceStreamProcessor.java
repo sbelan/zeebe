@@ -1077,11 +1077,15 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
       final int partitionId = messageCorrelationManager.getPartitionForTopic(eventTopic, eventKey);
       if (partitionId > 0)
       {
-          messageCorrelationManager.openSubscription(partitionId,
+          final ActorFuture<ClientResponse> onSubscribed = messageCorrelationManager.openSubscription(partitionId,
                                                      eventKey,
                                                      messageName,
                                                      event.getValue().getWorkflowInstanceKey(),
                                                      event.getKey());
+
+          // TODO handle the case when the partition has currently no leader, and when no response is received
+
+          ctx.async(onSubscribed);
       }
       else
       {
@@ -1095,11 +1099,14 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
                   final int id = messageCorrelationManager.getPartitionForTopic(eventTopic, eventKey);
                   if (id > 0)
                   {
-                      messageCorrelationManager.openSubscription(id,
+                      final ActorFuture<ClientResponse> onSubscribed = messageCorrelationManager.openSubscription(id,
                                                                  eventKey,
                                                                  messageName,
                                                                  event.getValue().getWorkflowInstanceKey(),
                                                                  event.getKey());
+
+                      // TODO handle the case when the partition has currently no leader, and when no response is received
+                      ctx.async(onSubscribed);
                   }
                   else
                   {

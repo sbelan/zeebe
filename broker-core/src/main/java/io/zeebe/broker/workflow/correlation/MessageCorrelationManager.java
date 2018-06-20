@@ -39,6 +39,7 @@ import io.zeebe.util.sched.future.ActorFuture;
 import io.zeebe.util.sched.future.CompletableActorFuture;
 import org.agrona.DirectBuffer;
 import org.agrona.MutableDirectBuffer;
+import org.agrona.collections.Int2ObjectHashMap;
 import org.agrona.collections.IntArrayList;
 import org.slf4j.Logger;
 
@@ -63,6 +64,8 @@ public class MessageCorrelationManager implements TopologyPartitionListener {
   private final ActorControl actor;
 
   private volatile RemoteAddress systemTopicLeaderAddress;
+
+  private final Int2ObjectHashMap<RemoteAddress> partitionLeaders = new Int2ObjectHashMap<>();
 
   private final MessageDigest md;
 
@@ -165,7 +168,7 @@ public class MessageCorrelationManager implements TopologyPartitionListener {
       }
   }
 
-  public void openSubscription(int partitionId, String eventKey, String messageName, long workflowInstanceKey, long activityInstanceKey)
+  public ActorFuture<ClientResponse> openSubscription(int partitionId, String eventKey, String messageName, long workflowInstanceKey, long activityInstanceKey)
   {
 
       final MessageSubscriptionRecord sub = new MessageSubscriptionRecord();
@@ -179,9 +182,15 @@ public class MessageCorrelationManager implements TopologyPartitionListener {
 
       final MessageSubscriptionRequest request = new MessageSubscriptionRequest(sub, partitionId);
 
-      // TODO get address to partition id
-     RemoteAddress addr = systemTopicLeaderAddress;
-    clientApiClient.getOutput().sendRequest(addr, request, Duration.ofSeconds(5));
+      if (!partitionLeaders.containsKey(partitionId))
+      {
+          return CompletableActorFuture.completedExceptionally(new RuntimeException("no leader found for partition with id: " + partitionId));
+      }
+      else
+      {
+          final RemoteAddress remoteAddress = partitionLeaders.get(partitionId);
+          return clientApiClient.getOutput().sendRequest(remoteAddress, request, Duration.ofSeconds(5));
+      }
   }
 
   class MessageSubscriptionRequest implements BufferWriter
@@ -243,17 +252,32 @@ public class MessageCorrelationManager implements TopologyPartitionListener {
     }
   }
 
-  @Override
-  public void onPartitionUpdated(PartitionInfo partitionInfo, NodeInfo member) {
-    final RemoteAddress currentLeader = systemTopicLeaderAddress;
+    @Override
+    public void onPartitionUpdated(PartitionInfo partitionInfo, NodeInfo member)
+    {
+        final RemoteAddress currentLeader = systemTopicLeaderAddress;
 
-    if (partitionInfo.getPartitionId() == Protocol.SYSTEM_PARTITION) {
-      if (member.getLeaders().contains(partitionInfo)) {
-        final SocketAddress managementApiAddress = member.getManagementApiAddress();
-        if (currentLeader == null || currentLeader.getAddress().equals(managementApiAddress)) {
-          systemTopicLeaderAddress = managementClient.registerRemoteAddress(managementApiAddress);
+        if (member.getLeaders().contains(partitionInfo))
+        {
+            if (partitionInfo.getPartitionId() == Protocol.SYSTEM_PARTITION)
+            {
+                final SocketAddress managementApiAddress = member.getManagementApiAddress();
+                if (currentLeader == null || currentLeader.getAddress().equals(managementApiAddress))
+                {
+                    systemTopicLeaderAddress = managementClient.registerRemoteAddress(managementApiAddress);
+                }
+            }
+            else
+            {
+                actor.submit(() ->
+                {
+                    final SocketAddress clientApiAddress = member.getClientApiAddress();
+                    final RemoteAddress remoteAddress = clientApiClient.registerRemoteAddress(clientApiAddress);
+
+                    partitionLeaders.put(partitionInfo.getPartitionId(), remoteAddress);
+                });
+            }
         }
-      }
     }
-  }
+
 }
