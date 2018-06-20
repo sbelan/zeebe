@@ -20,6 +20,7 @@ package io.zeebe.broker.workflow.processor;
 import static io.zeebe.broker.util.PayloadUtil.isNilPayload;
 import static io.zeebe.broker.util.PayloadUtil.isValidPayload;
 import static io.zeebe.util.buffer.BufferUtil.bufferAsString;
+import static io.zeebe.util.buffer.BufferUtil.wrapString;
 
 import java.util.*;
 import java.util.function.Consumer;
@@ -31,6 +32,7 @@ import io.zeebe.broker.incident.data.IncidentRecord;
 import io.zeebe.broker.job.data.JobHeaders;
 import io.zeebe.broker.job.data.JobRecord;
 import io.zeebe.broker.logstreams.processor.*;
+import io.zeebe.broker.message.record.MessageSubscriptionRecord;
 import io.zeebe.broker.workflow.correlation.MessageCorrelationManager;
 import io.zeebe.broker.workflow.data.WorkflowInstanceRecord;
 import io.zeebe.broker.workflow.map.*;
@@ -72,6 +74,21 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
   private final WorkflowInstanceIndex workflowInstanceIndex = new WorkflowInstanceIndex();
   private final ActivityInstanceMap activityInstanceMap = new ActivityInstanceMap();
   private final PayloadCache payloadCache;
+
+  private final List<MessageSubscription> messageSubscriptions = new ArrayList<>();
+
+  private class MessageSubscription {
+      // keys
+      private long workflowIntanceKey;
+      private long activityInstanceKey;
+      private String messageName;
+
+      // more properties
+      private String bpmnProcessId;
+      private int version;
+      private long workflowKey;
+      private String activityId;
+  }
 
   private final MappingProcessor payloadMappingProcessor = new MappingProcessor(4096);
   private final JsonConditionInterpreter conditionInterpreter = new JsonConditionInterpreter();
@@ -138,6 +155,11 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
             WorkflowInstanceIntent.MESSAGE_CATCH_EVENT_ENTERED,
             w -> isActive(w.getWorkflowInstanceKey()),
             new MessageCatchEventProcessor())
+        .onEvent(
+             ValueType.WORKFLOW_INSTANCE,
+             WorkflowInstanceIntent.MESSAGE_CATCH_EVENT_OCCURRING,
+             w -> isActive(w.getWorkflowInstanceKey()),
+             new MessageCatchEventOccurringProcessor())
         .onCommand(
             ValueType.WORKFLOW_INSTANCE,
             WorkflowInstanceIntent.UPDATE_PAYLOAD,
@@ -174,6 +196,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
                 (e) -> workflowInstanceEventCompleted.incrementOrdered())
         .onEvent(ValueType.JOB, JobIntent.CREATED, new JobCreatedProcessor())
         .onEvent(ValueType.JOB, JobIntent.COMPLETED, new JobCompletedEventProcessor())
+        .onEvent(ValueType.MESSAGE_SUBSCRIPTION, MessageSubscriptionIntent.CORRELATED, new MessageCorrelatedProcessor())
         .withStateResource(workflowInstanceIndex.getMap())
         .withStateResource(activityInstanceMap.getMap())
         .withStateResource(payloadCache.getMap())
@@ -1064,6 +1087,8 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
   private final class MessageCatchEventProcessor
       extends FlowElementEventProcessor<IntermediateCatchEvent> {
 
+      private String messageName;
+
     @Override
     void processFlowElementEvent(
         TypedRecord<WorkflowInstanceRecord> event,
@@ -1076,7 +1101,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
         throw new IllegalStateException("correlation definition expected buf not found");
       }
 
-      final String messageName = correlationDefinition.getMessageName();
+      this.messageName = correlationDefinition.getMessageName();
       final String eventTopic = correlationDefinition.getEventTopic();
 
       final String eventKey = resolveEventKey(correlationDefinition.getEventKey(), event.getValue().getPayload());
@@ -1132,7 +1157,6 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
 
           });
       }
-
     }
 
     private String resolveEventKey(JsonPathQuery query, DirectBuffer payload)
@@ -1169,6 +1193,94 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
           Loggers.STREAM_PROCESSING.error("Failed to resolve message key for expression '{}'", bufferAsString(query.getExpression()));
           return "";
     }
+
+    @Override
+    public void updateState(TypedRecord<WorkflowInstanceRecord> record)
+    {
+        final WorkflowInstanceRecord instance = record.getValue();
+
+        final MessageSubscription sub = new MessageSubscription();
+        sub.workflowIntanceKey = instance.getWorkflowInstanceKey();
+        sub.activityInstanceKey = record.getKey();
+        sub.messageName = this.messageName;
+        sub.bpmnProcessId = bufferAsString(instance.getBpmnProcessId());
+        sub.version = instance.getVersion();
+        sub.workflowKey = instance.getWorkflowKey();
+        sub.activityId = bufferAsString(instance.getActivityId());
+
+        messageSubscriptions.add(sub);
+    }
+  }
+
+  private class MessageCorrelatedProcessor implements TypedRecordProcessor<MessageSubscriptionRecord> {
+
+   private MessageSubscription subscription;
+
+      @Override
+    public void processRecord(TypedRecord<MessageSubscriptionRecord> record)
+    {
+        subscription = null;
+
+        final MessageSubscriptionRecord sub = record.getValue();
+
+        messageSubscriptions
+            .stream()
+            .filter(s -> s.workflowIntanceKey == sub.getWorkflowInstanceKey())
+            .filter(s -> s.activityInstanceKey == sub.getActivityInstanceId())
+            .filter(s -> s.messageName.equals(bufferAsString(sub.getMessageName())))
+            .findFirst()
+            .ifPresent(s -> this.subscription = s);
+        }
+
+      @Override
+        public long writeRecord(TypedRecord<MessageSubscriptionRecord> record, TypedStreamWriter writer)
+        {
+          if (subscription != null)
+          {
+              final WorkflowInstanceRecord wfInstance = new WorkflowInstanceRecord();
+              wfInstance
+                  .setWorkflowInstanceKey(subscription.workflowIntanceKey)
+                  .setBpmnProcessId(wrapString(subscription.bpmnProcessId))
+                  .setVersion(subscription.version)
+                  .setWorkflowKey(subscription.workflowKey)
+                  .setActivityId(subscription.activityId);
+
+              // TODO set payload from message
+
+              return writer.writeFollowUpEvent(record.getValue().getActivityInstanceId(), WorkflowInstanceIntent.MESSAGE_CATCH_EVENT_OCCURRING, wfInstance);
+          }
+          else {
+              return 0L;
+          }
+        }
+
+      @Override
+        public void updateState(TypedRecord<MessageSubscriptionRecord> record)
+        {
+            if (subscription != null) {
+               messageSubscriptions.remove(subscription);
+            }
+        }
+  }
+
+  private final class MessageCatchEventOccurringProcessor
+      extends FlowElementEventProcessor<IntermediateCatchEvent> {
+
+    @Override
+    void processFlowElementEvent(
+        TypedRecord<WorkflowInstanceRecord> event,
+        IntermediateCatchEvent intermediateCatchEvent,
+        EventLifecycleContext ctx) {
+
+      // TODO merge payload from message into the workflow instance payload
+    }
+
+    @Override
+    public long writeRecord(TypedRecord<WorkflowInstanceRecord> record, TypedStreamWriter writer)
+    {
+        return writer.writeFollowUpEvent(record.getKey(), WorkflowInstanceIntent.MESSAGE_CATCH_EVENT_OCCURRED, record.getValue());
+    }
+
   }
 
   private abstract class FlowElementEventProcessor<T extends FlowElement>
