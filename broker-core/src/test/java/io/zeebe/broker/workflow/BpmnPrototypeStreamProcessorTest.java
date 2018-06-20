@@ -36,7 +36,7 @@ import io.zeebe.protocol.intent.WorkflowInstanceIntent;
 import io.zeebe.test.util.MsgPackUtil;
 import io.zeebe.util.buffer.BufferUtil;
 
-public class BpmnPrototypeStreamProcessorTests {
+public class BpmnPrototypeStreamProcessorTest {
 
   public static final ObjectMapper MSGPACK_MAPPER = new ObjectMapper(new MessagePackFactory());
   private static final long WORKFLOW_KEY = 1;
@@ -229,8 +229,8 @@ public class BpmnPrototypeStreamProcessorTests {
    * <pre>
    * <bpmn:parallelGateway id="gw">
    *  <extensionElements>
-   *    <zeebe:mapping operation="PUT" element="flow1" ="$.foo" target="$.bar"/>
-   *    <zeebe:mapping operation="REMOVE" target="$.foo"/>
+   *    <zeebe:mergeInstruction operation="PUT" element="flow1" ="$.foo" target="$.bar"/>
+   *    <zeebe:mergeInstruction operation="REMOVE" target="$.foo"/>
    *  </extensionElements>
    *  <bpmn:incoming>flow1</bpmn:incoming>
    *  <bpmn:incoming>flow2</bpmn:incoming>
@@ -240,7 +240,52 @@ public class BpmnPrototypeStreamProcessorTests {
   @Test
   public void shouldMergePayloadsAndApplyMappingsOnParallelMerge()
   {
-    fail("implement");
+    // given
+    final Workflow workflow = Bpmn.createExecutableWorkflow("foo")
+        .startEvent()
+        .parallelGateway("fork")
+        .serviceTask("foo", t -> t.taskType("foo"))
+        .sequenceFlow("joinFlow1")
+        .parallelGateway("join", b ->
+          b.mergeInstructionPut("joinFlow1", "$.key1", "$.key3")
+            .mergeInstructionRemove("$.key1"))
+        .endEvent()
+        .continueAt("fork")
+        .serviceTask("bar", t -> t.taskType("bar"))
+        .sequenceFlow("joinFlow2")
+        .connectTo("join")
+        .done()
+        .getWorkflow(BufferUtil.wrapString("foo"));
+    deploy(WORKFLOW_KEY, workflow);
+    rule.writeCommand(WorkflowInstanceIntent.CREATE, startWorkflowInstance(WORKFLOW_KEY));
+
+    final List<TypedRecord<JobRecord>> jobCommands =
+        doRepeatedly(() -> rule.events().onlyJobRecords().withIntent(JobIntent.CREATE)
+            .collect(Collectors.toList())).until(c -> c.size() == 2);
+
+    for (TypedRecord<JobRecord> createCommand : jobCommands)
+    {
+      rule.writeEvent(createCommand.getKey(), JobIntent.CREATED, createCommand.getValue()); // => required for workflow stream processor indexing
+    }
+
+    final TypedRecord<JobRecord> job1 = jobCommands.get(0);
+    job1.getValue().setPayload(MsgPackUtil.asMsgPack("key1", "val1"));
+
+    final TypedRecord<JobRecord> job2 = jobCommands.get(1);
+    job2.getValue().setPayload(MsgPackUtil.asMsgPack("key2", "val2"));
+
+    // when
+    rule.writeEvent(job1.getKey(), JobIntent.COMPLETED, job1.getValue());
+    rule.writeEvent(job2.getKey(), JobIntent.COMPLETED, job2.getValue());
+
+    // then
+    final TypedRecord<WorkflowInstanceRecord> endEvent = doRepeatedly(() -> rule.events().onlyWorkflowInstanceRecords()
+        .withIntent(WorkflowInstanceIntent.END_EVENT_OCCURRED).findFirst()).until(e -> e.isPresent()).get();
+
+    final DirectBuffer mergedPayload = endEvent.getValue().getPayload();
+    fail("instructions are not implemented yet");
+    assertThat(msgPackAsMap(mergedPayload))
+      .containsExactly(entry("key3", "val1"), entry("key2", "val2"));
 
   }
 
@@ -255,6 +300,12 @@ public class BpmnPrototypeStreamProcessorTests {
   {
     fail("implement");
 
+  }
+
+  @Test
+  public void shouldEnterEmbeddedSubprocess()
+  {
+    fail("implement");
   }
 
   private void deploy(long key, Workflow workflow) {

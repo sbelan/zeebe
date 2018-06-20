@@ -191,6 +191,11 @@ public class BpmnBuilder {
 
   public BpmnBuilder parallelGateway(String id)
   {
+    return parallelGateway(id, b -> {});
+  }
+
+  public BpmnBuilder parallelGateway(String id, Consumer<BpmnParallelGatewayBuilder> gwBuilder)
+  {
     final ParallelGatewayImpl gateway = new ParallelGatewayImpl();
     gateway.setId(id);
 
@@ -199,7 +204,6 @@ public class BpmnBuilder {
     addFlowNode(gateway);
 
     return this;
-
   }
 
   private FlowNodeImpl getFlowNode(String activityId) {

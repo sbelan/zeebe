@@ -17,12 +17,14 @@ package io.zeebe.model.bpmn.impl.instance;
 
 import io.zeebe.model.bpmn.BpmnConstants;
 import io.zeebe.model.bpmn.impl.metadata.*;
+import java.util.List;
 import javax.xml.bind.annotation.XmlElement;
 
 public class ExtensionElementsImpl {
   private TaskDefinitionImpl taskDefinition;
   private TaskHeadersImpl taskHeaders;
   private InputOutputMappingImpl inputOutputMapping;
+  private List<MergeInstruction> mergeInstructions;
 
   @XmlElement(
       name = BpmnConstants.ZEEBE_ELEMENT_TASK_DEFINITION,
@@ -51,5 +53,14 @@ public class ExtensionElementsImpl {
 
   public InputOutputMappingImpl getInputOutputMapping() {
     return inputOutputMapping;
+  }
+
+  @XmlElement(name = "mergeInstruction", namespace = BpmnConstants.ZEEBE_NS)
+  public void setMergeInstructions(List<MergeInstruction> mergeInstructions) {
+    this.mergeInstructions = mergeInstructions;
+  }
+
+  public List<MergeInstruction> getMergeInstructions() {
+    return mergeInstructions;
   }
 }
