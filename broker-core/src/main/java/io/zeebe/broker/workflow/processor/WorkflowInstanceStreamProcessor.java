@@ -19,6 +19,7 @@ package io.zeebe.broker.workflow.processor;
 
 import static io.zeebe.broker.util.PayloadUtil.isNilPayload;
 import static io.zeebe.broker.util.PayloadUtil.isValidPayload;
+import static io.zeebe.util.buffer.BufferUtil.bufferAsString;
 
 import java.util.*;
 import java.util.function.Consumer;
@@ -40,7 +41,12 @@ import io.zeebe.logstreams.processor.StreamProcessorContext;
 import io.zeebe.model.bpmn.BpmnAspect;
 import io.zeebe.model.bpmn.instance.*;
 import io.zeebe.msgpack.el.*;
+import io.zeebe.msgpack.jsonpath.JsonPathQuery;
 import io.zeebe.msgpack.mapping.*;
+import io.zeebe.msgpack.query.MsgPackQueryExecutor;
+import io.zeebe.msgpack.query.MsgPackTraverser;
+import io.zeebe.msgpack.spec.MsgPackReader;
+import io.zeebe.msgpack.spec.MsgPackToken;
 import io.zeebe.protocol.clientapi.RejectionType;
 import io.zeebe.protocol.clientapi.ValueType;
 import io.zeebe.protocol.impl.RecordMetadata;
@@ -1071,8 +1077,9 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
       }
 
       final String messageName = correlationDefinition.getMessageName();
-      final String eventKey = correlationDefinition.getEventKey();
       final String eventTopic = correlationDefinition.getEventTopic();
+
+      final String eventKey = resolveEventKey(correlationDefinition.getEventKey(), event.getValue().getPayload());
 
       final int partitionId = messageCorrelationManager.getPartitionForTopic(eventTopic, eventKey);
       if (partitionId > 0)
@@ -1126,6 +1133,41 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
           });
       }
 
+    }
+
+    private String resolveEventKey(JsonPathQuery query, DirectBuffer payload)
+    {
+          final MsgPackQueryExecutor queryExecutor = new MsgPackQueryExecutor();
+          queryExecutor.init(query.getFilters(), query.getFilterInstances());
+
+          final MsgPackTraverser traverser = new MsgPackTraverser();
+          traverser.wrap(payload, 0, payload.capacity());
+
+          traverser.traverse(queryExecutor);
+
+          if (queryExecutor.numResults() == 1)
+          {
+              queryExecutor.moveToResult(0);
+
+              final int pos = queryExecutor.currentResultPosition();
+              final int len = queryExecutor.currentResultLength();
+
+              final MsgPackReader reader = new MsgPackReader();
+              reader.wrap(payload, pos, len);
+
+              final MsgPackToken token = reader.readToken();
+
+              switch (token.getType()) {
+                  case STRING: return bufferAsString(token.getValueBuffer());
+                  case FLOAT: return String.valueOf(token.getFloatValue());
+                  case INTEGER: return String.valueOf(token.getIntegerValue());
+                  default: break;
+              }
+          }
+
+          // TODO create incident if can't resolve event key or type is invalid
+          Loggers.STREAM_PROCESSING.error("Failed to resolve message key for expression '{}'", bufferAsString(query.getExpression()));
+          return "";
     }
   }
 

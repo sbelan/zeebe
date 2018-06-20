@@ -1,16 +1,22 @@
 package io.zeebe.model.bpmn.impl.metadata;
 
+import java.beans.Transient;
+
 import javax.xml.bind.annotation.XmlAttribute;
 
 import io.zeebe.model.bpmn.BpmnConstants;
 import io.zeebe.model.bpmn.impl.instance.BaseElement;
 import io.zeebe.model.bpmn.instance.CorrelationDefinition;
+import io.zeebe.msgpack.jsonpath.JsonPathQuery;
+import io.zeebe.msgpack.jsonpath.JsonPathQueryCompiler;
 
 public class CorrelationDefinitionImpl extends BaseElement implements CorrelationDefinition
 {
     private String messageName;
-    private String eventKey;
     private String eventTopic;
+
+    private String eventKeyQuery;
+    private JsonPathQuery eventKey;
 
     @Override
     public String getMessageName()
@@ -24,16 +30,23 @@ public class CorrelationDefinitionImpl extends BaseElement implements Correlatio
         this.messageName = messageName;
     }
 
+    @Transient
     @Override
-    public String getEventKey()
+    public JsonPathQuery getEventKey()
     {
         return eventKey;
     }
 
-    @XmlAttribute(name = BpmnConstants.ZEEBE_ATTRIBUTE_CORRELATION_EVENT_KEY)
-    public void setEventKey(String eventKey)
+    public String getEventKeyQuery()
     {
-        this.eventKey = eventKey;
+        return eventKeyQuery;
+    }
+
+    @XmlAttribute(name = BpmnConstants.ZEEBE_ATTRIBUTE_CORRELATION_EVENT_KEY)
+    public void setEventKeyQuery(String eventKeyQuery)
+    {
+        this.eventKeyQuery = eventKeyQuery;
+        this.eventKey = new JsonPathQueryCompiler().compile(eventKeyQuery);
     }
 
     @Override
