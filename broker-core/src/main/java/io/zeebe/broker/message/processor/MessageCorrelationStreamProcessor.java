@@ -1,23 +1,29 @@
 package io.zeebe.broker.message.processor;
 
-import io.zeebe.broker.clustering.base.topology.TopologyManager;
+import java.util.Collection;
+import io.zeebe.broker.clustering.base.topology.*;
 import io.zeebe.broker.logstreams.processor.*;
 import io.zeebe.broker.message.processor.MessageCorrelationState.MessageInfo;
 import io.zeebe.broker.message.processor.MessageCorrelationState.MessageSubscriptionInfo;
 import io.zeebe.broker.message.record.MessageRecord;
 import io.zeebe.broker.message.record.MessageSubscriptionRecord;
+import io.zeebe.logstreams.processor.EventLifecycleContext;
 import io.zeebe.protocol.clientapi.ValueType;
 import io.zeebe.protocol.intent.MessageIntent;
 import io.zeebe.protocol.intent.MessageSubscriptionIntent;
-import io.zeebe.transport.ClientTransport;
+import io.zeebe.transport.*;
 import io.zeebe.util.buffer.BufferUtil;
+import io.zeebe.util.sched.future.ActorFuture;
+import org.agrona.collections.Int2ObjectHashMap;
 
-public class MessageCorrelationStreamProcessor implements StreamProcessorLifecycleAware {
+public class MessageCorrelationStreamProcessor implements StreamProcessorLifecycleAware, TopologyPartitionListener {
 
     private ClientTransport clientTransport;
     private TopologyManager topologyManager;
 
     private JsonSnapshotSupport<MessageCorrelationState> state;
+
+    private volatile Int2ObjectHashMap<RemoteAddress> partitionLeaders = new Int2ObjectHashMap<>();
 
     public MessageCorrelationStreamProcessor(ClientTransport clientTransport,
             TopologyManager topologyManager) {
@@ -38,6 +44,17 @@ public class MessageCorrelationStreamProcessor implements StreamProcessorLifecyc
                    new CorrelatedHandler())
            .withStateResource(state)
            .build();
+    }
+
+    @Override
+    public void onOpen(TypedStreamProcessor streamProcessor) {
+        topologyManager.addTopologyPartitionListener(this);
+    }
+
+
+    @Override
+    public void onClose() {
+        topologyManager.removeTopologyPartitionListener(this);
     }
 
     public class PublishMessageEventHandler implements TypedRecordProcessor<MessageRecord> {
@@ -188,5 +205,41 @@ public class MessageCorrelationStreamProcessor implements StreamProcessorLifecyc
 
     public class CorrelatedHandler implements TypedRecordProcessor<MessageSubscriptionRecord> {
 
+        @Override
+        public void processRecord(TypedRecord<MessageSubscriptionRecord> record,
+                EventLifecycleContext ctx) {
+
+            final MessageSubscriptionRecord value = record.getValue();
+            final int paritionId = value.getParitionId();
+
+            final ClientOutput output = clientTransport.getOutput();
+
+            final ActorFuture<ClientResponse> future = output.sendRequestWithRetry(() -> partitionLeaders.get(paritionId) , null, null, null);
+
+            ctx.async(future);
+        }
+    }
+
+    @Override
+    public void onPartitionUpdated(PartitionInfo partitionInfo, NodeInfo member) {
+
+        topologyManager.query((t) ->
+        {
+            final Collection<PartitionInfo> partitions = t.getPartitions();
+            Int2ObjectHashMap<RemoteAddress> leaders = new Int2ObjectHashMap<>();
+
+            partitions.stream()
+                .forEach(p -> {
+                    final NodeInfo nodeInfo = t.getLeader(p.getPartitionId());
+                    if (nodeInfo != null)
+                    {
+                        leaders.put(p.getPartitionId(), clientTransport.getRemoteAddress(nodeInfo.getClientApiAddress()));
+                    }
+                });
+
+            partitionLeaders = leaders;
+
+            return null;
+        });
     }
 }
