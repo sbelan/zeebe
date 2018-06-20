@@ -19,36 +19,37 @@ package io.zeebe.broker.workflow.correlation;
 
 import static io.zeebe.util.StringUtil.getBytes;
 
-import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.List;
-
 import io.zeebe.broker.util.SbeBufferWriterReader;
 import io.zeebe.clustering.management.FetchCreatedTopicsResponseDecoder;
 import io.zeebe.clustering.management.FetchCreatedTopicsResponseDecoder.TopicsDecoder;
 import io.zeebe.clustering.management.FetchCreatedTopicsResponseEncoder;
 import io.zeebe.clustering.management.FetchCreatedTopicsResponseEncoder.TopicsEncoder;
 import io.zeebe.clustering.management.FetchCreatedTopicsResponseEncoder.TopicsEncoder.PartitionsEncoder;
+import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.List;
 import org.agrona.DirectBuffer;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.collections.IntArrayList;
 
-public class FetchCreatedTopicsResponse extends SbeBufferWriterReader<FetchCreatedTopicsResponseEncoder, FetchCreatedTopicsResponseDecoder> {
+public class FetchCreatedTopicsResponse
+    extends SbeBufferWriterReader<
+        FetchCreatedTopicsResponseEncoder, FetchCreatedTopicsResponseDecoder> {
 
-  private final FetchCreatedTopicsResponseEncoder bodyEncoder = new FetchCreatedTopicsResponseEncoder();
-  private final FetchCreatedTopicsResponseDecoder bodyDecoder = new FetchCreatedTopicsResponseDecoder();
+  private final FetchCreatedTopicsResponseEncoder bodyEncoder =
+      new FetchCreatedTopicsResponseEncoder();
+  private final FetchCreatedTopicsResponseDecoder bodyDecoder =
+      new FetchCreatedTopicsResponseDecoder();
 
   private List<TopicPartitions> topics = new ArrayList<>();
 
-  public FetchCreatedTopicsResponse addTopic(String topicName, IntArrayList partitionIds)
-    {
-      topics.add(new TopicPartitions(topicName, partitionIds));
-      return this;
-    }
+  public FetchCreatedTopicsResponse addTopic(String topicName, IntArrayList partitionIds) {
+    topics.add(new TopicPartitions(topicName, partitionIds));
+    return this;
+  }
 
-  public List<TopicPartitions> getTopics()
-  {
-      return topics;
+  public List<TopicPartitions> getTopics() {
+    return topics;
   }
 
   @Override
@@ -89,72 +90,63 @@ public class FetchCreatedTopicsResponse extends SbeBufferWriterReader<FetchCreat
   }
 
   public static class TopicPartitions {
-      private String topicName;
-      private IntArrayList partitionIds;
+    private String topicName;
+    private IntArrayList partitionIds;
 
-      public TopicPartitions(String topicName, IntArrayList partitionIds)
-    {
-        this.setTopicName(topicName);
-        this.setPartitionIds(partitionIds);
+    public TopicPartitions(String topicName, IntArrayList partitionIds) {
+      this.setTopicName(topicName);
+      this.setPartitionIds(partitionIds);
     }
 
-      public TopicPartitions(final TopicsDecoder decoder)
-      {
-         decode(decoder);
-      }
+    public TopicPartitions(final TopicsDecoder decoder) {
+      decode(decoder);
+    }
 
-      public int getEncodedLength() {
-          return TopicsEncoder.sbeBlockLength()
-              + TopicsEncoder.topicNameHeaderLength()
-              + getTopicNameBytes().length
-              + partitionIds.size()
+    public int getEncodedLength() {
+      return TopicsEncoder.sbeBlockLength()
+          + TopicsEncoder.topicNameHeaderLength()
+          + getTopicNameBytes().length
+          + partitionIds.size()
               * (PartitionsEncoder.sbeBlockLength() * PartitionsEncoder.sbeHeaderSize());
-        }
+    }
 
-        void encode(final TopicsEncoder encoder) {
-          final byte[] nameBytes = getTopicNameBytes();
+    void encode(final TopicsEncoder encoder) {
+      final byte[] nameBytes = getTopicNameBytes();
 
-          encoder
-              .next()
-              .putTopicName(nameBytes, 0, nameBytes.length);
+      encoder.next().putTopicName(nameBytes, 0, nameBytes.length);
 
-          final PartitionsEncoder partitionsEncoder = encoder.partitionsCount(partitionIds.size());
-          partitionIds.forEachOrderedInt(id -> partitionsEncoder.next().partitionId(id));
-        }
+      final PartitionsEncoder partitionsEncoder = encoder.partitionsCount(partitionIds.size());
+      partitionIds.forEachOrderedInt(id -> partitionsEncoder.next().partitionId(id));
+    }
 
-        void decode(final TopicsDecoder decoder) {
+    void decode(final TopicsDecoder decoder) {
 
-          setTopicName(decoder.topicName());
+      setTopicName(decoder.topicName());
 
-          final IntArrayList partitionIds = new IntArrayList();
-          decoder.partitions().forEachRemaining(d -> partitionIds.add(d.partitionId()));
-          setPartitionIds(partitionIds);
-        }
+      final IntArrayList partitionIds = new IntArrayList();
+      decoder.partitions().forEachRemaining(d -> partitionIds.add(d.partitionId()));
+      setPartitionIds(partitionIds);
+    }
 
-        public byte[] getTopicNameBytes() {
-            final Charset encoding = Charset.forName(TopicsEncoder.topicNameCharacterEncoding());
-            return getBytes(topicName, encoding);
-          }
+    public byte[] getTopicNameBytes() {
+      final Charset encoding = Charset.forName(TopicsEncoder.topicNameCharacterEncoding());
+      return getBytes(topicName, encoding);
+    }
 
-        public String getTopicName()
-        {
-            return topicName;
-        }
+    public String getTopicName() {
+      return topicName;
+    }
 
-        public void setTopicName(String topicName)
-        {
-            this.topicName = topicName;
-        }
+    public void setTopicName(String topicName) {
+      this.topicName = topicName;
+    }
 
-        public IntArrayList getPartitionIds()
-        {
-            return partitionIds;
-        }
+    public IntArrayList getPartitionIds() {
+      return partitionIds;
+    }
 
-        public void setPartitionIds(IntArrayList partitionIds)
-        {
-            this.partitionIds = partitionIds;
-        }
-
+    public void setPartitionIds(IntArrayList partitionIds) {
+      this.partitionIds = partitionIds;
+    }
   }
 }

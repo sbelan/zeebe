@@ -19,13 +19,6 @@ package io.zeebe.broker.workflow.correlation;
 
 import static io.zeebe.util.buffer.BufferUtil.wrapString;
 
-import java.nio.ByteOrder;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.time.Duration;
-import java.util.*;
-
 import io.zeebe.broker.Loggers;
 import io.zeebe.broker.clustering.base.topology.*;
 import io.zeebe.broker.message.record.MessageSubscriptionRecord;
@@ -37,6 +30,12 @@ import io.zeebe.util.buffer.BufferWriter;
 import io.zeebe.util.sched.ActorControl;
 import io.zeebe.util.sched.future.ActorFuture;
 import io.zeebe.util.sched.future.CompletableActorFuture;
+import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
+import java.util.*;
 import org.agrona.DirectBuffer;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.collections.Int2ObjectHashMap;
@@ -45,14 +44,16 @@ import org.slf4j.Logger;
 
 public class MessageCorrelationManager implements TopologyPartitionListener {
 
-    private static final Logger LOG = Loggers.STREAM_PROCESSING;
+  private static final Logger LOG = Loggers.STREAM_PROCESSING;
 
-    private static final Duration FETCH_TOPICS_TIMEOUT = Duration.ofSeconds(15);
+  private static final Duration FETCH_TOPICS_TIMEOUT = Duration.ofSeconds(15);
 
   private final Map<String, IntArrayList> topicPartitions = new HashMap<>();
 
-  private final FetchCreatedTopicsRequest fetchCreatedTopicsRequest = new FetchCreatedTopicsRequest();
-  private final FetchCreatedTopicsResponse fetchCreatedTopicsResponse = new FetchCreatedTopicsResponse();
+  private final FetchCreatedTopicsRequest fetchCreatedTopicsRequest =
+      new FetchCreatedTopicsRequest();
+  private final FetchCreatedTopicsResponse fetchCreatedTopicsResponse =
+      new FetchCreatedTopicsResponse();
 
   private MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
   private ExecuteCommandRequestEncoder encoder = new ExecuteCommandRequestEncoder();
@@ -86,10 +87,10 @@ public class MessageCorrelationManager implements TopologyPartitionListener {
     topologyManager.addTopologyPartitionListener(this);
 
     try {
-        md = MessageDigest.getInstance("MD5");
-      } catch (NoSuchAlgorithmException e) {
-        throw new RuntimeException("Failed to initialize hash function", e);
-      }
+      md = MessageDigest.getInstance("MD5");
+    } catch (NoSuchAlgorithmException e) {
+      throw new RuntimeException("Failed to initialize hash function", e);
+    }
   }
 
   public void close() {
@@ -101,183 +102,171 @@ public class MessageCorrelationManager implements TopologyPartitionListener {
     return managementClient
         .getOutput()
         .sendRequestWithRetry(
-            this::systemTopicLeader, this::checkResponse, fetchCreatedTopicsRequest, FETCH_TOPICS_TIMEOUT);
+            this::systemTopicLeader,
+            this::checkResponse,
+            fetchCreatedTopicsRequest,
+            FETCH_TOPICS_TIMEOUT);
   }
 
-  private boolean checkResponse(DirectBuffer response)
-  {
-      return !fetchCreatedTopicsResponse.tryWrap(response);
+  private boolean checkResponse(DirectBuffer response) {
+    return !fetchCreatedTopicsResponse.tryWrap(response);
   }
 
   private RemoteAddress systemTopicLeader() {
     return systemTopicLeaderAddress;
   }
 
-  public ActorFuture<Void> fetchTopics()
-  {
-      final CompletableActorFuture<Void> future = new CompletableActorFuture<>();
+  public ActorFuture<Void> fetchTopics() {
+    final CompletableActorFuture<Void> future = new CompletableActorFuture<>();
 
-       LOG.info("Fetch topics");
+    LOG.info("Fetch topics");
 
-      actor.runOnCompletion(sendFetchTopicsRequest(), (response, failure) ->
-      {
+    actor.runOnCompletion(
+        sendFetchTopicsRequest(),
+        (response, failure) -> {
           // TODO handle timeout and what happen if the partition doesn't exist
-          if (failure == null)
-          {
-              fetchCreatedTopicsResponse.wrap(response.getResponseBuffer());
+          if (failure == null) {
+            fetchCreatedTopicsResponse.wrap(response.getResponseBuffer());
 
-              fetchCreatedTopicsResponse.getTopics().forEach(topic ->
-              {
-                  topicPartitions.put(topic.getTopicName(), topic.getPartitionIds());
-              });
+            fetchCreatedTopicsResponse
+                .getTopics()
+                .forEach(
+                    topic -> {
+                      topicPartitions.put(topic.getTopicName(), topic.getPartitionIds());
+                    });
 
-              LOG.info("topics: {}", topicPartitions);
+            LOG.info("topics: {}", topicPartitions);
 
-              future.complete(null);
+            future.complete(null);
+          } else {
+            LOG.error("Failed to fetch topics", failure);
+
+            future.completeExceptionally(failure);
           }
-          else
-          {
-              LOG.error("Failed to fetch topics", failure);
+        });
 
-              future.completeExceptionally(failure);
-          }
-      });
-
-      return future;
+    return future;
   }
 
-  public int getPartitionForTopic(String eventTopic, String eventKey)
-  {
-      if (topicPartitions.containsKey(eventTopic))
-      {
-          final IntArrayList partitionIds = topicPartitions.get(eventTopic);
+  public int getPartitionForTopic(String eventTopic, String eventKey) {
+    if (topicPartitions.containsKey(eventTopic)) {
+      final IntArrayList partitionIds = topicPartitions.get(eventTopic);
 
-          md.reset();
-          md.update(eventKey.getBytes(StandardCharsets.UTF_8));
-          final byte[] digest = md.digest();
+      md.reset();
+      md.update(eventKey.getBytes(StandardCharsets.UTF_8));
+      final byte[] digest = md.digest();
 
-          final int hashCode = Math.abs(Arrays.hashCode(digest));
+      final int hashCode = Math.abs(Arrays.hashCode(digest));
 
-          final int eventPartition = hashCode % partitionIds.size();
+      final int eventPartition = hashCode % partitionIds.size();
 
-          return partitionIds.getInt(eventPartition);
-      }
-      else
-      {
-          return -1;
-      }
+      return partitionIds.getInt(eventPartition);
+    } else {
+      return -1;
+    }
   }
 
-  public ActorFuture<ClientResponse> openSubscription(int partitionId, String eventKey, String messageName, long workflowInstanceKey, long activityInstanceKey)
-  {
+  public ActorFuture<ClientResponse> openSubscription(
+      int partitionId,
+      String eventKey,
+      String messageName,
+      long workflowInstanceKey,
+      long activityInstanceKey) {
 
-      final MessageSubscriptionRecord sub = new MessageSubscriptionRecord();
-      sub.setMessageName(wrapString(messageName))
-          .setMessageKey(wrapString(eventKey))
-          .setWorkflowInstanceKey(workflowInstanceKey)
-          .setActivityInstaneId(activityInstanceKey)
-          .setPartitionId(currentPartitionId);
+    final MessageSubscriptionRecord sub = new MessageSubscriptionRecord();
+    sub.setMessageName(wrapString(messageName))
+        .setMessageKey(wrapString(eventKey))
+        .setWorkflowInstanceKey(workflowInstanceKey)
+        .setActivityInstaneId(activityInstanceKey)
+        .setPartitionId(currentPartitionId);
 
-      LOG.info("open message subscription on partition '{}': {}", partitionId, sub);
+    LOG.info("open message subscription on partition '{}': {}", partitionId, sub);
 
-      final MessageSubscriptionRequest request = new MessageSubscriptionRequest(sub, partitionId);
+    final MessageSubscriptionRequest request = new MessageSubscriptionRequest(sub, partitionId);
 
-      if (!partitionLeaders.containsKey(partitionId))
-      {
-          return CompletableActorFuture.completedExceptionally(new RuntimeException("no leader found for partition with id: " + partitionId));
-      }
-      else
-      {
-          final RemoteAddress remoteAddress = partitionLeaders.get(partitionId);
-          return clientApiClient.getOutput().sendRequest(remoteAddress, request, Duration.ofSeconds(5));
-      }
+    if (!partitionLeaders.containsKey(partitionId)) {
+      return CompletableActorFuture.completedExceptionally(
+          new RuntimeException("no leader found for partition with id: " + partitionId));
+    } else {
+      final RemoteAddress remoteAddress = partitionLeaders.get(partitionId);
+      return clientApiClient.getOutput().sendRequest(remoteAddress, request, Duration.ofSeconds(5));
+    }
   }
 
-  class MessageSubscriptionRequest implements BufferWriter
-  {
+  class MessageSubscriptionRequest implements BufferWriter {
     private final MessageSubscriptionRecord record;
     private final int partitionId;
 
-    MessageSubscriptionRequest(MessageSubscriptionRecord record, int partitionId)
-    {
-        this.record = record;
-        this.partitionId = partitionId;
+    MessageSubscriptionRequest(MessageSubscriptionRecord record, int partitionId) {
+      this.record = record;
+      this.partitionId = partitionId;
     }
 
-      @Override
-    public void write(MutableDirectBuffer buffer, int offset)
-    {
-          headerEncoder
-              .wrap(buffer, offset)
-              .blockLength(encoder.sbeBlockLength())
-              .schemaId(encoder.sbeSchemaId())
-              .templateId(encoder.sbeTemplateId())
-              .version(encoder.sbeSchemaVersion());
+    @Override
+    public void write(MutableDirectBuffer buffer, int offset) {
+      headerEncoder
+          .wrap(buffer, offset)
+          .blockLength(encoder.sbeBlockLength())
+          .schemaId(encoder.sbeSchemaId())
+          .templateId(encoder.sbeTemplateId())
+          .version(encoder.sbeSchemaVersion());
 
-          offset += headerEncoder.encodedLength();
+      offset += headerEncoder.encodedLength();
 
-          encoder.wrap(buffer, offset);
+      encoder.wrap(buffer, offset);
 
-          encoder
-              .partitionId(partitionId)
-              .sourceRecordPosition(ExecuteCommandRequestEncoder.sourceRecordPositionNullValue())
-              .position(ExecuteCommandRequestEncoder.positionNullValue())
-              .key(ExecuteCommandRequestEncoder.keyNullValue());
+      encoder
+          .partitionId(partitionId)
+          .sourceRecordPosition(ExecuteCommandRequestEncoder.sourceRecordPositionNullValue())
+          .position(ExecuteCommandRequestEncoder.positionNullValue())
+          .key(ExecuteCommandRequestEncoder.keyNullValue());
 
-          encoder.valueType(ValueType.MESSAGE_SUBSCRIPTION);
-          encoder.intent(MessageSubscriptionIntent.SUBSCRIBE.getIntent());
+      encoder.valueType(ValueType.MESSAGE_SUBSCRIPTION);
+      encoder.intent(MessageSubscriptionIntent.SUBSCRIBE.getIntent());
 
-          offset = encoder.limit();
+      offset = encoder.limit();
 
-          buffer.putShort(offset, (short) record.getLength(), ByteOrder.LITTLE_ENDIAN);
+      buffer.putShort(offset, (short) record.getLength(), ByteOrder.LITTLE_ENDIAN);
 
-          offset += ExecuteCommandRequestEncoder.valueHeaderLength();
+      offset += ExecuteCommandRequestEncoder.valueHeaderLength();
 
-          record.write(encoder.buffer(), offset);
+      record.write(encoder.buffer(), offset);
     }
 
-      @Override
-    public int getLength()
-    {
-        return MessageHeaderEncoder.ENCODED_LENGTH
-                + ExecuteCommandRequestEncoder.intentEncodingLength()
-                + ExecuteCommandRequestEncoder.keyEncodingLength()
-                + ExecuteCommandRequestEncoder.partitionIdEncodingLength()
-                + ExecuteCommandRequestEncoder.positionEncodingLength()
-                + ExecuteCommandRequestEncoder.sourceRecordPositionEncodingLength()
-                + ExecuteCommandRequestEncoder.valueTypeEncodingLength()
-                + ExecuteCommandRequestEncoder.valueHeaderLength()
-                + record.getLength();
-
+    @Override
+    public int getLength() {
+      return MessageHeaderEncoder.ENCODED_LENGTH
+          + ExecuteCommandRequestEncoder.intentEncodingLength()
+          + ExecuteCommandRequestEncoder.keyEncodingLength()
+          + ExecuteCommandRequestEncoder.partitionIdEncodingLength()
+          + ExecuteCommandRequestEncoder.positionEncodingLength()
+          + ExecuteCommandRequestEncoder.sourceRecordPositionEncodingLength()
+          + ExecuteCommandRequestEncoder.valueTypeEncodingLength()
+          + ExecuteCommandRequestEncoder.valueHeaderLength()
+          + record.getLength();
     }
   }
 
-    @Override
-    public void onPartitionUpdated(PartitionInfo partitionInfo, NodeInfo member)
-    {
-        final RemoteAddress currentLeader = systemTopicLeaderAddress;
+  @Override
+  public void onPartitionUpdated(PartitionInfo partitionInfo, NodeInfo member) {
+    final RemoteAddress currentLeader = systemTopicLeaderAddress;
 
-        if (member.getLeaders().contains(partitionInfo))
-        {
-            if (partitionInfo.getPartitionId() == Protocol.SYSTEM_PARTITION)
-            {
-                final SocketAddress managementApiAddress = member.getManagementApiAddress();
-                if (currentLeader == null || currentLeader.getAddress().equals(managementApiAddress))
-                {
-                    systemTopicLeaderAddress = managementClient.registerRemoteAddress(managementApiAddress);
-                }
-            }
-            else
-            {
-                actor.submit(() ->
-                {
-                    final SocketAddress clientApiAddress = member.getClientApiAddress();
-                    final RemoteAddress remoteAddress = clientApiClient.registerRemoteAddress(clientApiAddress);
-
-                    partitionLeaders.put(partitionInfo.getPartitionId(), remoteAddress);
-                });
-            }
+    if (member.getLeaders().contains(partitionInfo)) {
+      if (partitionInfo.getPartitionId() == Protocol.SYSTEM_PARTITION) {
+        final SocketAddress managementApiAddress = member.getManagementApiAddress();
+        if (currentLeader == null || currentLeader.getAddress().equals(managementApiAddress)) {
+          systemTopicLeaderAddress = managementClient.registerRemoteAddress(managementApiAddress);
         }
-    }
+      } else {
+        actor.submit(
+            () -> {
+              final SocketAddress clientApiAddress = member.getClientApiAddress();
+              final RemoteAddress remoteAddress =
+                  clientApiClient.registerRemoteAddress(clientApiAddress);
 
+              partitionLeaders.put(partitionInfo.getPartitionId(), remoteAddress);
+            });
+      }
+    }
+  }
 }

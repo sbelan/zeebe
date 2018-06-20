@@ -111,6 +111,8 @@ public class TypedStreamProcessor implements StreamProcessor {
         recordProcessors.get(
             metadata.getRecordType(), metadata.getValueType(), metadata.getIntent().value());
 
+    System.out.println(metadata.getRecordType() + " "+ metadata.getValueType()+ " "+ metadata.getIntent().value());
+
     if (currentProcessor != null) {
       final UnpackedObject value = eventCache.get(metadata.getValueType());
       value.reset();

@@ -17,9 +17,6 @@
  */
 package io.zeebe.broker.transport.clientapi;
 
-import java.util.EnumMap;
-import java.util.function.Consumer;
-
 import io.zeebe.broker.clustering.base.partitions.Partition;
 import io.zeebe.broker.clustering.orchestration.topic.TopicRecord;
 import io.zeebe.broker.event.processor.TopicSubscriberEvent;
@@ -39,6 +36,8 @@ import io.zeebe.protocol.Protocol;
 import io.zeebe.protocol.clientapi.*;
 import io.zeebe.protocol.impl.RecordMetadata;
 import io.zeebe.transport.*;
+import java.util.EnumMap;
+import java.util.function.Consumer;
 import org.agrona.DirectBuffer;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.collections.Int2ObjectHashMap;
@@ -131,7 +130,7 @@ public class ClientApiMessageHandler implements ServerMessageHandler, ServerRequ
       event.wrap(buffer, eventOffset, eventLength);
     } catch (Throwable t) {
 
-        t.printStackTrace();
+      t.printStackTrace();
 
       return errorResponseWriter
           .errorCode(ErrorCode.INVALID_MESSAGE)

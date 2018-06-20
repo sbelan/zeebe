@@ -22,9 +22,6 @@ import static io.zeebe.broker.util.PayloadUtil.isValidPayload;
 import static io.zeebe.util.buffer.BufferUtil.bufferAsString;
 import static io.zeebe.util.buffer.BufferUtil.wrapString;
 
-import java.util.*;
-import java.util.function.Consumer;
-
 import io.zeebe.broker.Loggers;
 import io.zeebe.broker.clustering.base.topology.TopologyManager;
 import io.zeebe.broker.incident.data.ErrorType;
@@ -60,6 +57,8 @@ import io.zeebe.util.metrics.MetricsManager;
 import io.zeebe.util.sched.ActorControl;
 import io.zeebe.util.sched.future.ActorFuture;
 import io.zeebe.util.sched.future.CompletableActorFuture;
+import java.util.*;
+import java.util.function.Consumer;
 import org.agrona.DirectBuffer;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.concurrent.UnsafeBuffer;
@@ -78,16 +77,16 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
   private final List<MessageSubscription> messageSubscriptions = new ArrayList<>();
 
   private class MessageSubscription {
-      // keys
-      private long workflowIntanceKey;
-      private long activityInstanceKey;
-      private String messageName;
+    // keys
+    private long workflowIntanceKey;
+    private long activityInstanceKey;
+    private String messageName;
 
-      // more properties
-      private String bpmnProcessId;
-      private int version;
-      private long workflowKey;
-      private String activityId;
+    // more properties
+    private String bpmnProcessId;
+    private int version;
+    private long workflowKey;
+    private String activityId;
   }
 
   private final MappingProcessor payloadMappingProcessor = new MappingProcessor(4096);
@@ -102,7 +101,10 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
   private ActorControl actor;
 
   public WorkflowInstanceStreamProcessor(
-      ClientTransport managementApiClient, ClientTransport clientTransport, TopologyManager topologyManager, int payloadCacheSize) {
+      ClientTransport managementApiClient,
+      ClientTransport clientTransport,
+      TopologyManager topologyManager,
+      int payloadCacheSize) {
     this.managementApiClient = managementApiClient;
     this.payloadCache = new PayloadCache(payloadCacheSize);
     this.topologyManager = topologyManager;
@@ -156,10 +158,10 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
             w -> isActive(w.getWorkflowInstanceKey()),
             new MessageCatchEventProcessor())
         .onEvent(
-             ValueType.WORKFLOW_INSTANCE,
-             WorkflowInstanceIntent.MESSAGE_CATCH_EVENT_OCCURRING,
-             w -> isActive(w.getWorkflowInstanceKey()),
-             new MessageCatchEventOccurringProcessor())
+            ValueType.WORKFLOW_INSTANCE,
+            WorkflowInstanceIntent.MESSAGE_CATCH_EVENT_OCCURRING,
+            w -> isActive(w.getWorkflowInstanceKey()),
+            new MessageCatchEventOccurringProcessor())
         .onCommand(
             ValueType.WORKFLOW_INSTANCE,
             WorkflowInstanceIntent.UPDATE_PAYLOAD,
@@ -196,7 +198,10 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
                 (e) -> workflowInstanceEventCompleted.incrementOrdered())
         .onEvent(ValueType.JOB, JobIntent.CREATED, new JobCreatedProcessor())
         .onEvent(ValueType.JOB, JobIntent.COMPLETED, new JobCompletedEventProcessor())
-        .onEvent(ValueType.MESSAGE_SUBSCRIPTION, MessageSubscriptionIntent.CORRELATED, new MessageCorrelatedProcessor())
+        .onEvent(
+            ValueType.MESSAGE_SUBSCRIPTION,
+            MessageSubscriptionIntent.CORRELATED,
+            new MessageCorrelatedProcessor())
         .withStateResource(workflowInstanceIndex.getMap())
         .withStateResource(activityInstanceMap.getMap())
         .withStateResource(payloadCache.getMap())
@@ -213,11 +218,13 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     this.workflowCache =
         new WorkflowCache(managementApiClient, topologyManager, logStream.getTopicName());
 
-    this.messageCorrelationManager = new MessageCorrelationManager(managementApiClient,
-                                                                   clientApiClient,
-                                                                   topologyManager,
-                                                                   actor,
-                                                                   logStream.getPartitionId());
+    this.messageCorrelationManager =
+        new MessageCorrelationManager(
+            managementApiClient,
+            clientApiClient,
+            topologyManager,
+            actor,
+            logStream.getPartitionId());
 
     final StreamProcessorContext context = streamProcessor.getStreamProcessorContext();
     final MetricsManager metricsManager = context.getActorScheduler().getMetricsManager();
@@ -1087,7 +1094,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
   private final class MessageCatchEventProcessor
       extends FlowElementEventProcessor<IntermediateCatchEvent> {
 
-      private String messageName;
+    private String messageName;
 
     @Override
     void processFlowElementEvent(
@@ -1104,169 +1111,171 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
       this.messageName = correlationDefinition.getMessageName();
       final String eventTopic = correlationDefinition.getEventTopic();
 
-      final String eventKey = resolveEventKey(correlationDefinition.getEventKey(), event.getValue().getPayload());
+      final String eventKey =
+          resolveEventKey(correlationDefinition.getEventKey(), event.getValue().getPayload());
 
       final int partitionId = messageCorrelationManager.getPartitionForTopic(eventTopic, eventKey);
-      if (partitionId > 0)
-      {
-          final ActorFuture<ClientResponse> onSubscribed = messageCorrelationManager.openSubscription(partitionId,
-                                                     eventKey,
-                                                     messageName,
-                                                     event.getValue().getWorkflowInstanceKey(),
-                                                     event.getKey());
+      if (partitionId > 0) {
+        final ActorFuture<ClientResponse> onSubscribed =
+            messageCorrelationManager.openSubscription(
+                partitionId,
+                eventKey,
+                messageName,
+                event.getValue().getWorkflowInstanceKey(),
+                event.getKey());
 
-          // TODO handle the case when the partition has currently no leader, and when no response is received
+        // TODO handle the case when the partition has currently no leader, and when no response is
+        // received
 
-          ctx.async(onSubscribed);
-      }
-      else
-      {
-          final ActorFuture<Void> onCompleted = new CompletableActorFuture<>();
-          ctx.async(onCompleted);
+        ctx.async(onSubscribed);
+      } else {
+        final ActorFuture<Void> onCompleted = new CompletableActorFuture<>();
+        ctx.async(onCompleted);
 
-          actor.runOnCompletion(messageCorrelationManager.fetchTopics(), (v,failure) ->
-          {
-              if (failure == null)
-              {
-                  final int id = messageCorrelationManager.getPartitionForTopic(eventTopic, eventKey);
-                  if (id > 0)
-                  {
-                      final ActorFuture<ClientResponse> onSubscribed = messageCorrelationManager.openSubscription(id,
-                                                                 eventKey,
-                                                                 messageName,
-                                                                 event.getValue().getWorkflowInstanceKey(),
-                                                                 event.getKey());
+        actor.runOnCompletion(
+            messageCorrelationManager.fetchTopics(),
+            (v, failure) -> {
+              if (failure == null) {
+                final int id = messageCorrelationManager.getPartitionForTopic(eventTopic, eventKey);
+                if (id > 0) {
+                  final ActorFuture<ClientResponse> onSubscribed =
+                      messageCorrelationManager.openSubscription(
+                          id,
+                          eventKey,
+                          messageName,
+                          event.getValue().getWorkflowInstanceKey(),
+                          event.getKey());
 
-                      // TODO handle the case when the partition has currently no leader, and when no response is received
-                      ctx.async(onSubscribed);
-                  }
-                  else
-                  {
-                      Loggers.STREAM_PROCESSING.error("Failed to subscribe for event. Topic '{}' not found.", eventTopic);
+                  // TODO handle the case when the partition has currently no leader, and when no
+                  // response is received
+                  ctx.async(onSubscribed);
+                } else {
+                  Loggers.STREAM_PROCESSING.error(
+                      "Failed to subscribe for event. Topic '{}' not found.", eventTopic);
 
-                      // TODO create incident if event topic not exists
-                  }
+                  // TODO create incident if event topic not exists
+                }
 
-                  onCompleted.complete(null);
+                onCompleted.complete(null);
+              } else {
+                // TODO handle failed topic request
+                onCompleted.completeExceptionally(failure);
               }
-              else
-              {
-                  // TODO handle failed topic request
-                  onCompleted.completeExceptionally(failure);
-              }
-
-          });
+            });
       }
     }
 
-    private String resolveEventKey(JsonPathQuery query, DirectBuffer payload)
-    {
-          final MsgPackQueryExecutor queryExecutor = new MsgPackQueryExecutor();
-          queryExecutor.init(query.getFilters(), query.getFilterInstances());
+    private String resolveEventKey(JsonPathQuery query, DirectBuffer payload) {
+      final MsgPackQueryExecutor queryExecutor = new MsgPackQueryExecutor();
+      queryExecutor.init(query.getFilters(), query.getFilterInstances());
 
-          final MsgPackTraverser traverser = new MsgPackTraverser();
-          traverser.wrap(payload, 0, payload.capacity());
+      final MsgPackTraverser traverser = new MsgPackTraverser();
+      traverser.wrap(payload, 0, payload.capacity());
 
-          traverser.traverse(queryExecutor);
+      traverser.traverse(queryExecutor);
 
-          if (queryExecutor.numResults() == 1)
-          {
-              queryExecutor.moveToResult(0);
+      if (queryExecutor.numResults() == 1) {
+        queryExecutor.moveToResult(0);
 
-              final int pos = queryExecutor.currentResultPosition();
-              final int len = queryExecutor.currentResultLength();
+        final int pos = queryExecutor.currentResultPosition();
+        final int len = queryExecutor.currentResultLength();
 
-              final MsgPackReader reader = new MsgPackReader();
-              reader.wrap(payload, pos, len);
+        final MsgPackReader reader = new MsgPackReader();
+        reader.wrap(payload, pos, len);
 
-              final MsgPackToken token = reader.readToken();
+        final MsgPackToken token = reader.readToken();
 
-              switch (token.getType()) {
-                  case STRING: return bufferAsString(token.getValueBuffer());
-                  case FLOAT: return String.valueOf(token.getFloatValue());
-                  case INTEGER: return String.valueOf(token.getIntegerValue());
-                  default: break;
-              }
-          }
+        switch (token.getType()) {
+          case STRING:
+            return bufferAsString(token.getValueBuffer());
+          case FLOAT:
+            return String.valueOf(token.getFloatValue());
+          case INTEGER:
+            return String.valueOf(token.getIntegerValue());
+          default:
+            break;
+        }
+      }
 
-          // TODO create incident if can't resolve event key or type is invalid
-          Loggers.STREAM_PROCESSING.error("Failed to resolve message key for expression '{}'", bufferAsString(query.getExpression()));
-          return "";
+      // TODO create incident if can't resolve event key or type is invalid
+      Loggers.STREAM_PROCESSING.error(
+          "Failed to resolve message key for expression '{}'",
+          bufferAsString(query.getExpression()));
+      return "";
     }
 
     @Override
-    public void updateState(TypedRecord<WorkflowInstanceRecord> record)
-    {
-        final WorkflowInstanceRecord instance = record.getValue();
+    public void updateState(TypedRecord<WorkflowInstanceRecord> record) {
+      final WorkflowInstanceRecord instance = record.getValue();
 
-        final MessageSubscription sub = new MessageSubscription();
-        sub.workflowIntanceKey = instance.getWorkflowInstanceKey();
-        sub.activityInstanceKey = record.getKey();
-        sub.messageName = this.messageName;
-        sub.bpmnProcessId = bufferAsString(instance.getBpmnProcessId());
-        sub.version = instance.getVersion();
-        sub.workflowKey = instance.getWorkflowKey();
-        sub.activityId = bufferAsString(instance.getActivityId());
+      final MessageSubscription sub = new MessageSubscription();
+      sub.workflowIntanceKey = instance.getWorkflowInstanceKey();
+      sub.activityInstanceKey = record.getKey();
+      sub.messageName = this.messageName;
+      sub.bpmnProcessId = bufferAsString(instance.getBpmnProcessId());
+      sub.version = instance.getVersion();
+      sub.workflowKey = instance.getWorkflowKey();
+      sub.activityId = bufferAsString(instance.getActivityId());
 
-        messageSubscriptions.add(sub);
+      messageSubscriptions.add(sub);
     }
   }
 
-  private class MessageCorrelatedProcessor implements TypedRecordProcessor<MessageSubscriptionRecord> {
+  private class MessageCorrelatedProcessor
+      implements TypedRecordProcessor<MessageSubscriptionRecord> {
 
-   private MessageSubscription subscription;
+    private MessageSubscription subscription;
 
-      @Override
-    public void processRecord(TypedRecord<MessageSubscriptionRecord> record)
-    {
-        subscription = null;
+    @Override
+    public void processRecord(TypedRecord<MessageSubscriptionRecord> record) {
+      subscription = null;
 
-        final MessageSubscriptionRecord sub = record.getValue();
+      final MessageSubscriptionRecord sub = record.getValue();
 
-        messageSubscriptions
-            .stream()
-            .filter(s -> s.workflowIntanceKey == sub.getWorkflowInstanceKey())
-            .filter(s -> s.activityInstanceKey == sub.getActivityInstanceId())
-            .filter(s -> s.messageName.equals(bufferAsString(sub.getMessageName())))
-            .findFirst()
-            .ifPresent(s -> this.subscription = s);
-        }
+      messageSubscriptions
+          .stream()
+          .filter(s -> s.workflowIntanceKey == sub.getWorkflowInstanceKey())
+          .filter(s -> s.activityInstanceKey == sub.getActivityInstanceId())
+          .filter(s -> s.messageName.equals(bufferAsString(sub.getMessageName())))
+          .findFirst()
+          .ifPresent(s -> this.subscription = s);
+    }
 
-      @Override
-        public long writeRecord(TypedRecord<MessageSubscriptionRecord> record, TypedStreamWriter writer)
-        {
-          if (subscription != null)
-          {
-              final WorkflowInstanceRecord wfInstance = new WorkflowInstanceRecord();
-              wfInstance
-                  .setWorkflowInstanceKey(subscription.workflowIntanceKey)
-                  .setBpmnProcessId(wrapString(subscription.bpmnProcessId))
-                  .setVersion(subscription.version)
-                  .setWorkflowKey(subscription.workflowKey)
-                  .setActivityId(subscription.activityId);
+    @Override
+    public long writeRecord(
+        TypedRecord<MessageSubscriptionRecord> record, TypedStreamWriter writer) {
+      if (subscription != null) {
+        final WorkflowInstanceRecord wfInstance = new WorkflowInstanceRecord();
+        wfInstance
+            .setWorkflowInstanceKey(subscription.workflowIntanceKey)
+            .setBpmnProcessId(wrapString(subscription.bpmnProcessId))
+            .setVersion(subscription.version)
+            .setWorkflowKey(subscription.workflowKey)
+            .setActivityId(subscription.activityId);
 
-              // TODO set payload from message
+        // TODO set payload from message
 
-              return writer.writeFollowUpEvent(record.getValue().getActivityInstanceId(), WorkflowInstanceIntent.MESSAGE_CATCH_EVENT_OCCURRING, wfInstance);
-          }
-          else {
-              return 0L;
-          }
-        }
+        return writer.writeFollowUpEvent(
+            record.getValue().getActivityInstanceId(),
+            WorkflowInstanceIntent.MESSAGE_CATCH_EVENT_OCCURRING,
+            wfInstance);
+      } else {
+        return 0L;
+      }
+    }
 
-      @Override
-        public boolean executeSideEffects(TypedRecord<MessageSubscriptionRecord> record, TypedResponseWriter responseWriter)
-        {
-              return responseWriter.writeEventUnchanged(record);
-        }
+    @Override
+    public boolean executeSideEffects(
+        TypedRecord<MessageSubscriptionRecord> record, TypedResponseWriter responseWriter) {
+      return responseWriter.writeEventUnchanged(record);
+    }
 
-      @Override
-        public void updateState(TypedRecord<MessageSubscriptionRecord> record)
-        {
-            if (subscription != null) {
-               messageSubscriptions.remove(subscription);
-            }
-        }
+    @Override
+    public void updateState(TypedRecord<MessageSubscriptionRecord> record) {
+      if (subscription != null) {
+        messageSubscriptions.remove(subscription);
+      }
+    }
   }
 
   private final class MessageCatchEventOccurringProcessor
@@ -1282,11 +1291,10 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     }
 
     @Override
-    public long writeRecord(TypedRecord<WorkflowInstanceRecord> record, TypedStreamWriter writer)
-    {
-        return writer.writeFollowUpEvent(record.getKey(), WorkflowInstanceIntent.MESSAGE_CATCH_EVENT_OCCURRED, record.getValue());
+    public long writeRecord(TypedRecord<WorkflowInstanceRecord> record, TypedStreamWriter writer) {
+      return writer.writeFollowUpEvent(
+          record.getKey(), WorkflowInstanceIntent.MESSAGE_CATCH_EVENT_OCCURRED, record.getValue());
     }
-
   }
 
   private abstract class FlowElementEventProcessor<T extends FlowElement>

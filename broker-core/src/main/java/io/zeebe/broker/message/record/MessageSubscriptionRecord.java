@@ -44,58 +44,48 @@ public class MessageSubscriptionRecord extends UnpackedObject {
         .declareProperty(activityInstanceIdProp);
   }
 
-  public MessageSubscriptionRecord setMessageName(DirectBuffer directBuffer)
-  {
-      messageNameProp.setValue(directBuffer);
-      return this;
+  public MessageSubscriptionRecord setMessageName(DirectBuffer directBuffer) {
+    messageNameProp.setValue(directBuffer);
+    return this;
   }
 
-  public MessageSubscriptionRecord setMessageKey(DirectBuffer directBuffer)
-  {
-      messageKeyProp.setValue(directBuffer);
-      return this;
+  public MessageSubscriptionRecord setMessageKey(DirectBuffer directBuffer) {
+    messageKeyProp.setValue(directBuffer);
+    return this;
   }
 
-  public DirectBuffer getMessageName()
-  {
-      return messageNameProp.getValue();
+  public DirectBuffer getMessageName() {
+    return messageNameProp.getValue();
   }
 
-  public DirectBuffer getMessageKey()
-  {
-      return messageKeyProp.getValue();
+  public DirectBuffer getMessageKey() {
+    return messageKeyProp.getValue();
   }
 
-  public int getParitionId()
-  {
-      return partitionIdProp.getValue();
+  public int getParitionId() {
+    return partitionIdProp.getValue();
   }
 
-  public long getWorkflowInstanceKey()
-  {
-      return workflowInstanceKeyProp.getValue();
+  public long getWorkflowInstanceKey() {
+    return workflowInstanceKeyProp.getValue();
   }
 
-  public long getActivityInstanceId()
-  {
-      return activityInstanceIdProp.getValue();
+  public long getActivityInstanceId() {
+    return activityInstanceIdProp.getValue();
   }
 
-  public MessageSubscriptionRecord setPartitionId(int val)
-  {
-      partitionIdProp.setValue(val);
-      return this;
+  public MessageSubscriptionRecord setPartitionId(int val) {
+    partitionIdProp.setValue(val);
+    return this;
   }
 
-  public MessageSubscriptionRecord setWorkflowInstanceKey(long val)
-  {
-      workflowInstanceKeyProp.setValue(val);
-      return this;
+  public MessageSubscriptionRecord setWorkflowInstanceKey(long val) {
+    workflowInstanceKeyProp.setValue(val);
+    return this;
   }
 
-  public MessageSubscriptionRecord setActivityInstaneId(long val)
-  {
-      activityInstanceIdProp.setValue(val);
-      return this;
+  public MessageSubscriptionRecord setActivityInstaneId(long val) {
+    activityInstanceIdProp.setValue(val);
+    return this;
   }
 }

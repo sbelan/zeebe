@@ -41,26 +41,22 @@ public class MessageRecord extends UnpackedObject {
         .declareProperty(payloadProp);
   }
 
-  public MessageRecord setMessageName(DirectBuffer directBuffer)
-  {
-      messageNameProp.setValue(directBuffer);
-      return this;
+  public MessageRecord setMessageName(DirectBuffer directBuffer) {
+    messageNameProp.setValue(directBuffer);
+    return this;
   }
 
-  public MessageRecord setMessageKey(DirectBuffer directBuffer)
-  {
-      messageKeyProp.setValue(directBuffer);
-      return this;
+  public MessageRecord setMessageKey(DirectBuffer directBuffer) {
+    messageKeyProp.setValue(directBuffer);
+    return this;
   }
 
-  public DirectBuffer getMessageName()
-  {
-      return messageNameProp.getValue();
+  public DirectBuffer getMessageName() {
+    return messageNameProp.getValue();
   }
 
-  public DirectBuffer getMessageKey()
-  {
-      return messageKeyProp.getValue();
+  public DirectBuffer getMessageKey() {
+    return messageKeyProp.getValue();
   }
 
   public DirectBuffer getPayload() {

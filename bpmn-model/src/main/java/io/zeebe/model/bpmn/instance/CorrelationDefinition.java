@@ -17,11 +17,10 @@ package io.zeebe.model.bpmn.instance;
 
 import io.zeebe.msgpack.jsonpath.JsonPathQuery;
 
-public interface CorrelationDefinition
-{
-    String getMessageName();
+public interface CorrelationDefinition {
+  String getMessageName();
 
-    JsonPathQuery getEventKey();
+  JsonPathQuery getEventKey();
 
-    String getEventTopic();
+  String getEventTopic();
 }

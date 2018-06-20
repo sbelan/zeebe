@@ -17,15 +17,14 @@
  */
 package io.zeebe.broker.workflow;
 
-import java.nio.file.Files;
-import java.nio.file.Paths;
-
 import io.zeebe.broker.test.EmbeddedBrokerRule;
 import io.zeebe.protocol.clientapi.ValueType;
 import io.zeebe.protocol.intent.MessageSubscriptionIntent;
 import io.zeebe.protocol.intent.WorkflowInstanceIntent;
 import io.zeebe.test.broker.protocol.clientapi.ClientApiRule;
 import io.zeebe.test.broker.protocol.clientapi.TestTopicClient;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import org.junit.*;
 import org.junit.rules.RuleChain;
 
@@ -60,12 +59,15 @@ public class MessageCorrelationTest {
     testClient.receiveFirstWorkflowInstanceEvent(
         WorkflowInstanceIntent.MESSAGE_CATCH_EVENT_ENTERED);
 
-    final TestTopicClient eventTopicClient = apiRule.topic(apiRule.getSinglePartitionId("order-events"));
+    final TestTopicClient eventTopicClient =
+        apiRule.topic(apiRule.getSinglePartitionId("order-events"));
     eventTopicClient
         .receiveRecords()
-        .filter(r -> r.valueType() == ValueType.MESSAGE_SUBSCRIPTION && r.intent() == MessageSubscriptionIntent.SUBSCRIBED)
+        .filter(
+            r ->
+                r.valueType() == ValueType.MESSAGE_SUBSCRIPTION
+                    && r.intent() == MessageSubscriptionIntent.SUBSCRIBED)
         .findFirst()
         .get();
-
   }
 }

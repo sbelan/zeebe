@@ -15,7 +15,6 @@
  */
 package io.zeebe.client.impl;
 
-import java.util.concurrent.*;
 import io.zeebe.client.ZeebeClient;
 import io.zeebe.client.ZeebeClientConfiguration;
 import io.zeebe.client.api.clients.TopicClient;
@@ -37,6 +36,7 @@ import io.zeebe.transport.impl.memory.UnboundedMemoryPool;
 import io.zeebe.util.ByteValue;
 import io.zeebe.util.sched.ActorScheduler;
 import io.zeebe.util.sched.clock.ActorClock;
+import java.util.concurrent.*;
 import org.slf4j.Logger;
 
 public class ZeebeClientImpl implements ZeebeClient {

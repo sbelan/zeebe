@@ -70,18 +70,23 @@ public class SystemComponent implements Component {
         .install();
 
     final FetchCreatedTopicsRequestHandlerManager fetchTopicsHandlerManagerService =
-            new FetchCreatedTopicsRequestHandlerManager();
-        serviceContainer
-            .createService(FETCH_TOPICS_REQUEST_HANDLER_MANAGER, fetchTopicsHandlerManagerService)
-            .dependency(
-                bufferingServerTransport(MANAGEMENT_API_SERVER_NAME),
-                fetchTopicsHandlerManagerService.getManagementApiServerTransportInjector())
-            .install();
+        new FetchCreatedTopicsRequestHandlerManager();
+    serviceContainer
+        .createService(FETCH_TOPICS_REQUEST_HANDLER_MANAGER, fetchTopicsHandlerManagerService)
+        .dependency(
+            bufferingServerTransport(MANAGEMENT_API_SERVER_NAME),
+            fetchTopicsHandlerManagerService.getManagementApiServerTransportInjector())
+        .install();
 
-     final FetchCreatedTopicsRequestHandlerService fetchTopicsHandlerService = new FetchCreatedTopicsRequestHandlerService();
-     serviceContainer.createService(FETCH_TOPICS_REQUEST_HANDLER, fetchTopicsHandlerService)
-         .dependency(FETCH_TOPICS_REQUEST_HANDLER_MANAGER, fetchTopicsHandlerService.getManagerInjector())
-         .dependency(ClusterOrchestrationLayerServiceNames.KNOWN_TOPICS_SERVICE_NAME, fetchTopicsHandlerService.getKnownTopicsInjector())
-         .install();
+    final FetchCreatedTopicsRequestHandlerService fetchTopicsHandlerService =
+        new FetchCreatedTopicsRequestHandlerService();
+    serviceContainer
+        .createService(FETCH_TOPICS_REQUEST_HANDLER, fetchTopicsHandlerService)
+        .dependency(
+            FETCH_TOPICS_REQUEST_HANDLER_MANAGER, fetchTopicsHandlerService.getManagerInjector())
+        .dependency(
+            ClusterOrchestrationLayerServiceNames.KNOWN_TOPICS_SERVICE_NAME,
+            fetchTopicsHandlerService.getKnownTopicsInjector())
+        .install();
   }
 }

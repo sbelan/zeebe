@@ -45,8 +45,8 @@ public class WorkflowComponent implements Component {
             clientTransport(MANAGEMENT_API_CLIENT_NAME),
             workflowQueueManagerService.getManagementApiClientInjector())
         .dependency(
-                    clientTransport(CLIENT_API_CLIENT_NAME),
-                    workflowQueueManagerService.getClientApiClientInjector())
+            clientTransport(CLIENT_API_CLIENT_NAME),
+            workflowQueueManagerService.getClientApiClientInjector())
         .dependency(
             STREAM_PROCESSOR_SERVICE_FACTORY,
             workflowQueueManagerService.getStreamProcessorServiceFactoryInjector())

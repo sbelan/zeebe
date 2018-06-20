@@ -17,8 +17,6 @@ package io.zeebe.broker.it.workflow;
 
 import static io.zeebe.test.util.TestUtil.waitUntil;
 
-import java.util.Collections;
-
 import io.zeebe.broker.it.ClientRule;
 import io.zeebe.broker.it.EmbeddedBrokerRule;
 import io.zeebe.broker.it.util.TopicEventRecorder;
@@ -26,66 +24,120 @@ import io.zeebe.client.ZeebeClient;
 import io.zeebe.client.api.clients.MessageClient;
 import io.zeebe.client.api.clients.WorkflowClient;
 import io.zeebe.client.api.events.WorkflowInstanceState;
+import io.zeebe.client.api.record.Record;
+import io.zeebe.client.api.subscription.RecordHandler;
+import java.util.Collections;
 import org.junit.*;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.RuleChain;
 
-public class MessageCorrelationTest
-{
+public class MessageCorrelationTest {
 
-    public EmbeddedBrokerRule brokerRule = new EmbeddedBrokerRule();
-    public ClientRule clientRule = new ClientRule();
-    public TopicEventRecorder eventRecorder = new TopicEventRecorder(clientRule);
+  public EmbeddedBrokerRule brokerRule = new EmbeddedBrokerRule();
+  public ClientRule clientRule = new ClientRule();
+  public TopicEventRecorder eventRecorder = new TopicEventRecorder(clientRule);
 
-    @Rule
-    public RuleChain ruleChain = RuleChain.outerRule(brokerRule).around(clientRule).around(eventRecorder);
+  @Rule
+  public RuleChain ruleChain =
+      RuleChain.outerRule(brokerRule).around(clientRule).around(eventRecorder);
 
-    @Rule
-    public ExpectedException exception = ExpectedException.none();
-    private ZeebeClient client;
-    private WorkflowClient workflowClient;
-    private MessageClient messageClient;
+  @Rule public ExpectedException exception = ExpectedException.none();
+  private ZeebeClient client;
+  private WorkflowClient workflowClient;
+  private MessageClient messageClient;
 
-    @Before
-    public void init()
-    {
-        client = clientRule.getClient();
-        workflowClient = client.topicClient().workflowClient();
-        messageClient = client.topicClient("order-events").messageClient();
+  @Before
+  public void init() {
+    client = clientRule.getClient();
+    workflowClient = client.topicClient().workflowClient();
+    messageClient = client.topicClient("order-events").messageClient();
 
-        client.newCreateTopicCommand().name("order-events").partitions(5).replicationFactor(1).send().join();
+    client
+        .newCreateTopicCommand()
+        .name("order-events")
+        .partitions(5)
+        .replicationFactor(1)
+        .send()
+        .join();
 
-        workflowClient.newDeployCommand().addResourceFromClasspath("workflows/message-correlation.bpmn").send().join();
+    workflowClient
+        .newDeployCommand()
+        .addResourceFromClasspath("workflows/message-correlation.bpmn")
+        .send()
+        .join();
+  }
 
-    }
+  @Test
+  public void shouldCorrelateMessageToWaitingWorkflowInstance() {
 
-    @Test
-    public void shouldCorrelateMessageToWaitingWorkflowInstance()
-    {
+    workflowClient
+        .newCreateInstanceCommand()
+        .bpmnProcessId("Process_1")
+        .latestVersion()
+        .payload(Collections.singletonMap("orderId", "123"))
+        .send()
+        .join();
 
-        workflowClient.newCreateInstanceCommand().bpmnProcessId("Process_1").latestVersion().payload(Collections.singletonMap("orderId", "123")).send().join();
+    waitUntil(
+        () ->
+            eventRecorder.hasWorkflowInstanceEvent(
+                WorkflowInstanceState.MESSAGE_CATCH_EVENT_ENTERED));
 
-        waitUntil(() -> eventRecorder.hasWorkflowInstanceEvent(WorkflowInstanceState.MESSAGE_CATCH_EVENT_ENTERED));
+    // when
+    messageClient
+        .newPublishCommand()
+        .messageName("cancel order")
+        .messageKey("123")
+        .payload(Collections.singletonMap("reason", "foo"))
+        .send()
+        .join();
 
-        // when
-        messageClient.newPublishCommand().messageName("cancel order").messageKey("123").payload(Collections.singletonMap("reason", "foo")).send().join();
+    client.topicClient("order-events").newSubscription()
+        .name("foo")
+        .recordHandler(new RecordHandler() {
 
-        // then
-        waitUntil(() -> eventRecorder.hasWorkflowInstanceEvent(WorkflowInstanceState.MESSAGE_CATCH_EVENT_OCCURRED));
-        waitUntil(() -> eventRecorder.hasWorkflowInstanceEvent(WorkflowInstanceState.COMPLETED));
-    }
+            @Override
+            public void onRecord(Record record) throws Exception {
+                System.out.println(record);
 
-    @Test
-    public void shouldCorrelateMessageToWorkflowInstanceIfAlreadyReceived()
-    {
-        messageClient.newPublishCommand().messageName("cancel order").messageKey("123").payload(Collections.singletonMap("reason", "foo")).send().join();
+            }
+        })
+        .startAtHeadOfTopic()
+        .forcedStart()
+        .open();
 
-        // when
-        workflowClient.newCreateInstanceCommand().bpmnProcessId("Process_1").latestVersion().payload(Collections.singletonMap("orderId", "123")).send().join();
+    // then
+    waitUntil(
+        () ->
+            eventRecorder.hasWorkflowInstanceEvent(
+                WorkflowInstanceState.MESSAGE_CATCH_EVENT_OCCURRED));
+    waitUntil(() -> eventRecorder.hasWorkflowInstanceEvent(WorkflowInstanceState.COMPLETED));
+  }
 
-        // then
-        waitUntil(() -> eventRecorder.hasWorkflowInstanceEvent(WorkflowInstanceState.MESSAGE_CATCH_EVENT_OCCURRED));
-        waitUntil(() -> eventRecorder.hasWorkflowInstanceEvent(WorkflowInstanceState.COMPLETED));
-    }
+  @Test
+  public void shouldCorrelateMessageToWorkflowInstanceIfAlreadyReceived() {
+    messageClient
+        .newPublishCommand()
+        .messageName("cancel order")
+        .messageKey("123")
+        .payload(Collections.singletonMap("reason", "foo"))
+        .send()
+        .join();
 
+    // when
+    workflowClient
+        .newCreateInstanceCommand()
+        .bpmnProcessId("Process_1")
+        .latestVersion()
+        .payload(Collections.singletonMap("orderId", "123"))
+        .send()
+        .join();
+
+    // then
+    waitUntil(
+        () ->
+            eventRecorder.hasWorkflowInstanceEvent(
+                WorkflowInstanceState.MESSAGE_CATCH_EVENT_OCCURRED));
+    waitUntil(() -> eventRecorder.hasWorkflowInstanceEvent(WorkflowInstanceState.COMPLETED));
+  }
 }

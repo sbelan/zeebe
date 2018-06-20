@@ -17,7 +17,6 @@
  */
 package io.zeebe.broker.logstreams.processor;
 
-import java.util.EnumMap;
 import io.zeebe.broker.clustering.orchestration.id.IdRecord;
 import io.zeebe.broker.clustering.orchestration.topic.TopicRecord;
 import io.zeebe.broker.incident.data.IncidentRecord;
@@ -30,6 +29,7 @@ import io.zeebe.logstreams.log.LogStream;
 import io.zeebe.msgpack.UnpackedObject;
 import io.zeebe.protocol.clientapi.ValueType;
 import io.zeebe.transport.ServerOutput;
+import java.util.EnumMap;
 
 public class TypedStreamEnvironment {
   protected final ServerOutput output;

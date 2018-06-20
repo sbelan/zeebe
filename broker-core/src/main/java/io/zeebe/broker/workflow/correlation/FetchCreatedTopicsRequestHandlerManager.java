@@ -17,14 +17,13 @@
  */
 package io.zeebe.broker.workflow.correlation;
 
-import java.util.concurrent.atomic.AtomicReference;
-
 import io.zeebe.clustering.management.FetchCreatedTopicsRequestDecoder;
 import io.zeebe.clustering.management.MessageHeaderDecoder;
 import io.zeebe.servicecontainer.*;
 import io.zeebe.transport.*;
 import io.zeebe.util.sched.Actor;
 import io.zeebe.util.sched.future.ActorFuture;
+import java.util.concurrent.atomic.AtomicReference;
 import org.agrona.DirectBuffer;
 
 public class FetchCreatedTopicsRequestHandlerManager extends Actor
@@ -146,7 +145,7 @@ public class FetchCreatedTopicsRequestHandlerManager extends Actor
   }
 
   public void setFetchCreatedTopicsRequestHandler(
-          FetchCreatedTopicsRequestHandler fetchCreatedTopicsRequestHandler) {
+      FetchCreatedTopicsRequestHandler fetchCreatedTopicsRequestHandler) {
     fetchCreatedTopicsHandlerRef.set(fetchCreatedTopicsRequestHandler);
   }
 }

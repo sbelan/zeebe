@@ -20,39 +20,36 @@ package io.zeebe.broker.workflow.correlation;
 import io.zeebe.broker.clustering.orchestration.state.KnownTopics;
 import io.zeebe.servicecontainer.*;
 
-public class FetchCreatedTopicsRequestHandlerService implements Service<FetchCreatedTopicsRequestHandlerService>
-{
+public class FetchCreatedTopicsRequestHandlerService
+    implements Service<FetchCreatedTopicsRequestHandlerService> {
 
-    private final Injector<FetchCreatedTopicsRequestHandlerManager> managerInjector = new Injector<>();
+  private final Injector<FetchCreatedTopicsRequestHandlerManager> managerInjector =
+      new Injector<>();
 
-    private final Injector<KnownTopics> knownTopicsInjector = new Injector<>();
+  private final Injector<KnownTopics> knownTopicsInjector = new Injector<>();
 
-    @Override
-    public void start(ServiceStartContext startContext)
-    {
-        final FetchCreatedTopicsRequestHandlerManager manager = getManagerInjector().getValue();
+  @Override
+  public void start(ServiceStartContext startContext) {
+    final FetchCreatedTopicsRequestHandlerManager manager = getManagerInjector().getValue();
 
-        final KnownTopics knownTopics = getKnownTopicsInjector().getValue();
+    final KnownTopics knownTopics = getKnownTopicsInjector().getValue();
 
-        final FetchCreatedTopicsRequestHandler handler = new FetchCreatedTopicsRequestHandler(knownTopics);
+    final FetchCreatedTopicsRequestHandler handler =
+        new FetchCreatedTopicsRequestHandler(knownTopics);
 
-        manager.setFetchCreatedTopicsRequestHandler(handler);
-    }
+    manager.setFetchCreatedTopicsRequestHandler(handler);
+  }
 
-    @Override
-    public FetchCreatedTopicsRequestHandlerService get()
-    {
-        return this;
-    }
+  @Override
+  public FetchCreatedTopicsRequestHandlerService get() {
+    return this;
+  }
 
-    public Injector<FetchCreatedTopicsRequestHandlerManager> getManagerInjector()
-    {
-        return managerInjector;
-    }
+  public Injector<FetchCreatedTopicsRequestHandlerManager> getManagerInjector() {
+    return managerInjector;
+  }
 
-    public Injector<KnownTopics> getKnownTopicsInjector()
-    {
-        return knownTopicsInjector;
-    }
-
+  public Injector<KnownTopics> getKnownTopicsInjector() {
+    return knownTopicsInjector;
+  }
 }

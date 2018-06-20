@@ -42,12 +42,12 @@ public class FetchCreatedTopicsRequestHandler {
       long requestId,
       ActorControl actor) {
 
-    final ActorFuture<FetchCreatedTopicsResponse> future = knownTopics.queryTopics(this::createResponse);
+    final ActorFuture<FetchCreatedTopicsResponse> future =
+        knownTopics.queryTopics(this::createResponse);
 
     actor.runOnCompletion(
         future,
         (response, err) -> {
-
           final ServerResponse serverResponse =
               new ServerResponse()
                   .writer(response)
@@ -66,17 +66,16 @@ public class FetchCreatedTopicsRequestHandler {
   }
 
   private FetchCreatedTopicsResponse createResponse(final Iterable<TopicInfo> topicInfos) {
-      final FetchCreatedTopicsResponse response = new FetchCreatedTopicsResponse();
+    final FetchCreatedTopicsResponse response = new FetchCreatedTopicsResponse();
 
-      for (final TopicInfo topicInfo : topicInfos) {
+    for (final TopicInfo topicInfo : topicInfos) {
 
-        final IntArrayList partitionIds = new IntArrayList();
-        topicInfo.getPartitionIds().forEach(id -> partitionIds.addInt(id.getValue()));
+      final IntArrayList partitionIds = new IntArrayList();
+      topicInfo.getPartitionIds().forEach(id -> partitionIds.addInt(id.getValue()));
 
-        response.addTopic(topicInfo.getTopicName(), partitionIds);
-      }
-
-      return response;
+      response.addTopic(topicInfo.getTopicName(), partitionIds);
     }
 
+    return response;
+  }
 }

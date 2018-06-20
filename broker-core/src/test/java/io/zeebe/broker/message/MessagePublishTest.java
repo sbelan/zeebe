@@ -18,6 +18,7 @@
 package io.zeebe.broker.message;
 
 import static org.assertj.core.api.Assertions.assertThat;
+
 import io.zeebe.broker.test.EmbeddedBrokerRule;
 import io.zeebe.protocol.clientapi.RecordType;
 import io.zeebe.protocol.intent.MessageIntent;
@@ -42,18 +43,17 @@ public class MessagePublishTest {
   @Test
   public void shouldPublishMessage() throws Exception {
 
-      // given
+    // given
 
-      // when
-      final ExecuteCommandResponse resp = testClient.publishMessage("ORDER_CANCELLED", "orderId");
+    // when
+    final ExecuteCommandResponse resp = testClient.publishMessage("ORDER_CANCELLED", "orderId");
 
-      // then
-      assertThat(resp.key()).isGreaterThanOrEqualTo(0L);
-      assertThat(resp.position()).isGreaterThanOrEqualTo(0L);
-      assertThat(resp.sourceRecordPosition()).isEqualTo(resp.key());
-      assertThat(resp.partitionId()).isEqualTo(apiRule.getDefaultPartitionId());
-      assertThat(resp.recordType()).isEqualTo(RecordType.EVENT);
-      assertThat(resp.intent()).isEqualTo(MessageIntent.PUBLISHED);
+    // then
+    assertThat(resp.key()).isGreaterThanOrEqualTo(0L);
+    assertThat(resp.position()).isGreaterThanOrEqualTo(0L);
+    assertThat(resp.sourceRecordPosition()).isEqualTo(resp.key());
+    assertThat(resp.partitionId()).isEqualTo(apiRule.getDefaultPartitionId());
+    assertThat(resp.recordType()).isEqualTo(RecordType.EVENT);
+    assertThat(resp.intent()).isEqualTo(MessageIntent.PUBLISHED);
   }
-
 }

@@ -21,10 +21,6 @@ import static io.zeebe.broker.clustering.base.ClusterBaseLayerServiceNames.LEADE
 import static io.zeebe.broker.clustering.base.ClusterBaseLayerServiceNames.LEADER_PARTITION_SYSTEM_GROUP_NAME;
 import static io.zeebe.broker.transport.TransportServiceNames.*;
 
-import java.net.InetSocketAddress;
-import java.util.Collection;
-import java.util.Collections;
-
 import io.zeebe.broker.clustering.base.ClusterBaseLayerServiceNames;
 import io.zeebe.broker.clustering.base.raft.RaftApiMessageHandlerService;
 import io.zeebe.broker.event.TopicSubscriptionServiceNames;
@@ -42,6 +38,9 @@ import io.zeebe.servicecontainer.ServiceName;
 import io.zeebe.transport.*;
 import io.zeebe.util.ByteValue;
 import io.zeebe.util.sched.future.ActorFuture;
+import java.net.InetSocketAddress;
+import java.util.Collection;
+import java.util.Collections;
 
 public class TransportComponent implements Component {
   @Override
@@ -65,13 +64,13 @@ public class TransportComponent implements Component {
     context.addRequiredStartAction(managementClientFuture);
 
     final ActorFuture<ClientTransport> clientApiClientFuture =
-            createClientTransport(
-                serviceContainer,
-                CLIENT_API_CLIENT_NAME,
-                new ByteValue(networkCfg.getDefaultSendBufferSize()),
-                Collections.singletonList(networkCfg.getClient().toSocketAddress()));
+        createClientTransport(
+            serviceContainer,
+            CLIENT_API_CLIENT_NAME,
+            new ByteValue(networkCfg.getDefaultSendBufferSize()),
+            Collections.singletonList(networkCfg.getClient().toSocketAddress()));
 
-        context.addRequiredStartAction(clientApiClientFuture);
+    context.addRequiredStartAction(clientApiClientFuture);
 
     final ActorFuture<ClientTransport> replicationClientFuture =
         createClientTransport(

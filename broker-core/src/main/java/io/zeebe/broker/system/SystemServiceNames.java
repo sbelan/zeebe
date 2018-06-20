@@ -40,13 +40,12 @@ public class SystemServiceNames {
   public static final ServiceName<FetchCreatedTopicsRequestHandlerManager>
       FETCH_TOPICS_REQUEST_HANDLER_MANAGER =
           ServiceName.newServiceName(
-                                     "broker.topics.requestHandlerManager", FetchCreatedTopicsRequestHandlerManager.class);
+              "broker.topics.requestHandlerManager", FetchCreatedTopicsRequestHandlerManager.class);
 
   public static final ServiceName<FetchCreatedTopicsRequestHandlerService>
-  FETCH_TOPICS_REQUEST_HANDLER =
-      ServiceName.newServiceName(
-                                 "broker.topics.requestHandler", FetchCreatedTopicsRequestHandlerService.class);
-
+      FETCH_TOPICS_REQUEST_HANDLER =
+          ServiceName.newServiceName(
+              "broker.topics.requestHandler", FetchCreatedTopicsRequestHandlerService.class);
 
   public static final ServiceName<WorkflowRepositoryService> REPOSITORY_SERVICE =
       ServiceName.newServiceName(

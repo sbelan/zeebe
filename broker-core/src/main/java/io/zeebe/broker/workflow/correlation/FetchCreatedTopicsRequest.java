@@ -23,10 +23,14 @@ import io.zeebe.clustering.management.FetchCreatedTopicsRequestEncoder;
 import org.agrona.DirectBuffer;
 import org.agrona.MutableDirectBuffer;
 
-public class FetchCreatedTopicsRequest extends SbeBufferWriterReader<FetchCreatedTopicsRequestEncoder, FetchCreatedTopicsRequestDecoder> {
+public class FetchCreatedTopicsRequest
+    extends SbeBufferWriterReader<
+        FetchCreatedTopicsRequestEncoder, FetchCreatedTopicsRequestDecoder> {
 
-  private final FetchCreatedTopicsRequestEncoder bodyEncoder = new FetchCreatedTopicsRequestEncoder();
-  private final FetchCreatedTopicsRequestDecoder bodyDecoder = new FetchCreatedTopicsRequestDecoder();
+  private final FetchCreatedTopicsRequestEncoder bodyEncoder =
+      new FetchCreatedTopicsRequestEncoder();
+  private final FetchCreatedTopicsRequestDecoder bodyDecoder =
+      new FetchCreatedTopicsRequestDecoder();
 
   @Override
   protected FetchCreatedTopicsRequestEncoder getBodyEncoder() {
@@ -52,5 +56,4 @@ public class FetchCreatedTopicsRequest extends SbeBufferWriterReader<FetchCreate
   public void write(MutableDirectBuffer buffer, int offset) {
     super.write(buffer, offset);
   }
-
 }
