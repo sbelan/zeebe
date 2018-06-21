@@ -24,6 +24,12 @@ public class Scope {
 
   /*
    * purpose:
+   *   - decide if scope can be terminated
+   */
+  private ScopeState state;
+
+  /*
+   * purpose:
    *   - create a CANCEL job command on activity instance cancellation
    */
   private Long2ObjectHashMap<Job> jobs = new Long2ObjectHashMap<>();
@@ -34,10 +40,26 @@ public class Scope {
    */
   private final long parentKey;
 
-  public Scope(long key, long parentKey)
+  /*
+   * purpose:
+   *   - top-down propagation of termination
+   */
+  private List<Scope> childScopes = new ArrayList<>();
+
+  /*
+   * purpose:
+   *   - write TERMINATING events based on last value
+   *
+   * (TODO: currently never updated, because we don't need to)
+   */
+  private long position;
+
+  public Scope(long key, long parentKey, long position)
   {
     this.key = key;
     this.parentKey = parentKey;
+    this.state = ScopeState.ACTIVE;
+    this.position = position;
   }
 
 
@@ -115,6 +137,38 @@ public class Scope {
 
   public long getKey() {
     return key;
+  }
+
+  public ScopeState getState() {
+    return state;
+  }
+
+  public void setState(ScopeState state) {
+    this.state = state;
+  }
+
+  public List<Scope> getChildScopes() {
+    return childScopes;
+  }
+
+  public void addChildScope(Scope scope)
+  {
+    childScopes.add(scope);
+  }
+
+  public void removeChildScope(Scope scope)
+  {
+    childScopes.remove(scope);
+  }
+
+  public long getPosition() {
+    return position;
+  }
+
+  public enum ScopeState
+  {
+    TERMINATING,
+    ACTIVE // Not terminating
   }
 
 }

@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import org.agrona.DirectBuffer;
 import org.agrona.ExpandableArrayBuffer;
 import org.agrona.MutableDirectBuffer;
@@ -43,22 +44,20 @@ import io.zeebe.broker.logstreams.processor.TypedStreamProcessor;
 import io.zeebe.broker.logstreams.processor.TypedStreamReader;
 import io.zeebe.broker.logstreams.processor.TypedStreamWriter;
 import io.zeebe.broker.workflow.data.WorkflowInstanceRecord;
-import io.zeebe.broker.workflow.map.ActivityInstanceMap;
 import io.zeebe.broker.workflow.map.DeployedWorkflow;
 import io.zeebe.broker.workflow.map.PayloadCache;
 import io.zeebe.broker.workflow.map.WorkflowCache;
-import io.zeebe.broker.workflow.map.WorkflowInstanceIndex;
-import io.zeebe.broker.workflow.map.WorkflowInstanceIndex.OldWorkflowInstance;
+import io.zeebe.broker.workflow.processor.Scope.ScopeState;
 import io.zeebe.logstreams.log.LogStream;
 import io.zeebe.logstreams.processor.EventLifecycleContext;
 import io.zeebe.logstreams.processor.StreamProcessorContext;
 import io.zeebe.model.bpmn.BpmnAspect;
 import io.zeebe.model.bpmn.impl.instance.FlowElementContainer;
 import io.zeebe.model.bpmn.impl.instance.FlowElementImpl;
+import io.zeebe.model.bpmn.impl.instance.FlowNodeImpl;
 import io.zeebe.model.bpmn.impl.instance.ProcessImpl;
 import io.zeebe.model.bpmn.impl.instance.ServiceTaskImpl;
 import io.zeebe.model.bpmn.impl.instance.SubProcessImpl;
-import io.zeebe.model.bpmn.instance.EndEvent;
 import io.zeebe.model.bpmn.instance.ExclusiveGateway;
 import io.zeebe.model.bpmn.instance.FlowElement;
 import io.zeebe.model.bpmn.instance.FlowNode;
@@ -90,7 +89,6 @@ import io.zeebe.util.sched.future.ActorFuture;
 import io.zeebe.util.sched.future.CompletableActorFuture;
 
 public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycleAware {
-  private static final UnsafeBuffer EMPTY_JOB_TYPE = new UnsafeBuffer("".getBytes());
 
   private Metric workflowInstanceEventCreate;
   private Metric workflowInstanceEventCanceled;
@@ -133,26 +131,29 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
             ValueType.WORKFLOW_INSTANCE,
             WorkflowInstanceIntent.CANCEL,
             new CancelWorkflowInstanceProcessor())
+        .onEvent(ValueType.WORKFLOW_INSTANCE, WorkflowInstanceIntent.TERMINATING, new WorkflowInstanceTerminatingProcessor())
         .onEvent(
             ValueType.WORKFLOW_INSTANCE,
             WorkflowInstanceIntent.SEQUENCE_FLOW_TAKEN,
-            w -> isActive(w.getWorkflowInstanceKey()),
+            this::isScopeActive,
             bpmnAspectProcessor)
         .onEvent(
             ValueType.WORKFLOW_INSTANCE,
             WorkflowInstanceIntent.ACTIVITY_READY,
-            w -> isActive(w.getWorkflowInstanceKey()),
+            this::isScopeActive,
             new ActivityReadyEventProcessor())
         .onEvent(
             ValueType.WORKFLOW_INSTANCE,
             WorkflowInstanceIntent.ACTIVITY_ACTIVATED,
-            w -> isActive(w.getWorkflowInstanceKey()),
+            this::isScopeActive,
             new ActivityActivatedProcessor())
         .onEvent(
             ValueType.WORKFLOW_INSTANCE,
             WorkflowInstanceIntent.ACTIVITY_COMPLETING,
-            w -> isActive(w.getWorkflowInstanceKey()),
+            this::isScopeActive,
             new ActivityCompletingEventProcessor())
+        .onEvent(ValueType.WORKFLOW_INSTANCE, WorkflowInstanceIntent.ACTIVITY_TERMINATING, new ActivityInstanceTerminatingProcessor())
+        .onEvent(ValueType.WORKFLOW_INSTANCE, WorkflowInstanceIntent.ACTIVITY_TERMINATED, new ActivityInstanceTerminatedProcessor())
         .onCommand(
             ValueType.WORKFLOW_INSTANCE,
             WorkflowInstanceIntent.UPDATE_PAYLOAD,
@@ -160,22 +161,22 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
         .onEvent(
             ValueType.WORKFLOW_INSTANCE,
             WorkflowInstanceIntent.START_EVENT_OCCURRED,
-            w -> isActive(w.getWorkflowInstanceKey()),
+            this::isScopeActive,
             bpmnAspectProcessor)
         .onEvent(
             ValueType.WORKFLOW_INSTANCE,
             WorkflowInstanceIntent.END_EVENT_OCCURRED,
-            w -> isActive(w.getWorkflowInstanceKey()),
+            this::isScopeActive,
             bpmnAspectProcessor)
         .onEvent(
             ValueType.WORKFLOW_INSTANCE,
             WorkflowInstanceIntent.GATEWAY_ACTIVATED,
-            w -> isActive(w.getWorkflowInstanceKey()),
+            this::isScopeActive,
             bpmnAspectProcessor)
         .onEvent(
             ValueType.WORKFLOW_INSTANCE,
             WorkflowInstanceIntent.ACTIVITY_COMPLETED,
-            w -> isActive(w.getWorkflowInstanceKey()),
+            this::isScopeActive,
             bpmnAspectProcessor)
         .onEvent(
             ValueType.WORKFLOW_INSTANCE,
@@ -244,8 +245,11 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     workflowInstanceEventCompleted.close();
   }
 
-  private boolean isActive(long workflowInstanceKey) {
-    return workflowInstances.get(workflowInstanceKey) != null;
+  private boolean isScopeActive(WorkflowInstanceRecord record) {
+    WorkflowInstance workflowInstance = workflowInstances.get(record.getWorkflowInstanceKey());
+    Scope scope = workflowInstance.getScope(record.getScopeKey());
+
+    return scope != null && scope.getState() == ScopeState.ACTIVE;
   }
 
   private DirectBuffer mergePayloads(TypedStreamReader streamReader,
@@ -432,7 +436,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
 
     @Override
     public void updateState(TypedRecord<WorkflowInstanceRecord> record) {
-      workflowInstances.onWorkflowInstanceCreated(record.getKey());
+      workflowInstances.onWorkflowInstanceCreated(record.getPosition(), record.getKey());
     }
   }
 
@@ -680,7 +684,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
 
       // TODO: this is actually too late to make things like cancel see this, but maybe this is okay
       // as soon as cancel propagates down scopes and is therefore split into multiple event cycles
-      workflowInstance.newScope(workflowInstanceEvent.getScopeKey(), record.getKey());
+      workflowInstance.newScope(record.getPosition(), workflowInstanceEvent.getScopeKey(), record.getKey());
 
       if (!createsIncident) {
         payloadCache.addPayload(
@@ -902,11 +906,216 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
   private final class CancelWorkflowInstanceProcessor
       implements TypedRecordProcessor<WorkflowInstanceRecord> {
 
+    private boolean isTerminating;
+
+    private Scope scope;
+
     @Override
     public void processRecord(TypedRecord<WorkflowInstanceRecord> command) {
-      throw new RuntimeException("Cancel is currently not implemented");
+      isTerminating = false;
+
+      final long workflowInstanceKey = command.getValue().getWorkflowInstanceKey();
+      final WorkflowInstance workflowInstance = workflowInstances.get(workflowInstanceKey);
+
+      if (workflowInstance != null)
+      {
+        scope = workflowInstance.getScope(workflowInstanceKey);
+        if (scope.getState() == ScopeState.ACTIVE)
+        {
+          isTerminating = true;
+        }
+      }
     }
 
+    @Override
+    public long writeRecord(TypedRecord<WorkflowInstanceRecord> record, TypedStreamWriter writer) {
+      if (isTerminating)
+      {
+        return writer.writeFollowUpEvent(record.getKey(), WorkflowInstanceIntent.TERMINATING, record.getValue());
+      }
+      else
+      {
+        return writer.writeRejection(record, RejectionType.NOT_APPLICABLE, "Workflow instance is not active anymore");
+      }
+    }
+
+    @Override
+    public boolean executeSideEffects(TypedRecord<WorkflowInstanceRecord> record,
+        TypedResponseWriter responseWriter) {
+      if (isTerminating)
+      {
+        return responseWriter.writeRecord(WorkflowInstanceIntent.TERMINATING, record);
+      }
+      else
+      {
+        return responseWriter.writeRejection(record, RejectionType.NOT_APPLICABLE, "Workflow instance is not active anymore");
+      }
+    }
+
+    @Override
+    public void updateState(TypedRecord<WorkflowInstanceRecord> record) {
+      if (isTerminating)
+      {
+        scope.setState(ScopeState.TERMINATING);
+      }
+    }
+  }
+
+  private class WorkflowInstanceTerminatingProcessor implements TypedRecordProcessor<WorkflowInstanceRecord>
+  {
+    private boolean isTerminated;
+    private List<Scope> activeChildScopes;
+    private TypedStreamReader streamReader;
+
+    @Override
+    public void onOpen(TypedStreamProcessor streamProcessor) {
+      this.streamReader = streamProcessor.getEnvironment().getStreamReader();
+    }
+
+    @Override
+    public void processRecord(TypedRecord<WorkflowInstanceRecord> record) {
+
+      final long workflowInstanceKey = record.getValue().getWorkflowInstanceKey();
+      final WorkflowInstance workflowInstance = workflowInstances.get(workflowInstanceKey);
+      final Scope scope = workflowInstance.getScope(workflowInstanceKey);
+
+      isTerminated = scope.getChildScopes().isEmpty();
+
+      activeChildScopes = scope.getChildScopes()
+          .stream()
+          .filter(s -> s.getState() == ScopeState.ACTIVE)
+          .collect(Collectors.toList());
+    }
+
+    @Override
+    public long writeRecord(TypedRecord<WorkflowInstanceRecord> record, TypedStreamWriter writer) {
+      if (isTerminated)
+      {
+        return writer.writeFollowUpEvent(record.getKey(), WorkflowInstanceIntent.CANCELED, record.getValue());
+      }
+      else
+      {
+        final TypedBatchWriter batchWriter = writer.newBatch();
+        for (Scope scope : activeChildScopes)
+        {
+          final TypedRecord<WorkflowInstanceRecord> scopeRecord = streamReader.readValue(scope.getPosition(), WorkflowInstanceRecord.class);
+          batchWriter.addFollowUpEvent(scopeRecord.getKey(), WorkflowInstanceIntent.ACTIVITY_TERMINATING, scopeRecord.getValue());
+        }
+
+        return batchWriter.write();
+      }
+    }
+
+    @Override
+    public void updateState(TypedRecord<WorkflowInstanceRecord> record) {
+      for (Scope scope : activeChildScopes)
+      {
+        scope.setState(ScopeState.TERMINATING);
+      }
+    }
+  }
+
+  // TODO: this is almost an exact copy of WorkflowInstanceTerminatingProcessor
+  private class ActivityInstanceTerminatingProcessor extends FlowElementEventProcessor<FlowNodeImpl>
+  {
+    private boolean isTerminated;
+    private WorkflowInstance workflowInstance;
+    private List<Scope> activeChildScopes;
+    private TypedStreamReader streamReader;
+
+    @Override
+    public void onOpen(TypedStreamProcessor streamProcessor) {
+      this.streamReader = streamProcessor.getEnvironment().getStreamReader();
+    }
+
+    @Override
+    void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
+        TypedRecord<WorkflowInstanceRecord> event, FlowNodeImpl currentFlowNode) {
+
+      this.workflowInstance = workflowInstance;
+      final Scope thisScope = workflowInstance.getScope(event.getKey());
+
+      isTerminated = thisScope.getChildScopes().isEmpty();
+
+      activeChildScopes = thisScope.getChildScopes()
+          .stream()
+          .filter(s -> s.getState() == ScopeState.ACTIVE)
+          .collect(Collectors.toList());
+
+      // TODO: should also cancel jobs
+    }
+
+    @Override
+    public long writeRecord(TypedRecord<WorkflowInstanceRecord> record, TypedStreamWriter writer) {
+      if (isTerminated)
+      {
+        return writer.writeFollowUpEvent(record.getKey(), WorkflowInstanceIntent.ACTIVITY_TERMINATED, record.getValue());
+      }
+      else
+      {
+        final TypedBatchWriter batchWriter = writer.newBatch();
+        for (Scope scope : activeChildScopes)
+        {
+          final TypedRecord<WorkflowInstanceRecord> scopeRecord = streamReader.readValue(scope.getPosition(), WorkflowInstanceRecord.class);
+          batchWriter.addFollowUpEvent(scopeRecord.getKey(), WorkflowInstanceIntent.ACTIVITY_TERMINATING, scopeRecord.getValue());
+        }
+
+        return batchWriter.write();
+      }
+    }
+
+    @Override
+    public void updateState(TypedRecord<WorkflowInstanceRecord> record) {
+      for (Scope scope : activeChildScopes)
+      {
+        scope.setState(ScopeState.TERMINATING);
+      }
+    }
+  }
+
+  private class ActivityInstanceTerminatedProcessor extends FlowElementEventProcessor<FlowNodeImpl>
+  {
+    private TypedStreamReader streamReader;
+
+    private boolean isParentTerminated;
+    private Scope parentScope;
+    private WorkflowInstance workflowInstance;
+
+    @Override
+    public void onOpen(TypedStreamProcessor streamProcessor) {
+      this.streamReader = streamProcessor.getEnvironment().getStreamReader();
+    }
+
+    @Override
+    void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
+        TypedRecord<WorkflowInstanceRecord> event, FlowNodeImpl currentFlowNode) {
+
+      this.parentScope = scope;
+      isParentTerminated = scope.getChildScopes().size() == 1; // we are the last child
+      this.workflowInstance = workflowInstance;
+    }
+
+    @Override
+    public long writeRecord(TypedRecord<WorkflowInstanceRecord> record, TypedStreamWriter writer) {
+      if (isParentTerminated)
+      {
+        final TypedRecord<WorkflowInstanceRecord> scopeRecord = streamReader.readValue(parentScope.getPosition(), WorkflowInstanceRecord.class);
+        final boolean isParentWorkflowInstance = parentScope.getParentKey() < 0;
+
+        final Intent intent = isParentWorkflowInstance ? WorkflowInstanceIntent.CANCELED : WorkflowInstanceIntent.ACTIVITY_TERMINATED;
+
+        return writer.writeFollowUpEvent(scopeRecord.getKey(), intent, scopeRecord.getValue());
+      }
+      else
+      {
+        return 0;
+      }
+    }
+
+    @Override
+    public void updateState(TypedRecord<WorkflowInstanceRecord> record) {
+      workflowInstance.removeScope(record.getKey());
+    }
   }
 
   private final class UpdatePayloadProcessor implements CommandProcessor<WorkflowInstanceRecord> {

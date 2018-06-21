@@ -28,11 +28,13 @@ public enum WorkflowInstanceIntent implements Intent {
   ACTIVITY_ACTIVATED((short) 7),
   ACTIVITY_COMPLETING((short) 8),
   ACTIVITY_COMPLETED((short) 9),
+  ACTIVITY_TERMINATING((short) 16),
   ACTIVITY_TERMINATED((short) 10),
 
   COMPLETED((short) 11),
 
   CANCEL((short) 12),
+  TERMINATING((short) 17),
   CANCELED((short) 13),
 
   UPDATE_PAYLOAD((short) 14),
@@ -70,12 +72,16 @@ public enum WorkflowInstanceIntent implements Intent {
         return ACTIVITY_COMPLETING;
       case 9:
         return ACTIVITY_COMPLETED;
+      case 16:
+        return ACTIVITY_TERMINATING;
       case 10:
         return ACTIVITY_TERMINATED;
       case 11:
         return COMPLETED;
       case 12:
         return CANCEL;
+      case 17:
+        return TERMINATING;
       case 13:
         return CANCELED;
       case 14:

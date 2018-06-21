@@ -7,9 +7,9 @@ public class WorkflowInstance {
   private Long2ObjectHashMap<Scope> scopes = new Long2ObjectHashMap<>();
   private Scope rootScope;
 
-  public WorkflowInstance(long key)
+  public WorkflowInstance(long position, long key)
   {
-    this.rootScope = new Scope(key, -1);
+    this.rootScope = new Scope(key, -1, position);
     scopes.put(key, rootScope);
   }
 
@@ -18,18 +18,23 @@ public class WorkflowInstance {
     return scopes.get(scopeKey);
   }
 
-  public Scope newScope(long parentScopeKey, long scopeKey)
+  public Scope newScope(long position, long parentScopeKey, long scopeKey)
   {
     final Scope parentScope = scopes.get(parentScopeKey);
-    // TODO: wire scopes
-    final Scope newScope = new Scope(scopeKey, parentScopeKey);
+    final Scope newScope = new Scope(scopeKey, parentScopeKey, position);
     scopes.put(scopeKey, newScope);
+    parentScope.addChildScope(newScope);
     return newScope;
   }
 
   public void removeScope(long key)
   {
-    scopes.remove(key);
-    // TODO: wiring
+    final Scope scope = scopes.remove(key);
+
+    if (scope.getParentKey() >= 0)
+    {
+      final Scope parentScope = scopes.get(scope.getParentKey());
+      parentScope.removeChildScope(scope);
+    }
   }
 }

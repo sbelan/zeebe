@@ -6,9 +6,9 @@ public class WorkflowInstances {
 
   private Long2ObjectHashMap<WorkflowInstance> workflowInstances = new Long2ObjectHashMap<>();
 
-  public void onWorkflowInstanceCreated(long key)
+  public void onWorkflowInstanceCreated(long position, long key)
   {
-    workflowInstances.put(key, new WorkflowInstance(key));
+    workflowInstances.put(key, new WorkflowInstance(position, key));
   }
 
   public WorkflowInstance get(long key)

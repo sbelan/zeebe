@@ -130,7 +130,7 @@ public class BpmnPrototypeStreamProcessorTest {
     deploy(WORKFLOW_KEY, FORK_JOIN_FLOW);
 
     // when
-    rule.writeCommand(WorkflowInstanceIntent.CREATE, startWorkflowInstance(WORKFLOW_KEY));
+    rule.writeCommand(WorkflowInstanceIntent.CREATE, workflowInstance(WORKFLOW_KEY));
 
     // then
     waitUntil(() -> rule.events().onlyWorkflowInstanceRecords()
@@ -141,7 +141,7 @@ public class BpmnPrototypeStreamProcessorTest {
   public void shouldMergeOnParallelGateway() {
     // given
     deploy(WORKFLOW_KEY, FORK_JOIN_FLOW);
-    rule.writeCommand(WorkflowInstanceIntent.CREATE, startWorkflowInstance(WORKFLOW_KEY));
+    rule.writeCommand(WorkflowInstanceIntent.CREATE, workflowInstance(WORKFLOW_KEY));
 
     final List<TypedRecord<JobRecord>> jobCommands =
         doRepeatedly(() -> rule.events().onlyJobRecords().withIntent(JobIntent.CREATE)
@@ -195,7 +195,7 @@ public class BpmnPrototypeStreamProcessorTest {
   {
     // given
     deploy(WORKFLOW_KEY, FORK_JOIN_FLOW);
-    final WorkflowInstanceRecord startCommand = startWorkflowInstance(WORKFLOW_KEY);
+    final WorkflowInstanceRecord startCommand = workflowInstance(WORKFLOW_KEY);
     startCommand.setPayload(MsgPackUtil.asMsgPack("foo", "bar"));
 
     // when
@@ -220,7 +220,7 @@ public class BpmnPrototypeStreamProcessorTest {
   {
     // given
     deploy(WORKFLOW_KEY, FORK_JOIN_FLOW);
-    rule.writeCommand(WorkflowInstanceIntent.CREATE, startWorkflowInstance(WORKFLOW_KEY));
+    rule.writeCommand(WorkflowInstanceIntent.CREATE, workflowInstance(WORKFLOW_KEY));
 
     final List<TypedRecord<JobRecord>> jobCommands =
         doRepeatedly(() -> rule.events().onlyJobRecords().withIntent(JobIntent.CREATE)
@@ -273,7 +273,7 @@ public class BpmnPrototypeStreamProcessorTest {
         .done()
         .getWorkflow(BufferUtil.wrapString("foo"));
     deploy(WORKFLOW_KEY, workflow);
-    rule.writeCommand(WorkflowInstanceIntent.CREATE, startWorkflowInstance(WORKFLOW_KEY));
+    rule.writeCommand(WorkflowInstanceIntent.CREATE, workflowInstance(WORKFLOW_KEY));
 
     final List<TypedRecord<JobRecord>> jobCommands =
         doRepeatedly(() -> rule.events().onlyJobRecords().withIntent(JobIntent.CREATE)
@@ -314,7 +314,7 @@ public class BpmnPrototypeStreamProcessorTest {
     deploy(WORKFLOW_KEY, SUB_PROCESS_FLOW);
 
     // when
-    rule.writeCommand(WorkflowInstanceIntent.CREATE, startWorkflowInstance(WORKFLOW_KEY));
+    rule.writeCommand(WorkflowInstanceIntent.CREATE, workflowInstance(WORKFLOW_KEY));
 
     // then
     final TypedRecord<JobRecord> job = doRepeatedly(() -> rule.events().onlyJobRecords()
@@ -331,7 +331,7 @@ public class BpmnPrototypeStreamProcessorTest {
   {
     // given
     deploy(WORKFLOW_KEY, SUB_PROCESS_FLOW);
-    rule.writeCommand(WorkflowInstanceIntent.CREATE, startWorkflowInstance(WORKFLOW_KEY));
+    rule.writeCommand(WorkflowInstanceIntent.CREATE, workflowInstance(WORKFLOW_KEY));
     final TypedRecord<JobRecord> job = doRepeatedly(() -> rule.events().onlyJobRecords()
         .withIntent(JobIntent.CREATE).findFirst()).until(e -> e.isPresent()).get();
 
@@ -357,7 +357,7 @@ public class BpmnPrototypeStreamProcessorTest {
   {
     // given
     deploy(WORKFLOW_KEY, PARALLEL_SUB_PROCESS_FLOW);
-    rule.writeCommand(WorkflowInstanceIntent.CREATE, startWorkflowInstance(WORKFLOW_KEY));
+    rule.writeCommand(WorkflowInstanceIntent.CREATE, workflowInstance(WORKFLOW_KEY));
     final List<TypedRecord<JobRecord>> jobs = doRepeatedly(() -> rule.events().onlyJobRecords()
         .withIntent(JobIntent.CREATE).collect(Collectors.toList())).until(l -> l.size() == 2);
 
@@ -383,7 +383,7 @@ public class BpmnPrototypeStreamProcessorTest {
   {
     // given
     deploy(WORKFLOW_KEY, PARALLEL_SUB_PROCESS_FLOW);
-    rule.writeCommand(WorkflowInstanceIntent.CREATE, startWorkflowInstance(WORKFLOW_KEY));
+    rule.writeCommand(WorkflowInstanceIntent.CREATE, workflowInstance(WORKFLOW_KEY));
     final List<TypedRecord<JobRecord>> jobs = doRepeatedly(() -> rule.events().onlyJobRecords()
         .withIntent(JobIntent.CREATE).collect(Collectors.toList())).until(l -> l.size() == 2);
 
@@ -400,11 +400,47 @@ public class BpmnPrototypeStreamProcessorTest {
       .containsExactly(entry("key1", "val1"), entry("key2", "val2"));
   }
 
+  @Test
+  public void shouldCancelWorkflowInstanceWithActiveSubprocess()
+  {
+    // given
+    deploy(WORKFLOW_KEY, PARALLEL_SUB_PROCESS_FLOW);
+    rule.writeCommand(WorkflowInstanceIntent.CREATE, workflowInstance(WORKFLOW_KEY));
+    waitUntil(() -> rule.events().onlyJobRecords()
+        .withIntent(JobIntent.CREATE).count() == 2);
+
+    final TypedRecord<WorkflowInstanceRecord> createdEvent = rule.events()
+        .onlyWorkflowInstanceRecords()
+        .withIntent(WorkflowInstanceIntent.CREATED)
+        .findFirst().get();
+
+    // when
+    rule.writeCommand(WorkflowInstanceIntent.CANCEL, createdEvent.getValue());
+
+    // then
+    waitUntil(() -> rule.events().onlyWorkflowInstanceRecords()
+        .withIntent(WorkflowInstanceIntent.CANCELED)
+        .findFirst()
+        .isPresent());
+
+    fail("assert events");
+  }
+
+  /**
+   * e.g. should accept cancellation and stop processing when termination is received in the middle
+   * of sequence flow execution
+   */
+  @Test
+  public void shouldCancelWithConcurrentThings()
+  {
+    fail("implement");
+  }
+
   private void deploy(long key, Workflow workflow) {
     when(workflowCache.getWorkflowByKey(key)).thenReturn(new DeployedWorkflow(workflow, key, 1, 1));
   }
 
-  private static WorkflowInstanceRecord startWorkflowInstance(long key) {
+  private static WorkflowInstanceRecord workflowInstance(long key) {
     final WorkflowInstanceRecord record = new WorkflowInstanceRecord();
     record.setWorkflowKey(key);
     return record;
