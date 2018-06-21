@@ -22,6 +22,9 @@ import static io.zeebe.broker.util.PayloadUtil.isValidPayload;
 import static io.zeebe.util.buffer.BufferUtil.bufferAsString;
 import static io.zeebe.util.buffer.BufferUtil.wrapString;
 
+import java.util.*;
+import java.util.function.Consumer;
+
 import io.zeebe.broker.Loggers;
 import io.zeebe.broker.clustering.base.topology.TopologyManager;
 import io.zeebe.broker.incident.data.ErrorType;
@@ -57,8 +60,6 @@ import io.zeebe.util.metrics.MetricsManager;
 import io.zeebe.util.sched.ActorControl;
 import io.zeebe.util.sched.future.ActorFuture;
 import io.zeebe.util.sched.future.CompletableActorFuture;
-import java.util.*;
-import java.util.function.Consumer;
 import org.agrona.DirectBuffer;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.concurrent.UnsafeBuffer;
@@ -162,6 +163,11 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
             WorkflowInstanceIntent.MESSAGE_CATCH_EVENT_OCCURRING,
             w -> isActive(w.getWorkflowInstanceKey()),
             new MessageCatchEventOccurringProcessor())
+        .onEvent(
+                 ValueType.WORKFLOW_INSTANCE,
+                 WorkflowInstanceIntent.MESSAGE_CATCH_EVENT_OCCURRED,
+                 w -> isActive(w.getWorkflowInstanceKey()),
+                 bpmnAspectProcessor)
         .onCommand(
             ValueType.WORKFLOW_INSTANCE,
             WorkflowInstanceIntent.UPDATE_PAYLOAD,

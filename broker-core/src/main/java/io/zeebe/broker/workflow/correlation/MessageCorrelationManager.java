@@ -19,6 +19,13 @@ package io.zeebe.broker.workflow.correlation;
 
 import static io.zeebe.util.buffer.BufferUtil.wrapString;
 
+import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
+import java.util.*;
+
 import io.zeebe.broker.Loggers;
 import io.zeebe.broker.clustering.base.topology.*;
 import io.zeebe.broker.message.record.MessageSubscriptionRecord;
@@ -30,12 +37,6 @@ import io.zeebe.util.buffer.BufferWriter;
 import io.zeebe.util.sched.ActorControl;
 import io.zeebe.util.sched.future.ActorFuture;
 import io.zeebe.util.sched.future.CompletableActorFuture;
-import java.nio.ByteOrder;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.time.Duration;
-import java.util.*;
 import org.agrona.DirectBuffer;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.collections.Int2ObjectHashMap;
@@ -56,7 +57,10 @@ public class MessageCorrelationManager implements TopologyPartitionListener {
       new FetchCreatedTopicsResponse();
 
   private MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
+  private MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
+
   private ExecuteCommandRequestEncoder encoder = new ExecuteCommandRequestEncoder();
+  private ExecuteCommandRequestDecoder decoder = new ExecuteCommandRequestDecoder();
 
   private final ClientTransport managementClient;
   private final ClientTransport clientApiClient;
@@ -189,8 +193,16 @@ public class MessageCorrelationManager implements TopologyPartitionListener {
           new RuntimeException("no leader found for partition with id: " + partitionId));
     } else {
       final RemoteAddress remoteAddress = partitionLeaders.get(partitionId);
-      return clientApiClient.getOutput().sendRequest(remoteAddress, request, Duration.ofSeconds(5));
+      return clientApiClient.getOutput().sendRequestWithRetry(() -> remoteAddress, b -> false, request, Duration.ofSeconds(5));
     }
+  }
+
+  private boolean checkMessageSubscriptionResponse(DirectBuffer response)
+  {
+      headerDecoder.wrap(response, 0);
+
+      return !(headerDecoder.schemaId() == decoder.sbeSchemaId()
+          && headerDecoder.templateId() == decoder.sbeTemplateId());
   }
 
   class MessageSubscriptionRequest implements BufferWriter {

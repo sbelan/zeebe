@@ -15,14 +15,15 @@
  */
 package io.zeebe.client.impl.record;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import io.zeebe.client.api.commands.*;
 import io.zeebe.client.api.events.*;
 import io.zeebe.client.api.record.*;
 import io.zeebe.client.impl.command.*;
 import io.zeebe.client.impl.event.*;
 import io.zeebe.client.impl.subscription.topic.BiEnumMap;
-import java.util.HashMap;
-import java.util.Map;
 
 public class RecordClassMapping {
   private static final BiEnumMap<RecordType, ValueType, Class<? extends RecordImpl>> RECORD_CLASSES;
@@ -51,6 +52,12 @@ public class RecordClassMapping {
 
     RECORD_CLASSES.put(RecordType.COMMAND, ValueType.TOPIC, TopicCommandImpl.class);
     RECORD_CLASSES.put(RecordType.EVENT, ValueType.TOPIC, TopicEventImpl.class);
+
+    RECORD_CLASSES.put(RecordType.COMMAND, ValueType.MESSAGE, MessageCommandImpl.class);
+    RECORD_CLASSES.put(RecordType.EVENT, ValueType.MESSAGE, MessageEventImpl.class);
+
+    RECORD_CLASSES.put(RecordType.COMMAND, ValueType.MESSAGE_SUBSCRIPTION, MessageSubscriptionCommandImpl.class);
+    RECORD_CLASSES.put(RecordType.EVENT, ValueType.MESSAGE_SUBSCRIPTION, MessageSubscriptionEventImpl.class);
 
     for (ValueType valueType : ValueType.values()) {
       final Class<? extends RecordImpl> commandClass =
