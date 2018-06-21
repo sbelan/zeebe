@@ -27,11 +27,13 @@ import io.zeebe.broker.util.StreamProcessorRule;
 import io.zeebe.broker.workflow.data.WorkflowInstanceRecord;
 import io.zeebe.broker.workflow.map.DeployedWorkflow;
 import io.zeebe.broker.workflow.map.WorkflowCache;
+import io.zeebe.broker.workflow.processor.EventSubscriptionRecord;
 import io.zeebe.broker.workflow.processor.WorkflowInstanceStreamProcessor;
 import io.zeebe.model.bpmn.Bpmn;
 import io.zeebe.model.bpmn.instance.Workflow;
 import io.zeebe.msgpack.UnpackedObject;
 import io.zeebe.protocol.impl.RecordMetadata;
+import io.zeebe.protocol.intent.EventSubscriptionIntent;
 import io.zeebe.protocol.intent.JobIntent;
 import io.zeebe.protocol.intent.WorkflowInstanceIntent;
 import io.zeebe.test.util.MsgPackUtil;
@@ -84,10 +86,10 @@ public class BpmnPrototypeStreamProcessorTest {
 
   private static final Workflow BOUNDARY_EVENT_FLOW = Bpmn.createExecutableWorkflow("foo")
       .startEvent()
-      .serviceTask("foo", t -> t.taskType("foo"))
+      .serviceTask("task1", t -> t.taskType("foo"))
       .endEvent()
-      .boundaryEvent("foo", "boundary")
-      .serviceTask("bar", t -> t.taskType("bar"))
+      .boundaryEvent("task1", "boundary")
+      .serviceTask("task2", t -> t.taskType("bar"))
       .endEvent()
       .done()
       .getWorkflow(BufferUtil.wrapString("foo"));
@@ -453,13 +455,25 @@ public class BpmnPrototypeStreamProcessorTest {
     // given
     deploy(WORKFLOW_KEY, BOUNDARY_EVENT_FLOW);
     rule.writeCommand(WorkflowInstanceIntent.CREATE, workflowInstance(WORKFLOW_KEY));
-    waitUntil(() -> rule.events().onlyJobRecords()
-        .withIntent(JobIntent.CREATE).count() == 1);
+    final TypedRecord<JobRecord> jobCommand = doRepeatedly(() -> rule.events().onlyJobRecords()
+        .withIntent(JobIntent.CREATE).findFirst()).until(e -> e.isPresent()).get();
+
+    final JobHeaders headers = jobCommand.getValue().headers();
+    final long scopeKey = headers.getActivityInstanceKey();
+    final long workflowInstanceKey = headers.getWorkflowInstanceKey();
 
     // when
+    rule.writeEvent(EventSubscriptionIntent.OCCURRED, eventSubscription(workflowInstanceKey, scopeKey));
 
+    // then
+    final TypedRecord<WorkflowInstanceRecord> boundaryFollowup = doRepeatedly(() -> rule.events().onlyWorkflowInstanceRecords()
+        .withIntent(WorkflowInstanceIntent.ACTIVITY_READY)
+        .filter(e -> e.getValue().getActivityId().equals(BufferUtil.wrapString("task2")))
+        .findFirst()).until(e -> e.isPresent()).get();
 
-    fail("implement");
+    assertThat(boundaryFollowup).isNotNull();
+
+    fail("assert properties etc.");
   }
 
   @Test
@@ -475,6 +489,14 @@ public class BpmnPrototypeStreamProcessorTest {
   private static WorkflowInstanceRecord workflowInstance(long key) {
     final WorkflowInstanceRecord record = new WorkflowInstanceRecord();
     record.setWorkflowKey(key);
+    return record;
+  }
+
+  private static EventSubscriptionRecord eventSubscription(long workflowInstanceKey, long eventScopeKey)
+  {
+    final EventSubscriptionRecord record = new EventSubscriptionRecord();
+    record.setWorkflowInstanceKey(workflowInstanceKey);
+    record.setEventScopeKey(eventScopeKey);
     return record;
   }
 

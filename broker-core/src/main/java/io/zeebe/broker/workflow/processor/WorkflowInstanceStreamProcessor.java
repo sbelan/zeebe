@@ -77,6 +77,7 @@ import io.zeebe.msgpack.mapping.MappingProcessor;
 import io.zeebe.protocol.clientapi.RejectionType;
 import io.zeebe.protocol.clientapi.ValueType;
 import io.zeebe.protocol.impl.RecordMetadata;
+import io.zeebe.protocol.intent.EventSubscriptionIntent;
 import io.zeebe.protocol.intent.IncidentIntent;
 import io.zeebe.protocol.intent.Intent;
 import io.zeebe.protocol.intent.JobIntent;
@@ -190,6 +191,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
                 (e) -> workflowInstanceEventCompleted.incrementOrdered())
         .onEvent(ValueType.JOB, JobIntent.CREATED, new JobCreatedProcessor())
         .onEvent(ValueType.JOB, JobIntent.COMPLETED, new JobCompletedEventProcessor())
+        .onEvent(ValueType.EVENT_SUBSCRIPTION, EventSubscriptionIntent.OCCURRED, new EventOccurredProcessor())
         .withStateResource(payloadCache.getMap())
         .withListener(payloadCache)
         .withListener(this)
@@ -246,8 +248,8 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
   }
 
   private boolean isScopeActive(WorkflowInstanceRecord record) {
-    WorkflowInstance workflowInstance = workflowInstances.get(record.getWorkflowInstanceKey());
-    Scope scope = workflowInstance.getScope(record.getScopeKey());
+    final WorkflowInstance workflowInstance = workflowInstances.get(record.getWorkflowInstanceKey());
+    final Scope scope = workflowInstance.getScope(record.getScopeKey());
 
     return scope != null && scope.getState() == ScopeState.ACTIVE;
   }
@@ -1144,6 +1146,50 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     }
   }
 
+  private class EventOccurredProcessor implements TypedRecordProcessor<EventSubscriptionRecord>
+  {
+
+    private TypedStreamReader reader;
+
+    private boolean interruptsEventScope;
+    private Scope eventScope;
+
+    @Override
+    public void onOpen(TypedStreamProcessor streamProcessor) {
+      this.reader = streamProcessor.getEnvironment().getStreamReader();
+    }
+
+    @Override
+    public void processRecord(TypedRecord<EventSubscriptionRecord> record) {
+      interruptsEventScope = false;
+
+      final EventSubscriptionRecord value = record.getValue();
+      final WorkflowInstance workflowInstance = workflowInstances.get(value.getWorkflowInstanceKey());
+
+      if (workflowInstance != null)
+      {
+        eventScope = workflowInstance.getScope(value.getEventScopeKey());
+
+        interruptsEventScope = eventScope.getState() == ScopeState.ACTIVE;
+      }
+    }
+
+    @Override
+    public long writeRecord(TypedRecord<EventSubscriptionRecord> record, TypedStreamWriter writer) {
+      if (interruptsEventScope)
+      {
+        final TypedRecord<WorkflowInstanceRecord> scopeRecord =
+            reader.readValue(eventScope.getPosition(), WorkflowInstanceRecord.class);
+
+        return writer.writeFollowUpEvent(scopeRecord.getKey(), WorkflowInstanceIntent.ACTIVITY_TERMINATING, scopeRecord.getValue());
+      }
+      else
+      {
+        return 0;
+      }
+    }
+  }
+
   public void fetchWorkflow(
       long workflowKey, Consumer<DeployedWorkflow> onFetched, EventLifecycleContext ctx) {
     final ActorFuture<ClientResponse> responseFuture =
@@ -1176,16 +1222,23 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
 
   private class StartActivityProcessor extends FlowElementEventProcessor<SequenceFlow>
   {
+    private final EventSubscriptionRecord eventSubscription = new EventSubscriptionRecord();
+
     @Override
     void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
         TypedRecord<WorkflowInstanceRecord> event,
         SequenceFlow sequenceFlow) {
       final WorkflowInstanceRecord value = event.getValue();
+      final FlowNodeImpl targetNode = (FlowNodeImpl) sequenceFlow.getTargetNode();
       value.setActivityId(sequenceFlow.getTargetNode().getIdAsBuffer());
     }
 
     @Override
     public long writeRecord(TypedRecord<WorkflowInstanceRecord> record, TypedStreamWriter writer) {
+
+      // TODO: according to spec event subscriptions should be created here; need to reference the event scope key though,
+      // which we do not know yet
+
       return writer.writeNewEvent(WorkflowInstanceIntent.ACTIVITY_READY, record.getValue());
     }
   }

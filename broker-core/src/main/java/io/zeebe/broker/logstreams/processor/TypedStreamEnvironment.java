@@ -23,6 +23,7 @@ import io.zeebe.broker.incident.data.IncidentRecord;
 import io.zeebe.broker.job.data.JobRecord;
 import io.zeebe.broker.system.workflow.repository.data.DeploymentRecord;
 import io.zeebe.broker.workflow.data.WorkflowInstanceRecord;
+import io.zeebe.broker.workflow.processor.EventSubscriptionRecord;
 import io.zeebe.logstreams.log.LogStream;
 import io.zeebe.msgpack.UnpackedObject;
 import io.zeebe.protocol.clientapi.ValueType;
@@ -40,6 +41,7 @@ public class TypedStreamEnvironment {
     EVENT_REGISTRY.put(ValueType.DEPLOYMENT, DeploymentRecord.class);
     EVENT_REGISTRY.put(ValueType.JOB, JobRecord.class);
     EVENT_REGISTRY.put(ValueType.WORKFLOW_INSTANCE, WorkflowInstanceRecord.class);
+    EVENT_REGISTRY.put(ValueType.EVENT_SUBSCRIPTION, EventSubscriptionRecord.class);
     EVENT_REGISTRY.put(ValueType.INCIDENT, IncidentRecord.class);
     EVENT_REGISTRY.put(ValueType.ID, IdRecord.class);
   }

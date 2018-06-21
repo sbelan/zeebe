@@ -27,6 +27,7 @@ import io.zeebe.broker.system.workflow.repository.data.DeploymentRecord;
 import io.zeebe.broker.topic.Records;
 import io.zeebe.broker.topic.StreamProcessorControl;
 import io.zeebe.broker.workflow.data.WorkflowInstanceRecord;
+import io.zeebe.broker.workflow.processor.EventSubscriptionRecord;
 import io.zeebe.logstreams.LogStreams;
 import io.zeebe.logstreams.impl.service.StreamProcessorService;
 import io.zeebe.logstreams.log.BufferedLogStreamReader;
@@ -69,6 +70,7 @@ public class TestStreams {
     VALUE_TYPES.put(JobRecord.class, ValueType.JOB);
     VALUE_TYPES.put(TopicRecord.class, ValueType.TOPIC);
     VALUE_TYPES.put(WorkflowInstanceRecord.class, ValueType.WORKFLOW_INSTANCE);
+    VALUE_TYPES.put(EventSubscriptionRecord.class, ValueType.EVENT_SUBSCRIPTION);
 
     VALUE_TYPES.put(UnpackedObject.class, ValueType.NOOP);
   }
