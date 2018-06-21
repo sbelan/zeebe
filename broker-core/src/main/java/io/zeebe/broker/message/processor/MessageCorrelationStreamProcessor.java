@@ -31,6 +31,7 @@ import io.zeebe.protocol.intent.MessageSubscriptionIntent;
 import io.zeebe.transport.*;
 import io.zeebe.util.buffer.BufferUtil;
 import io.zeebe.util.buffer.BufferWriter;
+import io.zeebe.util.sched.ActorControl;
 import io.zeebe.util.sched.future.ActorFuture;
 import java.nio.ByteOrder;
 import java.time.Duration;
@@ -50,6 +51,7 @@ public class MessageCorrelationStreamProcessor
   private JsonSnapshotSupport<MessageCorrelationState> state;
 
   private volatile Int2ObjectHashMap<RemoteAddress> partitionLeaders = new Int2ObjectHashMap<>();
+private ActorControl actor;
 
   public MessageCorrelationStreamProcessor(
       ClientTransport clientTransport, TopologyManager topologyManager) {
@@ -73,11 +75,13 @@ public class MessageCorrelationStreamProcessor
             MessageSubscriptionIntent.CORRELATED,
             new CorrelatedHandler())
         .withStateResource(state)
+        .withListener(this)
         .build();
   }
 
   @Override
   public void onOpen(TypedStreamProcessor streamProcessor) {
+      actor = streamProcessor.getActor();
     topologyManager.addTopologyPartitionListener(this);
   }
 
@@ -253,7 +257,10 @@ public class MessageCorrelationStreamProcessor
       final ClientOutput output = clientTransport.getOutput();
 
       final BufferWriter requestWriter = new MessageSubscriptionRequest(value, paritionId);
-      final Supplier<RemoteAddress> remoteAddressSupplier = () -> partitionLeaders.get(paritionId);
+      final Supplier<RemoteAddress> remoteAddressSupplier = () -> {
+          RemoteAddress remoteAddress = partitionLeaders.get(paritionId);
+        return remoteAddress;
+      };
       final Predicate<DirectBuffer> responseInspector = new MessageSubscriptionResponseInspector();
       final ActorFuture<ClientResponse> future =
           output.sendRequestWithRetry(
@@ -266,6 +273,8 @@ public class MessageCorrelationStreamProcessor
   @Override
   public void onPartitionUpdated(PartitionInfo partitionInfo, NodeInfo member) {
 
+    actor.run(() ->
+    {
     topologyManager.query(
         (t) -> {
           final Collection<PartitionInfo> partitions = t.getPartitions();
@@ -279,7 +288,7 @@ public class MessageCorrelationStreamProcessor
                     if (nodeInfo != null) {
                       leaders.put(
                           p.getPartitionId(),
-                          clientTransport.getRemoteAddress(nodeInfo.getClientApiAddress()));
+                          clientTransport.registerRemoteAddress(nodeInfo.getClientApiAddress()));
                     }
                   });
 
@@ -287,6 +296,7 @@ public class MessageCorrelationStreamProcessor
 
           return null;
         });
+    });
   }
 
   class MessageSubscriptionRequest implements BufferWriter {
@@ -366,7 +376,7 @@ public class MessageCorrelationStreamProcessor
             headerDecoder.blockLength(),
             headerDecoder.version());
 
-        return decoder.intent() != MessageSubscriptionIntent.SUBSCRIBED.getIntent();
+        return decoder.intent() != MessageSubscriptionIntent.CORRELATED.getIntent();
       }
     }
   }

@@ -43,7 +43,7 @@ public class MessageCorrelationComponent implements Component {
             streamProcessorManager.getClientApiTransportInjector())
         .dependency(TOPOLOGY_MANAGER_SERVICE, streamProcessorManager.getTopologyManagerInjector())
         .dependency(
-            clientTransport(MANAGEMENT_API_CLIENT_NAME),
+            clientTransport(CLIENT_API_CLIENT_NAME),
             streamProcessorManager.getManagementApiClientInjector())
         .dependency(
             STREAM_PROCESSOR_SERVICE_FACTORY,

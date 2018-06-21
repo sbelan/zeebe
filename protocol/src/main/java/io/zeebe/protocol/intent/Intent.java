@@ -108,6 +108,10 @@ public interface Intent {
         return TopicIntent.valueOf(intent);
       case WORKFLOW_INSTANCE:
         return WorkflowInstanceIntent.valueOf(intent);
+      case MESSAGE:
+        return MessageIntent.valueOf(intent);
+      case MESSAGE_SUBSCRIPTION:
+          return MessageSubscriptionIntent.valueOf(intent);
       case NULL_VAL:
       case SBE_UNKNOWN:
         return Intent.UNKNOWN;

@@ -198,7 +198,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
                 (e) -> workflowInstanceEventCompleted.incrementOrdered())
         .onEvent(ValueType.JOB, JobIntent.CREATED, new JobCreatedProcessor())
         .onEvent(ValueType.JOB, JobIntent.COMPLETED, new JobCompletedEventProcessor())
-        .onEvent(
+        .onCommand(
             ValueType.MESSAGE_SUBSCRIPTION,
             MessageSubscriptionIntent.CORRELATED,
             new MessageCorrelatedProcessor())
@@ -1146,17 +1146,21 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
                           event.getValue().getWorkflowInstanceKey(),
                           event.getKey());
 
+                  actor.runOnCompletion(onSubscribed, (r,t) ->{
+                      onCompleted.complete(null);
+                  });
+
                   // TODO handle the case when the partition has currently no leader, and when no
                   // response is received
-                  ctx.async(onSubscribed);
+
                 } else {
                   Loggers.STREAM_PROCESSING.error(
                       "Failed to subscribe for event. Topic '{}' not found.", eventTopic);
 
                   // TODO create incident if event topic not exists
+                  onCompleted.complete(null);
                 }
 
-                onCompleted.complete(null);
               } else {
                 // TODO handle failed topic request
                 onCompleted.completeExceptionally(failure);

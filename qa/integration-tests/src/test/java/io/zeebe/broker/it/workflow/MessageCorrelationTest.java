@@ -92,20 +92,6 @@ public class MessageCorrelationTest {
         .send()
         .join();
 
-    client.topicClient("order-events").newSubscription()
-        .name("foo")
-        .recordHandler(new RecordHandler() {
-
-            @Override
-            public void onRecord(Record record) throws Exception {
-                System.out.println(record);
-
-            }
-        })
-        .startAtHeadOfTopic()
-        .forcedStart()
-        .open();
-
     // then
     waitUntil(
         () ->

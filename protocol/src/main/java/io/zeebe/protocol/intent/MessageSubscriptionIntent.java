@@ -36,6 +36,8 @@ public enum MessageSubscriptionIntent implements Intent {
         return SUBSCRIBE;
       case 1:
         return SUBSCRIBED;
+      case 2:
+        return CORRELATED;
       default:
         return Intent.UNKNOWN;
     }

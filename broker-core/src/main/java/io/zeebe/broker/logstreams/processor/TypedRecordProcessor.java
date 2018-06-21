@@ -28,7 +28,6 @@ public interface TypedRecordProcessor<T extends UnpackedObject>
 
   /** @see EventProcessor#processEvent() */
   default void processRecord(TypedRecord<T> record, EventLifecycleContext ctx) {
-      System.out.println(record.getMetadata().getIntent());
     processRecord(record);
   }
 
