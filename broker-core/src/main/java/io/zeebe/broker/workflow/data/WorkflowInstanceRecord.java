@@ -47,6 +47,7 @@ public class WorkflowInstanceRecord extends UnpackedObject {
   private final LongProperty scopeKey = new LongProperty("scopeKey", -1L);
 
   private final DocumentProperty payloadProp = new DocumentProperty(PROP_WORKFLOW_PAYLOAD);
+  private StringProperty terminationHandler = new StringProperty("terminationHandler", "");
 
   public WorkflowInstanceRecord() {
     this.declareProperty(bpmnProcessIdProp)
@@ -55,7 +56,8 @@ public class WorkflowInstanceRecord extends UnpackedObject {
         .declareProperty(workflowInstanceKeyProp)
         .declareProperty(activityIdProp)
         .declareProperty(payloadProp)
-        .declareProperty(scopeKey);
+        .declareProperty(scopeKey)
+        .declareProperty(terminationHandler);
   }
 
   public DirectBuffer getBpmnProcessId() {
@@ -141,5 +143,13 @@ public class WorkflowInstanceRecord extends UnpackedObject {
   public long getScopeKey()
   {
     return scopeKey.getValue();
+  }
+
+  public void setTerminationHandler(DirectBuffer terminationHandler) {
+    this.terminationHandler.setValue(terminationHandler);
+  }
+
+  public DirectBuffer getTerminationHandler() {
+    return terminationHandler.getValue();
   }
 }

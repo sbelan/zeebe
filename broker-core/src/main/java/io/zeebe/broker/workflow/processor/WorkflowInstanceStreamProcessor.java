@@ -181,6 +181,11 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
             bpmnAspectProcessor)
         .onEvent(
             ValueType.WORKFLOW_INSTANCE,
+            WorkflowInstanceIntent.BOUNDARY_EVENT_OCCURRED,
+            this::isScopeActive,
+            bpmnAspectProcessor)
+        .onEvent(
+            ValueType.WORKFLOW_INSTANCE,
             WorkflowInstanceIntent.CANCELED,
             (Consumer<WorkflowInstanceRecord>)
                 (e) -> workflowInstanceEventCanceled.incrementOrdered())
@@ -1020,10 +1025,11 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
   // TODO: this is almost an exact copy of WorkflowInstanceTerminatingProcessor
   private class ActivityInstanceTerminatingProcessor extends FlowElementEventProcessor<FlowNodeImpl>
   {
-    private boolean isTerminated;
-    private WorkflowInstance workflowInstance;
-    private List<Scope> activeChildScopes;
     private TypedStreamReader streamReader;
+    private boolean isTerminated;
+
+    private Scope scope;
+    private List<Scope> activeChildScopes;
 
     @Override
     public void onOpen(TypedStreamProcessor streamProcessor) {
@@ -1034,15 +1040,19 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
         TypedRecord<WorkflowInstanceRecord> event, FlowNodeImpl currentFlowNode) {
 
-      this.workflowInstance = workflowInstance;
-      final Scope thisScope = workflowInstance.getScope(event.getKey());
+      this.scope = workflowInstance.getScope(event.getKey());
 
-      isTerminated = thisScope.getChildScopes().isEmpty();
+      isTerminated = this.scope.getChildScopes().isEmpty();
 
-      activeChildScopes = thisScope.getChildScopes()
-          .stream()
-          .filter(s -> s.getState() == ScopeState.ACTIVE)
-          .collect(Collectors.toList());
+      if (!isTerminated)
+      {
+        activeChildScopes = this.scope.getChildScopes()
+            .stream()
+            .filter(s -> s.getState() == ScopeState.ACTIVE)
+            .collect(Collectors.toList());
+      }
+
+
 
       // TODO: should also cancel jobs
     }
@@ -1068,10 +1078,44 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
 
     @Override
     public void updateState(TypedRecord<WorkflowInstanceRecord> record) {
-      for (Scope scope : activeChildScopes)
+      if (!isTerminated)
       {
-        scope.setState(ScopeState.TERMINATING);
+        for (Scope scope : activeChildScopes)
+        {
+          scope.setState(ScopeState.TERMINATING);
+        }
       }
+
+      scope.setPosition(record.getPosition());
+    }
+  }
+
+  enum TerminationHandling
+  {
+    TERMINATE_PARENT,
+    HANDLE_ON_TERMINATING,
+    HANDLE_ON_TERMINATED
+  }
+
+  private TerminationHandling determineTerminationHandling(Workflow workflow, FlowElementImpl terminatingElement,
+      WorkflowInstanceRecord terminatingEvent)
+  {
+    final DirectBuffer terminationHandlerId = terminatingEvent.getTerminationHandler();
+    if (terminationHandlerId.capacity() > 0)
+    {
+      final FlowElementImpl terminationHandler = workflow.findFlowElementById(terminationHandlerId);
+      if (terminationHandler.getParent() == terminatingElement)
+      {
+        return TerminationHandling.HANDLE_ON_TERMINATING;
+      }
+      else
+      {
+        return TerminationHandling.HANDLE_ON_TERMINATED;
+      }
+    }
+    else
+    {
+      return TerminationHandling.TERMINATE_PARENT;
     }
   }
 
@@ -1079,9 +1123,12 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
   {
     private TypedStreamReader streamReader;
 
-    private boolean isParentTerminated;
+    private boolean continuesTermination;
+    private TerminationHandling terminationHandling;
+
     private Scope parentScope;
     private WorkflowInstance workflowInstance;
+    private WorkflowInstanceRecord record = new WorkflowInstanceRecord();
 
     @Override
     public void onOpen(TypedStreamProcessor streamProcessor) {
@@ -1093,20 +1140,35 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
         TypedRecord<WorkflowInstanceRecord> event, FlowNodeImpl currentFlowNode) {
 
       this.parentScope = scope;
-      isParentTerminated = scope.getChildScopes().size() == 1; // we are the last child
+
+      continuesTermination = scope.getChildScopes().size() == 1; // we are the last child
+      final DeployedWorkflow workflow = workflowCache.getWorkflowByKey(event.getValue().getWorkflowKey());
+      terminationHandling = determineTerminationHandling(workflow.getWorkflow(), currentFlowNode, event.getValue());
       this.workflowInstance = workflowInstance;
     }
 
     @Override
     public long writeRecord(TypedRecord<WorkflowInstanceRecord> record, TypedStreamWriter writer) {
-      if (isParentTerminated)
+      if (continuesTermination)
       {
         final TypedRecord<WorkflowInstanceRecord> scopeRecord = streamReader.readValue(parentScope.getPosition(), WorkflowInstanceRecord.class);
-        final boolean isParentWorkflowInstance = parentScope.getParentKey() < 0;
+        switch (terminationHandling)
+        {
+          case TERMINATE_PARENT:
+            final boolean isParentWorkflowInstance = parentScope.getParentKey() < 0;
+            final Intent intent = isParentWorkflowInstance ? WorkflowInstanceIntent.CANCELED : WorkflowInstanceIntent.ACTIVITY_TERMINATED;
+            return writer.writeFollowUpEvent(scopeRecord.getKey(), intent, scopeRecord.getValue());
 
-        final Intent intent = isParentWorkflowInstance ? WorkflowInstanceIntent.CANCELED : WorkflowInstanceIntent.ACTIVITY_TERMINATED;
+          case HANDLE_ON_TERMINATED:
+            final WorkflowInstanceRecord scopeValue = scopeRecord.getValue();
+            scopeValue.setActivityId(record.getValue().getTerminationHandler());
+            scopeValue.setScopeKey(scopeRecord.getKey());
 
-        return writer.writeFollowUpEvent(scopeRecord.getKey(), intent, scopeRecord.getValue());
+            return writer.writeNewEvent(WorkflowInstanceIntent.BOUNDARY_EVENT_OCCURRED, scopeValue);
+
+          default:
+            throw new RuntimeException("not supported");
+        }
       }
       else
       {
@@ -1180,6 +1242,8 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
       {
         final TypedRecord<WorkflowInstanceRecord> scopeRecord =
             reader.readValue(eventScope.getPosition(), WorkflowInstanceRecord.class);
+
+        scopeRecord.getValue().setTerminationHandler(record.getValue().getEventHandler());
 
         return writer.writeFollowUpEvent(scopeRecord.getKey(), WorkflowInstanceIntent.ACTIVITY_TERMINATING, scopeRecord.getValue());
       }

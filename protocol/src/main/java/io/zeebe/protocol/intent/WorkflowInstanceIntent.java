@@ -19,8 +19,11 @@ public enum WorkflowInstanceIntent implements Intent {
   CREATE((short) 0),
   CREATED((short) 1),
 
+  // TODO: these should not be differentiated
   START_EVENT_OCCURRED((short) 2),
   END_EVENT_OCCURRED((short) 3),
+  BOUNDARY_EVENT_OCCURRED((short) 18),
+
   SEQUENCE_FLOW_TAKEN((short) 4),
   GATEWAY_ACTIVATED((short) 5),
 
@@ -60,6 +63,8 @@ public enum WorkflowInstanceIntent implements Intent {
         return START_EVENT_OCCURRED;
       case 3:
         return END_EVENT_OCCURRED;
+      case 18:
+        return BOUNDARY_EVENT_OCCURRED;
       case 4:
         return SEQUENCE_FLOW_TAKEN;
       case 5:

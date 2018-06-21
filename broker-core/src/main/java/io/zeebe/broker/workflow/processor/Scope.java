@@ -165,6 +165,10 @@ public class Scope {
     return position;
   }
 
+  public void setPosition(long position) {
+    this.position = position;
+  }
+
   public enum ScopeState
   {
     TERMINATING,

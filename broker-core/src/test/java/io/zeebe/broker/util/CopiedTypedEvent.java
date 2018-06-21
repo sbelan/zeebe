@@ -17,6 +17,7 @@
  */
 package io.zeebe.broker.util;
 
+import org.agrona.concurrent.UnsafeBuffer;
 import io.zeebe.broker.logstreams.processor.TypedEventImpl;
 import io.zeebe.broker.logstreams.processor.TypedRecord;
 import io.zeebe.logstreams.log.LoggedEvent;
@@ -69,7 +70,9 @@ public class CopiedTypedEvent extends TypedEventImpl {
   public static <T extends UnpackedObject> TypedRecord<T> toTypedEvent(
       LoggedEvent event, Class<T> valueClass) {
     final T value = ReflectUtil.newInstance(valueClass);
-    value.wrap(event.getValueBuffer(), event.getValueOffset(), event.getValueLength());
+    final UnsafeBuffer copy = new UnsafeBuffer(new byte[event.getValueLength()]);
+    copy.putBytes(0, event.getValueBuffer(), event.getValueOffset(), event.getValueLength());
+    value.wrap(copy);
     return new CopiedTypedEvent(event, value);
   }
 }

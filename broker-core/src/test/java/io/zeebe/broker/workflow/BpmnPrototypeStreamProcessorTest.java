@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.agrona.DirectBuffer;
+import org.agrona.concurrent.UnsafeBuffer;
 import org.agrona.io.DirectBufferInputStream;
 import org.junit.After;
 import org.junit.Before;
@@ -32,6 +33,7 @@ import io.zeebe.broker.workflow.processor.WorkflowInstanceStreamProcessor;
 import io.zeebe.model.bpmn.Bpmn;
 import io.zeebe.model.bpmn.instance.Workflow;
 import io.zeebe.msgpack.UnpackedObject;
+import io.zeebe.protocol.clientapi.ValueType;
 import io.zeebe.protocol.impl.RecordMetadata;
 import io.zeebe.protocol.intent.EventSubscriptionIntent;
 import io.zeebe.protocol.intent.JobIntent;
@@ -94,6 +96,26 @@ public class BpmnPrototypeStreamProcessorTest {
       .done()
       .getWorkflow(BufferUtil.wrapString("foo"));
 
+
+  private static final Workflow BOUNDARY_EVENT_SUBPROCESS_FLOW = Bpmn.createExecutableWorkflow("foo")
+      .startEvent()
+
+      .subprocess("subprocess")
+      .startEvent()
+      .parallelGateway("fork")
+      .serviceTask("task1", t -> t.taskType("foo"))
+      .endEvent()
+      .continueAt("fork")
+      .serviceTask("task2", t -> t.taskType("foo"))
+      .endEvent()
+      .leaveScope()
+
+      .boundaryEvent("subprocess", "boundary")
+      .serviceTask("task3", t -> t.taskType("bar"))
+      .endEvent()
+      .done()
+      .getWorkflow(BufferUtil.wrapString("foo"));
+
   @Rule
   public StreamProcessorRule rule = new StreamProcessorRule();
   private WorkflowCache workflowCache;
@@ -131,6 +153,24 @@ public class BpmnPrototypeStreamProcessorTest {
       sb.append(metadata.getValueType());
       sb.append(", ");
       sb.append(metadata.getIntent());
+
+      if (record.getMetadata().getValueType() == ValueType.WORKFLOW_INSTANCE)
+      {
+        final WorkflowInstanceRecord wfRecord = new WorkflowInstanceRecord();
+        final UnsafeBuffer buf = new UnsafeBuffer(new byte[record.getValue().getLength()]);
+        record.getValue().write(buf, 0);
+
+        wfRecord.wrap(buf);
+
+        sb.append(": [element: ");
+        sb.append(BufferUtil.bufferAsString(wfRecord.getActivityId()));
+        sb.append(", element instance key: ");
+        sb.append(record.getKey());
+        sb.append(", scope instance key: ");
+        sb.append(wfRecord.getScopeKey());
+        sb.append("]");
+      }
+
       sb.append("\n");
     }
 
@@ -463,7 +503,7 @@ public class BpmnPrototypeStreamProcessorTest {
     final long workflowInstanceKey = headers.getWorkflowInstanceKey();
 
     // when
-    rule.writeEvent(EventSubscriptionIntent.OCCURRED, eventSubscription(workflowInstanceKey, scopeKey));
+    rule.writeEvent(EventSubscriptionIntent.OCCURRED, eventSubscription(workflowInstanceKey, scopeKey, "boundary"));
 
     // then
     final TypedRecord<WorkflowInstanceRecord> boundaryFollowup = doRepeatedly(() -> rule.events().onlyWorkflowInstanceRecords()
@@ -479,7 +519,28 @@ public class BpmnPrototypeStreamProcessorTest {
   @Test
   public void shouldTerminateSubprocessViaBoundaryEvent()
   {
-    fail("implement");
+    // given
+    deploy(WORKFLOW_KEY, BOUNDARY_EVENT_SUBPROCESS_FLOW);
+    rule.writeCommand(WorkflowInstanceIntent.CREATE, workflowInstance(WORKFLOW_KEY));
+    final List<TypedRecord<JobRecord>> jobCommands = doRepeatedly(() -> rule.events().onlyJobRecords()
+        .withIntent(JobIntent.CREATE).collect(Collectors.toList())).until(e -> e.size() == 2);
+
+    final JobHeaders headers = jobCommands.get(0).getValue().headers();
+    final long scopeKey = headers.getScopeKey();
+    final long workflowInstanceKey = headers.getWorkflowInstanceKey();
+
+    // when
+    rule.writeEvent(EventSubscriptionIntent.OCCURRED, eventSubscription(workflowInstanceKey, scopeKey, "boundary"));
+
+    // then
+    final TypedRecord<WorkflowInstanceRecord> boundaryFollowup = doRepeatedly(() -> rule.events().onlyWorkflowInstanceRecords()
+        .withIntent(WorkflowInstanceIntent.ACTIVITY_READY)
+        .filter(e -> e.getValue().getActivityId().equals(BufferUtil.wrapString("task3")))
+        .findFirst()).until(e -> e.isPresent()).get();
+
+    assertThat(boundaryFollowup).isNotNull();
+
+    fail("assert properties etc.");
   }
 
   private void deploy(long key, Workflow workflow) {
@@ -492,11 +553,12 @@ public class BpmnPrototypeStreamProcessorTest {
     return record;
   }
 
-  private static EventSubscriptionRecord eventSubscription(long workflowInstanceKey, long eventScopeKey)
+  private static EventSubscriptionRecord eventSubscription(long workflowInstanceKey, long eventScopeKey, String handler)
   {
     final EventSubscriptionRecord record = new EventSubscriptionRecord();
     record.setWorkflowInstanceKey(workflowInstanceKey);
     record.setEventScopeKey(eventScopeKey);
+    record.setEventHandler(BufferUtil.wrapString(handler));
     return record;
   }
 
