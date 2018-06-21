@@ -28,6 +28,8 @@ public class FlowNodeImpl extends FlowElementImpl implements FlowNode {
   private List<SequenceFlowImpl> incoming = new ArrayList<>();
   private List<SequenceFlowImpl> outgoing = new ArrayList<>();
 
+  private List<BoundaryEventImpl> boundaryEvents = new ArrayList<>();
+
   @XmlIDREF
   @XmlElement(name = BpmnConstants.BPMN_ELEMENT_INCOMING, namespace = BpmnConstants.BPMN20_NS)
   public void setIncoming(List<SequenceFlowImpl> incoming) {
@@ -63,6 +65,10 @@ public class FlowNodeImpl extends FlowElementImpl implements FlowNode {
   @Override
   public InputOutputMappingImpl getInputOutputMapping() {
     return getExtensionElements() != null ? getExtensionElements().getInputOutputMapping() : null;
+  }
+
+  public List<BoundaryEventImpl> getBoundaryEvents() {
+    return boundaryEvents;
   }
 
   @Override

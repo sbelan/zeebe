@@ -572,7 +572,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
 
         final DirectBuffer mergedPayload = mergePayloads(streamReader, event.getValue().getPayload(), positionsToMerge);
 
-        // TODO: hack assuming we don't require the additional payload downstream
+        // TODO: hack assuming we don't require the original payload downstream
         event.getValue().setPayload(mergedPayload);
 
         final FlowElementContainer parentScope = currentFlowNode.getParent();

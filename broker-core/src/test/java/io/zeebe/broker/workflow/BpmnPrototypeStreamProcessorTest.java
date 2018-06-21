@@ -81,6 +81,17 @@ public class BpmnPrototypeStreamProcessorTest {
       .done()
       .getWorkflow(BufferUtil.wrapString("foo"));
 
+
+  private static final Workflow BOUNDARY_EVENT_FLOW = Bpmn.createExecutableWorkflow("foo")
+      .startEvent()
+      .serviceTask("foo", t -> t.taskType("foo"))
+      .endEvent()
+      .boundaryEvent("foo", "boundary")
+      .serviceTask("bar", t -> t.taskType("bar"))
+      .endEvent()
+      .done()
+      .getWorkflow(BufferUtil.wrapString("foo"));
+
   @Rule
   public StreamProcessorRule rule = new StreamProcessorRule();
   private WorkflowCache workflowCache;
@@ -432,6 +443,27 @@ public class BpmnPrototypeStreamProcessorTest {
    */
   @Test
   public void shouldCancelWithConcurrentThings()
+  {
+    fail("implement");
+  }
+
+  @Test
+  public void shouldTerminateServiceTaskViaBoundaryEvent()
+  {
+    // given
+    deploy(WORKFLOW_KEY, BOUNDARY_EVENT_FLOW);
+    rule.writeCommand(WorkflowInstanceIntent.CREATE, workflowInstance(WORKFLOW_KEY));
+    waitUntil(() -> rule.events().onlyJobRecords()
+        .withIntent(JobIntent.CREATE).count() == 1);
+
+    // when
+
+
+    fail("implement");
+  }
+
+  @Test
+  public void shouldTerminateSubprocessViaBoundaryEvent()
   {
     fail("implement");
   }

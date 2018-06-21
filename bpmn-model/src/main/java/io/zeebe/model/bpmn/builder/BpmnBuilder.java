@@ -237,6 +237,17 @@ public class BpmnBuilder {
     return this;
   }
 
+  public BpmnBuilder boundaryEvent(String attachedElement, String id) {
+    final BoundaryEventImpl event = new BoundaryEventImpl();
+    event.setId(id);
+    event.setAttachedToRef(attachedElement);
+    scope.getBoundaryEvents().add(event);
+    sequenceFlow = null;
+    addFlowNode(event);
+    sourceNode = event;
+    return this;
+  }
+
   private FlowNodeImpl getFlowNode(String activityId) {
     return flowNodes
         .stream()

@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 import org.agrona.DirectBuffer;
 import io.zeebe.model.bpmn.BpmnAspect;
 import io.zeebe.model.bpmn.impl.error.ErrorCollector;
+import io.zeebe.model.bpmn.impl.instance.BoundaryEventImpl;
 import io.zeebe.model.bpmn.impl.instance.ExclusiveGatewayImpl;
 import io.zeebe.model.bpmn.impl.instance.FlowElementContainer;
 import io.zeebe.model.bpmn.impl.instance.FlowElementImpl;
@@ -69,6 +70,11 @@ public class ProcessTransformer {
     flowNodeTransformer.transform(errorCollector, flowNodes);
     serviceTaskTransformer.transform(errorCollector, context.getElementsOfType(ServiceTaskImpl.class));
     exclusiveGatewayTransformer.transform(context.getElementsOfType(ExclusiveGatewayImpl.class));
+
+    context.getElementsOfType(BoundaryEventImpl.class).forEach(e -> {
+      final FlowNodeImpl attachedElement = (FlowNodeImpl) flowElementsById.get(e.getAttachedToRef());
+      attachedElement.getBoundaryEvents().add(e);
+    });
 
     transformBpmnAspects(context);
   }

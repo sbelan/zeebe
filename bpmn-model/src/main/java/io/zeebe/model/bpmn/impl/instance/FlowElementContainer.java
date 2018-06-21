@@ -18,6 +18,7 @@ public class FlowElementContainer extends FlowNodeImpl {
   private List<ExclusiveGatewayImpl> exclusiveGateways = new ArrayList<>();
   private List<ParallelGatewayImpl> parallelGateways = new ArrayList<>();
   private List<SubProcessImpl> subprocesses = new ArrayList<>();
+  private List<BoundaryEventImpl> boundaryEvents = new ArrayList<>();
 
   private StartEvent initialStartEvent;
 
@@ -89,6 +90,16 @@ public class FlowElementContainer extends FlowNodeImpl {
     return parallelGateways;
   }
 
+  @XmlElement(
+      name = "boundaryEvent",
+      namespace = BpmnConstants.BPMN20_NS)
+  public void setBoundaryEvents(List<BoundaryEventImpl> boundaryEvents) {
+    this.boundaryEvents = boundaryEvents;
+  }
+
+  public List<BoundaryEventImpl> getBoundaryEvents() {
+    return boundaryEvents;
+  }
 
   @XmlTransient
   public void setInitialStartEvent(StartEvent initialStartEvent) {
@@ -108,6 +119,7 @@ public class FlowElementContainer extends FlowNodeImpl {
     flowElements.addAll(exclusiveGateways);
     flowElements.addAll(parallelGateways);
     flowElements.addAll(subprocesses);
+    flowElements.addAll(boundaryEvents);
     subprocesses.forEach(s -> flowElements.addAll(s.collectFlowElements()));
 
     return flowElements;
