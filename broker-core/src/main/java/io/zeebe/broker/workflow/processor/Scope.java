@@ -171,8 +171,9 @@ public class Scope {
 
   public enum ScopeState
   {
-    TERMINATING,
-    ACTIVE // Not terminating
+    TERMINATING,                // regular execution in scope is terminating (i.e. no sequence flow should continue)
+    TERMINATION_HANDLING,       // the termination handler is executed in the terminating scope (i.e. event subprocess)
+    ACTIVE                      // Not terminating
   }
 
 }

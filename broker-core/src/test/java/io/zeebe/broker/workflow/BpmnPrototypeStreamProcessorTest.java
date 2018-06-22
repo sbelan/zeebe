@@ -116,6 +116,24 @@ public class BpmnPrototypeStreamProcessorTest {
       .done()
       .getWorkflow(BufferUtil.wrapString("foo"));
 
+  private static final Workflow EVENT_SUBPROCESS_FLOW = Bpmn.createExecutableWorkflow("foo")
+      .startEvent()
+
+      .subprocess("subprocess")
+      .startEvent()
+      .serviceTask("task1", t -> t.taskType("foo"))
+      .endEvent()
+      .eventSubprocess("eventSubprocess")
+      .startEvent()
+      .serviceTask("task2", t -> t.taskType("bar"))
+      .endEvent()
+      .leaveScope()
+      .leaveScope()
+      .endEvent()
+
+      .done()
+      .getWorkflow(BufferUtil.wrapString("foo"));
+
   @Rule
   public StreamProcessorRule rule = new StreamProcessorRule();
   private WorkflowCache workflowCache;
@@ -148,6 +166,8 @@ public class BpmnPrototypeStreamProcessorTest {
     for (TypedRecord<UnpackedObject> record : records)
     {
       final RecordMetadata metadata = record.getMetadata();
+      sb.append(record.getPosition());
+      sb.append(": ");
       sb.append(metadata.getRecordType());
       sb.append(", ");
       sb.append(metadata.getValueType());
@@ -541,6 +561,40 @@ public class BpmnPrototypeStreamProcessorTest {
     assertThat(boundaryFollowup).isNotNull();
 
     fail("assert properties etc.");
+  }
+
+  @Test
+  public void shouldTerminateSubprocessViaEventSubprocess()
+  {
+    // given
+    deploy(WORKFLOW_KEY, EVENT_SUBPROCESS_FLOW);
+    rule.writeCommand(WorkflowInstanceIntent.CREATE, workflowInstance(WORKFLOW_KEY));
+    final TypedRecord<JobRecord> jobCommand = doRepeatedly(() -> rule.events().onlyJobRecords()
+        .withIntent(JobIntent.CREATE).findFirst()).until(e -> e.isPresent()).get();
+
+    final JobHeaders headers = jobCommand.getValue().headers();
+    final long scopeKey = headers.getScopeKey();
+    final long workflowInstanceKey = headers.getWorkflowInstanceKey();
+
+    // when
+    rule.writeEvent(EventSubscriptionIntent.OCCURRED, eventSubscription(workflowInstanceKey, scopeKey, "eventSubprocess"));
+
+    // then
+    final TypedRecord<JobRecord> eventSubprocessJob = doRepeatedly(() -> rule.events().onlyJobRecords()
+        .withIntent(JobIntent.CREATE)
+        .filter(e -> e.getValue().headers().getActivityId().equals(BufferUtil.wrapString("task2")))
+        .findFirst()).until(e -> e.isPresent()).get();
+
+    assertThat(eventSubprocessJob).isNotNull();
+
+    // when
+    completeJob(eventSubprocessJob);
+
+    // then
+    waitUntil(() -> rule.events().onlyWorkflowInstanceRecords()
+        .withIntent(WorkflowInstanceIntent.COMPLETED).findFirst().isPresent());
+
+    fail("assert events");
   }
 
   private void deploy(long key, Workflow workflow) {

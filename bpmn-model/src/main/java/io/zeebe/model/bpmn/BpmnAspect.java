@@ -39,4 +39,7 @@ public enum BpmnAspect {
 
   // joining and-/or-gateway
   PARALLEL_MERGE,
+
+  // interrupting event subprocess completion
+  PARENT_TERMINATION,
 }

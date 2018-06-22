@@ -104,6 +104,9 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
 
   private final WorkflowCache workflowCache;
 
+
+  private BpmnAspectEventProcessor bpmnAspectProcessor;
+
   private ActorControl actor;
 
   public WorkflowInstanceStreamProcessor(WorkflowCache workflowCache, int payloadCacheSize) {
@@ -112,7 +115,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
   }
 
   public TypedStreamProcessor createStreamProcessor(TypedStreamEnvironment environment) {
-    final BpmnAspectEventProcessor bpmnAspectProcessor = new BpmnAspectEventProcessor();
+    bpmnAspectProcessor = new BpmnAspectEventProcessor();
 
     return environment
         .newStreamProcessor()
@@ -256,7 +259,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     final WorkflowInstance workflowInstance = workflowInstances.get(record.getWorkflowInstanceKey());
     final Scope scope = workflowInstance.getScope(record.getScopeKey());
 
-    return scope != null && scope.getState() == ScopeState.ACTIVE;
+    return scope != null && scope.getState() != ScopeState.TERMINATING;
   }
 
   private DirectBuffer mergePayloads(TypedStreamReader streamReader,
@@ -545,6 +548,31 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
               incidentCommand);
         }
       }
+    }
+  }
+
+  private class ParentTerminationHandler extends FlowElementEventProcessor<SubProcessImpl>
+  {
+
+    private TypedStreamReader streamReader;
+    private TypedRecord<WorkflowInstanceRecord> scopeRecord;
+
+    @Override
+    public void onOpen(TypedStreamProcessor streamProcessor) {
+      streamReader = streamProcessor.getEnvironment().getStreamReader();
+    }
+
+    @Override
+    void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
+        TypedRecord<WorkflowInstanceRecord> event, SubProcessImpl currentFlowNode) {
+      scopeRecord = streamReader.readValue(scope.getPosition(), WorkflowInstanceRecord.class);
+    }
+
+    @Override
+    public long writeRecord(TypedRecord<WorkflowInstanceRecord> record, TypedStreamWriter writer) {
+
+      // TODO: do payload merge here?
+      return writer.writeFollowUpEvent(scopeRecord.getKey(), WorkflowInstanceIntent.ACTIVITY_TERMINATED, scopeRecord.getValue());
     }
   }
 
@@ -1061,6 +1089,9 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     public long writeRecord(TypedRecord<WorkflowInstanceRecord> record, TypedStreamWriter writer) {
       if (isTerminated)
       {
+        // TODO: we must also check here if there is a termination handler on TERMINATING (i.e. event subprocess)
+        //   that needs to complete before we go to terminated
+
         return writer.writeFollowUpEvent(record.getKey(), WorkflowInstanceIntent.ACTIVITY_TERMINATED, record.getValue());
       }
       else
@@ -1126,6 +1157,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     private boolean continuesTermination;
     private TerminationHandling terminationHandling;
 
+    private Workflow workflow;
     private Scope parentScope;
     private WorkflowInstance workflowInstance;
     private WorkflowInstanceRecord record = new WorkflowInstanceRecord();
@@ -1139,12 +1171,22 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
         TypedRecord<WorkflowInstanceRecord> event, FlowNodeImpl currentFlowNode) {
 
+      this.workflow = workflowCache.getWorkflowByKey(event.getValue().getWorkflowKey()).getWorkflow();
+      this.workflowInstance = workflowInstance;
       this.parentScope = scope;
+
+      final DirectBuffer terminationHandlerId = event.getValue().getTerminationHandler();
+      final FlowElementImpl terminationHandler = workflow.findFlowElementById(terminationHandlerId);
 
       continuesTermination = scope.getChildScopes().size() == 1; // we are the last child
       final DeployedWorkflow workflow = workflowCache.getWorkflowByKey(event.getValue().getWorkflowKey());
       terminationHandling = determineTerminationHandling(workflow.getWorkflow(), currentFlowNode, event.getValue());
-      this.workflowInstance = workflowInstance;
+
+      // termination has been handled on terminating, so we take outgoing sequence flow (case: event subprocess)
+      if (continuesTermination && terminationHandling == TerminationHandling.HANDLE_ON_TERMINATING)
+      {
+        bpmnAspectProcessor.processFlowElementEvent(workflowInstance, scope, event, currentFlowNode);
+      }
     }
 
     @Override
@@ -1152,19 +1194,39 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
       if (continuesTermination)
       {
         final TypedRecord<WorkflowInstanceRecord> scopeRecord = streamReader.readValue(parentScope.getPosition(), WorkflowInstanceRecord.class);
+        final WorkflowInstanceRecord scopeValue = scopeRecord.getValue();
         switch (terminationHandling)
         {
           case TERMINATE_PARENT:
-            final boolean isParentWorkflowInstance = parentScope.getParentKey() < 0;
-            final Intent intent = isParentWorkflowInstance ? WorkflowInstanceIntent.CANCELED : WorkflowInstanceIntent.ACTIVITY_TERMINATED;
-            return writer.writeFollowUpEvent(scopeRecord.getKey(), intent, scopeRecord.getValue());
+
+            final TerminationHandling parentTerminationHandling = determineTerminationHandling(
+                workflow,
+                workflow.findFlowElementById(scopeValue.getActivityId()),
+                scopeValue);
+
+            if (parentTerminationHandling == TerminationHandling.HANDLE_ON_TERMINATING)
+            {
+              final DirectBuffer terminationHandlerId = scopeValue.getTerminationHandler();
+              scopeValue.setActivityId(terminationHandlerId);
+              scopeValue.setTerminationHandler(new UnsafeBuffer(new byte[0]));
+              scopeValue.setScopeKey(scopeRecord.getKey());
+              return writer.writeNewEvent(WorkflowInstanceIntent.ACTIVITY_READY, scopeValue);
+            }
+            else
+            {
+              final boolean isParentWorkflowInstance = parentScope.getParentKey() < 0;
+              final Intent intent = isParentWorkflowInstance ? WorkflowInstanceIntent.CANCELED : WorkflowInstanceIntent.ACTIVITY_TERMINATED;
+              return writer.writeFollowUpEvent(scopeRecord.getKey(), intent, scopeValue);
+            }
 
           case HANDLE_ON_TERMINATED:
-            final WorkflowInstanceRecord scopeValue = scopeRecord.getValue();
             scopeValue.setActivityId(record.getValue().getTerminationHandler());
             scopeValue.setScopeKey(scopeRecord.getKey());
 
             return writer.writeNewEvent(WorkflowInstanceIntent.BOUNDARY_EVENT_OCCURRED, scopeValue);
+
+          case HANDLE_ON_TERMINATING:
+            return bpmnAspectProcessor.writeRecord(record, writer);
 
           default:
             throw new RuntimeException("not supported");
@@ -1179,6 +1241,31 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     @Override
     public void updateState(TypedRecord<WorkflowInstanceRecord> record) {
       workflowInstance.removeScope(record.getKey());
+
+      if (continuesTermination)
+      {
+        if (terminationHandling == TerminationHandling.HANDLE_ON_TERMINATING)
+        {
+          bpmnAspectProcessor.updateState(record);
+        }
+        else if (terminationHandling == TerminationHandling.TERMINATE_PARENT)
+        {
+          parentScope.setState(ScopeState.TERMINATION_HANDLING);
+        }
+      }
+    }
+
+    @Override
+    public boolean executeSideEffects(TypedRecord<WorkflowInstanceRecord> record,
+        TypedResponseWriter responseWriter) {
+      if (continuesTermination && terminationHandling == TerminationHandling.HANDLE_ON_TERMINATING)
+      {
+        return bpmnAspectProcessor.executeSideEffects(record, responseWriter);
+      }
+      else
+      {
+        return true;
+      }
     }
   }
 
@@ -1591,6 +1678,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
       aspectHandlers.put(BpmnAspect.START_ACTIVITY, new StartActivityProcessor());
       aspectHandlers.put(BpmnAspect.TRIGGER_NONE_EVENT, new TriggerNoneEventProcessor());
       aspectHandlers.put(BpmnAspect.ACTIVATE_GATEWAY, new ActivateGatewayProcessor());
+      aspectHandlers.put(BpmnAspect.PARENT_TERMINATION, new ParentTerminationHandler());
     }
 
     @Override

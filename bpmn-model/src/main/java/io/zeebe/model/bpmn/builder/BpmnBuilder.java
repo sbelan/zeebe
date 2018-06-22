@@ -120,6 +120,22 @@ public class BpmnBuilder {
     return this;
   }
 
+
+  public BpmnBuilder eventSubprocess(String id)
+  {
+    final SubProcessImpl subprocess = new SubProcessImpl();
+    subprocess.setId(id);
+    subprocess.setTriggeredByEvent(true);
+
+    scope.getSubprocesses().add(subprocess);
+    addFlowNode(subprocess);
+    sequenceFlow = null;
+
+    scope = subprocess;
+
+    return this;
+  }
+
   public BpmnBuilder leaveScope()
   {
     sourceNode = scope;
