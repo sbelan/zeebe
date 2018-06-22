@@ -15,12 +15,17 @@ public class ScopeInstance {
 
   /*
    * purpose:
+   *   - decide if scope instance can complete
+   */
+  private int activeTokens = 0;
+
+  /*
+   * purpose:
    *   - find tokens that can be joined on parallel gw or scope completion
    *   - find payload that must be merged in these cases
    */
   // TODO: naming
   private Map<String, List<Long>> suspendedTokens = new HashMap<>();
-  private int activeTokens = 0;
 
   /*
    * purpose:

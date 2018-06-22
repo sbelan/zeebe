@@ -196,8 +196,9 @@ public class StreamProcessorRule implements TestRule {
 
       final File f = new File(description.getClassName() + "." + description.getMethodName() + ".txt");
       try {
-        final FileWriter writer = new FileWriter(f);
+        final FileWriter writer = new FileWriter(f, false);
         writer.write(formatter.toFormattedTable());
+        writer.flush();
         writer.close();
       } catch (IOException e) {
         throw new RuntimeException(e);

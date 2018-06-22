@@ -50,11 +50,11 @@ public class BpmnPrototypeStreamProcessorTest {
   private static final Workflow FORK_JOIN_FLOW = Bpmn.createExecutableWorkflow("foo")
       .startEvent()
       .parallelGateway("fork")
-      .serviceTask("foo", t -> t.taskType("foo"))
+      .serviceTask("task1", t -> t.taskType("foo"))
       .parallelGateway("join")
       .endEvent()
       .continueAt("fork")
-      .serviceTask("bar", t -> t.taskType("bar"))
+      .serviceTask("task2", t -> t.taskType("bar"))
       .connectTo("join")
       .done()
       .getWorkflow(BufferUtil.wrapString("foo"));
@@ -152,7 +152,7 @@ public class BpmnPrototypeStreamProcessorTest {
   }
 
   @After
-  public void tearDown()
+  public void printPartitionContents()
   {
 
     // TODO: this could go as a configurable option into the test rule
@@ -489,7 +489,7 @@ public class BpmnPrototypeStreamProcessorTest {
         .findFirst().get();
 
     // when
-    rule.writeCommand(WorkflowInstanceIntent.CANCEL, createdEvent.getValue());
+    rule.writeCommand(createdEvent.getKey(), WorkflowInstanceIntent.CANCEL, createdEvent.getValue());
 
     // then
     waitUntil(() -> rule.events().onlyWorkflowInstanceRecords()
