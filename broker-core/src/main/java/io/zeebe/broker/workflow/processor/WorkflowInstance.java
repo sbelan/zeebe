@@ -4,24 +4,24 @@ import org.agrona.collections.Long2ObjectHashMap;
 
 public class WorkflowInstance {
 
-  private Long2ObjectHashMap<Scope> scopes = new Long2ObjectHashMap<>();
-  private Scope rootScope;
+  private Long2ObjectHashMap<ScopeInstance> scopes = new Long2ObjectHashMap<>();
+  private ScopeInstance rootScope;
 
   public WorkflowInstance(long position, long key)
   {
-    this.rootScope = new Scope(key, -1, position);
+    this.rootScope = new ScopeInstance(key, -1, position);
     scopes.put(key, rootScope);
   }
 
-  public Scope getScope(long scopeKey)
+  public ScopeInstance getScope(long scopeKey)
   {
     return scopes.get(scopeKey);
   }
 
-  public Scope newScope(long position, long parentScopeKey, long scopeKey)
+  public ScopeInstance newScope(long position, long parentScopeKey, long scopeKey)
   {
-    final Scope parentScope = scopes.get(parentScopeKey);
-    final Scope newScope = new Scope(scopeKey, parentScopeKey, position);
+    final ScopeInstance parentScope = scopes.get(parentScopeKey);
+    final ScopeInstance newScope = new ScopeInstance(scopeKey, parentScopeKey, position);
     scopes.put(scopeKey, newScope);
     parentScope.addChildScope(newScope);
     return newScope;
@@ -29,11 +29,11 @@ public class WorkflowInstance {
 
   public void removeScope(long key)
   {
-    final Scope scope = scopes.remove(key);
+    final ScopeInstance scope = scopes.remove(key);
 
     if (scope.getParentKey() >= 0)
     {
-      final Scope parentScope = scopes.get(scope.getParentKey());
+      final ScopeInstance parentScope = scopes.get(scope.getParentKey());
       parentScope.removeChildScope(scope);
     }
   }

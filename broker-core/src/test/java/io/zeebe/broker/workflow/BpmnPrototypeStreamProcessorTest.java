@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.entry;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;

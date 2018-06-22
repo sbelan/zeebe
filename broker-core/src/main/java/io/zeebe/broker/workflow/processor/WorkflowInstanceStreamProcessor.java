@@ -47,7 +47,7 @@ import io.zeebe.broker.workflow.data.WorkflowInstanceRecord;
 import io.zeebe.broker.workflow.map.DeployedWorkflow;
 import io.zeebe.broker.workflow.map.PayloadCache;
 import io.zeebe.broker.workflow.map.WorkflowCache;
-import io.zeebe.broker.workflow.processor.Scope.ScopeState;
+import io.zeebe.broker.workflow.processor.ScopeInstance.ScopeState;
 import io.zeebe.logstreams.log.LogStream;
 import io.zeebe.logstreams.processor.EventLifecycleContext;
 import io.zeebe.logstreams.processor.StreamProcessorContext;
@@ -257,7 +257,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
 
   private boolean isScopeActive(WorkflowInstanceRecord record) {
     final WorkflowInstance workflowInstance = workflowInstances.get(record.getWorkflowInstanceKey());
-    final Scope scope = workflowInstance.getScope(record.getScopeKey());
+    final ScopeInstance scope = workflowInstance.getScope(record.getScopeKey());
 
     return scope != null && scope.getState() != ScopeState.TERMINATING;
   }
@@ -461,7 +461,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
 
   private final class TakeSequenceFlowAspectHandler extends FlowElementEventProcessor<FlowNode> {
     @Override
-    void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
+    void processFlowElementEvent(WorkflowInstance workflowInstance, ScopeInstance scope,
         TypedRecord<WorkflowInstanceRecord> event, FlowNode currentFlowNode) {
       // the activity has exactly one outgoing sequence flow
       final SequenceFlow sequenceFlow = currentFlowNode.getOutgoingSequenceFlows().get(0);
@@ -482,7 +482,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     private final IncidentRecord incidentCommand = new IncidentRecord();
 
     @Override
-    void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
+    void processFlowElementEvent(WorkflowInstance workflowInstance, ScopeInstance scope,
         TypedRecord<WorkflowInstanceRecord> event, ExclusiveGateway exclusiveGateway) {
       try {
         isResolvingIncident = event.getMetadata().hasIncidentKey();
@@ -563,7 +563,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     }
 
     @Override
-    void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
+    void processFlowElementEvent(WorkflowInstance workflowInstance, ScopeInstance scope,
         TypedRecord<WorkflowInstanceRecord> event, SubProcessImpl currentFlowNode) {
       scopeRecord = streamReader.readValue(scope.getPosition(), WorkflowInstanceRecord.class);
     }
@@ -578,7 +578,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
 
   private final class ScopeMergeAspectHandler extends FlowElementEventProcessor<FlowElementImpl> {
     private boolean isCompleted;
-    private Scope scope;
+    private ScopeInstance scope;
 
     private WorkflowInstanceIntent completionIntent;
 
@@ -590,7 +590,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     }
 
     @Override
-    void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
+    void processFlowElementEvent(WorkflowInstance workflowInstance, ScopeInstance scope,
         TypedRecord<WorkflowInstanceRecord> event, FlowElementImpl currentFlowNode) {
       final WorkflowInstanceRecord workflowInstanceEvent = event.getValue();
       this.scope = scope;
@@ -665,7 +665,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     private WorkflowInstance workflowInstance;
 
     @Override
-    void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
+    void processFlowElementEvent(WorkflowInstance workflowInstance, ScopeInstance scope,
         TypedRecord<WorkflowInstanceRecord> event, FlowNode serviceTask) {
       this.workflowInstance = workflowInstance;
       createsIncident = false;
@@ -735,7 +735,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     private final JobRecord jobCommand = new JobRecord();
 
     @Override
-    void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
+    void processFlowElementEvent(WorkflowInstance workflowInstance, ScopeInstance scope,
         TypedRecord<WorkflowInstanceRecord> event, ServiceTask serviceTask) {
       final TaskDefinition taskDefinition = serviceTask.getTaskDefinition();
 
@@ -770,7 +770,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
   }
 
   private final class JobCreatedProcessor implements TypedRecordProcessor<JobRecord> {
-    private Scope scope;
+    private ScopeInstance scope;
 
     @Override
     public void processRecord(TypedRecord<JobRecord> record) {
@@ -801,7 +801,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     private boolean activityCompleted;
     private long activityInstanceKey;
 
-    private Scope scope;
+    private ScopeInstance scope;
 
     @Override
     public void processRecord(TypedRecord<JobRecord> record) {
@@ -862,7 +862,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     private WorkflowInstance workflowInstance;
 
     @Override
-    void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
+    void processFlowElementEvent(WorkflowInstance workflowInstance, ScopeInstance scope,
         TypedRecord<WorkflowInstanceRecord> event, FlowNode serviceTask) {
       this.workflowInstance = workflowInstance;
       hasIncident = false;
@@ -943,7 +943,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
 
     private boolean isTerminating;
 
-    private Scope scope;
+    private ScopeInstance scope;
 
     @Override
     public void processRecord(TypedRecord<WorkflowInstanceRecord> command) {
@@ -999,7 +999,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
   private class WorkflowInstanceTerminatingProcessor implements TypedRecordProcessor<WorkflowInstanceRecord>
   {
     private boolean isTerminated;
-    private List<Scope> activeChildScopes;
+    private List<ScopeInstance> activeChildScopes;
     private TypedStreamReader streamReader;
 
     @Override
@@ -1012,7 +1012,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
 
       final long workflowInstanceKey = record.getValue().getWorkflowInstanceKey();
       final WorkflowInstance workflowInstance = workflowInstances.get(workflowInstanceKey);
-      final Scope scope = workflowInstance.getScope(workflowInstanceKey);
+      final ScopeInstance scope = workflowInstance.getScope(workflowInstanceKey);
 
       isTerminated = scope.getChildScopes().isEmpty();
 
@@ -1031,7 +1031,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
       else
       {
         final TypedBatchWriter batchWriter = writer.newBatch();
-        for (Scope scope : activeChildScopes)
+        for (ScopeInstance scope : activeChildScopes)
         {
           final TypedRecord<WorkflowInstanceRecord> scopeRecord = streamReader.readValue(scope.getPosition(), WorkflowInstanceRecord.class);
           batchWriter.addFollowUpEvent(scopeRecord.getKey(), WorkflowInstanceIntent.ACTIVITY_TERMINATING, scopeRecord.getValue());
@@ -1043,7 +1043,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
 
     @Override
     public void updateState(TypedRecord<WorkflowInstanceRecord> record) {
-      for (Scope scope : activeChildScopes)
+      for (ScopeInstance scope : activeChildScopes)
       {
         scope.setState(ScopeState.TERMINATING);
       }
@@ -1056,8 +1056,8 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     private TypedStreamReader streamReader;
     private boolean isTerminated;
 
-    private Scope scope;
-    private List<Scope> activeChildScopes;
+    private ScopeInstance scope;
+    private List<ScopeInstance> activeChildScopes;
 
     @Override
     public void onOpen(TypedStreamProcessor streamProcessor) {
@@ -1065,7 +1065,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     }
 
     @Override
-    void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
+    void processFlowElementEvent(WorkflowInstance workflowInstance, ScopeInstance scope,
         TypedRecord<WorkflowInstanceRecord> event, FlowNodeImpl currentFlowNode) {
 
       this.scope = workflowInstance.getScope(event.getKey());
@@ -1097,7 +1097,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
       else
       {
         final TypedBatchWriter batchWriter = writer.newBatch();
-        for (Scope scope : activeChildScopes)
+        for (ScopeInstance scope : activeChildScopes)
         {
           final TypedRecord<WorkflowInstanceRecord> scopeRecord = streamReader.readValue(scope.getPosition(), WorkflowInstanceRecord.class);
           batchWriter.addFollowUpEvent(scopeRecord.getKey(), WorkflowInstanceIntent.ACTIVITY_TERMINATING, scopeRecord.getValue());
@@ -1111,7 +1111,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     public void updateState(TypedRecord<WorkflowInstanceRecord> record) {
       if (!isTerminated)
       {
-        for (Scope scope : activeChildScopes)
+        for (ScopeInstance scope : activeChildScopes)
         {
           scope.setState(ScopeState.TERMINATING);
         }
@@ -1158,7 +1158,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     private TerminationHandling terminationHandling;
 
     private Workflow workflow;
-    private Scope parentScope;
+    private ScopeInstance parentScope;
     private WorkflowInstance workflowInstance;
     private WorkflowInstanceRecord record = new WorkflowInstanceRecord();
 
@@ -1168,7 +1168,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     }
 
     @Override
-    void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
+    void processFlowElementEvent(WorkflowInstance workflowInstance, ScopeInstance scope,
         TypedRecord<WorkflowInstanceRecord> event, FlowNodeImpl currentFlowNode) {
 
       this.workflow = workflowCache.getWorkflowByKey(event.getValue().getWorkflowKey()).getWorkflow();
@@ -1301,7 +1301,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     private TypedStreamReader reader;
 
     private boolean interruptsEventScope;
-    private Scope eventScope;
+    private ScopeInstance eventScope;
 
     @Override
     public void onOpen(TypedStreamProcessor streamProcessor) {
@@ -1376,7 +1376,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     private final EventSubscriptionRecord eventSubscription = new EventSubscriptionRecord();
 
     @Override
-    void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
+    void processFlowElementEvent(WorkflowInstance workflowInstance, ScopeInstance scope,
         TypedRecord<WorkflowInstanceRecord> event,
         SequenceFlow sequenceFlow) {
       final WorkflowInstanceRecord value = event.getValue();
@@ -1397,7 +1397,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
   private class ActivateGatewayProcessor extends FlowElementEventProcessor<SequenceFlow>
   {
     @Override
-    void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
+    void processFlowElementEvent(WorkflowInstance workflowInstance, ScopeInstance scope,
         TypedRecord<WorkflowInstanceRecord> event,
         SequenceFlow sequenceFlow) {
       final WorkflowInstanceRecord value = event.getValue();
@@ -1414,7 +1414,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
   private class TriggerNoneEventProcessor extends FlowElementEventProcessor<SequenceFlow>
   {
     @Override
-    void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
+    void processFlowElementEvent(WorkflowInstance workflowInstance, ScopeInstance scope,
         TypedRecord<WorkflowInstanceRecord> event,
         SequenceFlow sequenceFlow) {
       final WorkflowInstanceRecord value = event.getValue();
@@ -1431,10 +1431,10 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
   {
 
     private List<SequenceFlow> flowsToTake;
-    private Scope scope;
+    private ScopeInstance scope;
 
     @Override
-    void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
+    void processFlowElementEvent(WorkflowInstance workflowInstance, ScopeInstance scope,
         TypedRecord<WorkflowInstanceRecord> event,
         FlowNode currentFlowNode) {
       flowsToTake = currentFlowNode.getOutgoingSequenceFlows();
@@ -1468,7 +1468,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     private TypedStreamReader streamReader;
 
     private boolean merges;
-    private Scope scope;
+    private ScopeInstance scope;
 
     private List<Long> mergedRecords = new ArrayList<>();
 
@@ -1478,7 +1478,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     }
 
     @Override
-    void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
+    void processFlowElementEvent(WorkflowInstance workflowInstance, ScopeInstance scope,
         TypedRecord<WorkflowInstanceRecord> record, SequenceFlow sequenceFlow) {
 
       this.scope = scope;
@@ -1550,10 +1550,10 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
 
   private class SubProcessActivatedProcessor extends FlowElementEventProcessor<SubProcessImpl>
   {
-    private Scope scope;
+    private ScopeInstance scope;
 
     @Override
-    void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
+    void processFlowElementEvent(WorkflowInstance workflowInstance, ScopeInstance scope,
         TypedRecord<WorkflowInstanceRecord> event, SubProcessImpl subprocess) {
       this.scope = workflowInstance.getScope(event.getKey());
 
@@ -1604,13 +1604,13 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
       final FlowElement flowElement = workflow.findFlowElementById(currentActivityId);
 
       final WorkflowInstance workflowInstance = workflowInstances.get(value.getWorkflowInstanceKey());
-      final Scope scope = workflowInstance.getScope(value.getScopeKey());
+      final ScopeInstance scope = workflowInstance.getScope(value.getScopeKey());
 
       processFlowElementEvent(workflowInstance, scope, event, (T) flowElement);
     }
 
     abstract void processFlowElementEvent(
-        WorkflowInstance workflowInstance, Scope scope, TypedRecord<WorkflowInstanceRecord> event, T currentFlowNode);
+        WorkflowInstance workflowInstance, ScopeInstance scope, TypedRecord<WorkflowInstanceRecord> event, T currentFlowNode);
   }
 
   // TODO: delegation aspect can be consolidated with BpmnAspectEventProcessor
@@ -1628,7 +1628,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
     }
 
     @Override
-    void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
+    void processFlowElementEvent(WorkflowInstance workflowInstance, ScopeInstance scope,
         TypedRecord<WorkflowInstanceRecord> event, FlowNode currentFlowNode) {
 
       final Class<? extends FlowElement> flowElementType = currentFlowNode.getClass();
@@ -1693,7 +1693,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
 
 
     @Override
-    void processFlowElementEvent(WorkflowInstance workflowInstance, Scope scope,
+    void processFlowElementEvent(WorkflowInstance workflowInstance, ScopeInstance scope,
         TypedRecord<WorkflowInstanceRecord> event, FlowElement currentFlowNode) {
       final BpmnAspect bpmnAspect = currentFlowNode.getBpmnAspect();
 

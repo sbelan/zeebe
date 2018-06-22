@@ -9,7 +9,7 @@ import org.agrona.collections.Long2ObjectHashMap;
 import io.zeebe.util.CollectionUtil;
 import io.zeebe.util.buffer.BufferUtil;
 
-public class Scope {
+public class ScopeInstance {
 
   private long key;
 
@@ -44,17 +44,17 @@ public class Scope {
    * purpose:
    *   - top-down propagation of termination
    */
-  private List<Scope> childScopes = new ArrayList<>();
+  private List<ScopeInstance> childScopes = new ArrayList<>();
 
   /*
    * purpose:
    *   - write TERMINATING events based on last value
    *
-   * (TODO: currently never updated, because we don't need to)
+   * (TODO: currently not always, because not always needed)
    */
   private long position;
 
-  public Scope(long key, long parentKey, long position)
+  public ScopeInstance(long key, long parentKey, long position)
   {
     this.key = key;
     this.parentKey = parentKey;
@@ -147,16 +147,16 @@ public class Scope {
     this.state = state;
   }
 
-  public List<Scope> getChildScopes() {
+  public List<ScopeInstance> getChildScopes() {
     return childScopes;
   }
 
-  public void addChildScope(Scope scope)
+  public void addChildScope(ScopeInstance scope)
   {
     childScopes.add(scope);
   }
 
-  public void removeChildScope(Scope scope)
+  public void removeChildScope(ScopeInstance scope)
   {
     childScopes.remove(scope);
   }

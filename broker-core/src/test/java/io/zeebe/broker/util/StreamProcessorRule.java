@@ -17,10 +17,12 @@
  */
 package io.zeebe.broker.util;
 
+import io.zeebe.broker.logstreams.processor.TypedRecord;
 import io.zeebe.broker.logstreams.processor.TypedStreamEnvironment;
 import io.zeebe.broker.topic.StreamProcessorControl;
 import io.zeebe.broker.transport.clientapi.BufferingServerOutput;
 import io.zeebe.broker.util.TestStreams.FluentLogWriter;
+import io.zeebe.broker.workflow.RecordTableFormatter;
 import io.zeebe.logstreams.processor.StreamProcessor;
 import io.zeebe.msgpack.UnpackedObject;
 import io.zeebe.protocol.clientapi.RecordType;
@@ -29,7 +31,12 @@ import io.zeebe.servicecontainer.testing.ServiceContainerRule;
 import io.zeebe.test.util.AutoCloseableRule;
 import io.zeebe.util.sched.clock.ControlledActorClock;
 import io.zeebe.util.sched.testing.ActorSchedulerRule;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.List;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.junit.rules.ExternalResource;
 import org.junit.rules.RuleChain;
 import org.junit.rules.TemporaryFolder;
@@ -59,7 +66,8 @@ public class StreamProcessorRule implements TestRule {
           .around(actorSchedulerRule)
           .around(serviceContainerRule)
           .around(closeables)
-          .around(rule);
+          .around(rule)
+          .around(new LogToFileRule());
 
   @Override
   public Statement apply(Statement base, Description description) {
@@ -157,6 +165,43 @@ public class StreamProcessorRule implements TestRule {
           .write();
 
       streamEnvironment = new TypedStreamEnvironment(streams.getLogStream(STREAM_NAME), output);
+    }
+  }
+
+  private class LogToFileRule implements TestRule
+  {
+    @Override
+    public Statement apply(Statement base, Description description) {
+      return new Statement() {
+        @Override
+        public void evaluate() throws Throwable {
+            try {
+                base.evaluate();
+            } finally {
+                logToFile(description);
+            }
+        }
+      };
+    }
+
+    protected void logToFile(Description description) {
+
+      final List<TypedRecord<UnpackedObject>> records = events()
+          .asTypedRecords()
+          .collect(Collectors.toList());
+
+
+      final RecordTableFormatter formatter = new RecordTableFormatter();
+      formatter.addRecords(records);
+
+      final File f = new File(description.getClassName() + "." + description.getMethodName() + ".txt");
+      try {
+        final FileWriter writer = new FileWriter(f);
+        writer.write(formatter.toFormattedTable());
+        writer.close();
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 }
