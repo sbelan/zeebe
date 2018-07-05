@@ -22,6 +22,11 @@
 
     <dependency>
       <groupId>io.zeebe</groupId>
+      <artifactId>zb-protocol</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.zeebe</groupId>
       <artifactId>zb-msgpack-json-path</artifactId>
     </dependency>
 

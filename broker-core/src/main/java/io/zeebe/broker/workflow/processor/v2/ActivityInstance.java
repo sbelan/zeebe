@@ -4,11 +4,13 @@ import org.agrona.DirectBuffer;
 import org.agrona.concurrent.UnsafeBuffer;
 import io.zeebe.broker.job.data.JobRecord;
 import io.zeebe.broker.logstreams.processor.TypedRecord;
+import io.zeebe.broker.workflow.data.WorkflowInstanceRecord;
 
 public class ActivityInstance {
 
   private int activeTokens;
   private UnsafeBuffer payload;
+  private TypedRecord<WorkflowInstanceRecord> latestState;
 
   public int getActiveTokens()
   {
@@ -18,6 +20,12 @@ public class ActivityInstance {
   public void consumeTokens(int number)
   {
     activeTokens -= number;
+  }
+
+  public void setLatestState(TypedRecord<WorkflowInstanceRecord> state)
+  {
+    // TODO: copy record
+    this.latestState = state;
   }
 
   // TODO: could also simply make copies of the entire TypedRecord, if we want to access all properties anyway

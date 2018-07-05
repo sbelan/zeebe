@@ -1,4 +1,4 @@
-package io.zeebe.broker.workflow.processor.v2;
+package io.zeebe.model.bpmn.instance;
 
 public enum BpmnStep {
 
@@ -13,8 +13,12 @@ public enum BpmnStep {
   ACTIVATE_GATEWAY,
 
   TRIGGER_NONE_EVENT,
-  START_ACTIVITY,
 
   PARALLEL_MERGE,
+
+  START_ACTIVITY,
+  ACTIVATE_ACTIVITY,
+  COMPLETE_ACTIVITY,
+  CREATE_JOB,
 
 }

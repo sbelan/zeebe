@@ -7,7 +7,7 @@ import io.zeebe.broker.logstreams.processor.TypedRecord;
 import io.zeebe.broker.workflow.data.WorkflowInstanceRecord;
 import io.zeebe.broker.workflow.processor.v2.BpmnStepContext;
 import io.zeebe.broker.workflow.processor.v2.BpmnStepHandler;
-import io.zeebe.broker.workflow.processor.v2.RecordWriter;
+import io.zeebe.broker.workflow.processor.v2.Lifecycle;
 import io.zeebe.model.bpmn.instance.ServiceTask;
 import io.zeebe.msgpack.mapping.Mapping;
 import io.zeebe.msgpack.mapping.MappingException;
@@ -56,7 +56,7 @@ public class ActivateActivityHandler implements BpmnStepHandler<ServiceTask> {
         .setErrorType(ErrorType.CONDITION_ERROR)
         .setErrorMessage(message);
 
-    final RecordWriter writer = context.getRecordWriter();
+    final Lifecycle writer = context.getRecordWriter();
 
     if (record.getMetadata().hasIncidentKey())
     {

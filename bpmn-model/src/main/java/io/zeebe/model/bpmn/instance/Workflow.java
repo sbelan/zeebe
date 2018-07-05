@@ -18,6 +18,7 @@ package io.zeebe.model.bpmn.instance;
 import java.util.Collection;
 import java.util.Map;
 import org.agrona.DirectBuffer;
+import io.zeebe.protocol.intent.WorkflowInstanceIntent;
 
 public interface Workflow {
   boolean isExecutable();
@@ -31,4 +32,6 @@ public interface Workflow {
   Collection<FlowElement> getFlowElements();
 
   Map<DirectBuffer, FlowElement> getFlowElementMap();
+
+  BpmnStep getBpmnStep(WorkflowInstanceIntent intent);
 }

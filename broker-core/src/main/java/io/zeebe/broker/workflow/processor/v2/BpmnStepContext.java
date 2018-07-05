@@ -3,16 +3,18 @@ package io.zeebe.broker.workflow.processor.v2;
 import io.zeebe.broker.logstreams.processor.TypedRecord;
 import io.zeebe.broker.workflow.data.WorkflowInstanceRecord;
 import io.zeebe.model.bpmn.instance.FlowElement;
+import io.zeebe.model.bpmn.instance.Workflow;
 import io.zeebe.model.bpmn.instance.WorkflowDefinition;
+import io.zeebe.protocol.intent.WorkflowInstanceIntent;
 
 public class BpmnStepContext<T extends FlowElement> {
 
   private FlowElement element;
   private ActivityInstance activityInstance;
-  private WorkflowDefinition workflowDefinition;
+  private Workflow workflowDefinition;
   private WorkflowInstance workflowInstance;
   private TypedRecord<WorkflowInstanceRecord> currentRecord;
-  private RecordWriter recordWriter;
+  private Lifecycle<WorkflowInstanceIntent, WorkflowInstanceRecord> wfLifecycle;
 
   public ActivityInstance getActivityInstance()
   {
@@ -32,12 +34,12 @@ public class BpmnStepContext<T extends FlowElement> {
     this.element = element;
   }
 
-  public WorkflowDefinition getWorkflowDefinition()
+  public Workflow getWorkflow()
   {
     return workflowDefinition;
   }
 
-  public void setWorkflowDefinition(WorkflowDefinition workflowDefinition) {
+  public void setWorkflow(Workflow workflowDefinition) {
     this.workflowDefinition = workflowDefinition;
   }
 
@@ -64,7 +66,7 @@ public class BpmnStepContext<T extends FlowElement> {
     return currentRecord.getValue();
   }
 
-  public RecordWriter getRecordWriter() {
-    return recordWriter;
+  public Lifecycle<WorkflowInstanceIntent, WorkflowInstanceRecord> getRecordWriter() {
+    return lifecycle;
   }
 }
