@@ -58,7 +58,7 @@ public class WorkflowInstanceLifecycle implements Lifecycle<WorkflowInstanceInte
   }
 
   @Override
-  public void onEnter(TypedRecord<WorkflowInstanceRecord> record) {
+  public void process(RecordWriter recordWriter, TypedRecord<WorkflowInstanceRecord> record) {
     // TODO: select step handler and call
 
     final long workflowKey = record.getValue().getWorkflowKey();
@@ -66,13 +66,13 @@ public class WorkflowInstanceLifecycle implements Lifecycle<WorkflowInstanceInte
 
     if (deployedWorkflow == null) {
       // TODO: not garabge-free
-      fetchWorkflow(workflowKey, w -> callStepHandler(w, record), ctx);
+      fetchWorkflow(workflowKey, w -> callStepHandler(recordWriter, w, record), ctx);
     } else {
-      callStepHandler(deployedWorkflow, record);
+      callStepHandler(recordWriter, deployedWorkflow, record);
     }
   }
 
-  private void callStepHandler(DeployedWorkflow workflow, TypedRecord<WorkflowInstanceRecord> record)
+  private void callStepHandler(RecordWriter recordWriter, DeployedWorkflow workflow, TypedRecord<WorkflowInstanceRecord> record)
   {
     final WorkflowInstanceRecord value = record.getValue();
     final DirectBuffer activityId = value.getActivityId();
@@ -117,6 +117,7 @@ public class WorkflowInstanceLifecycle implements Lifecycle<WorkflowInstanceInte
       stepContext.setWorkflow(workflow.getWorkflow());
       stepContext.setWorkflowInstance(workflowInstance);
       stepContext.setActivityInstance(activityInstance);
+      stepContext.setRecordWriter(recordWriter);
       stepHandler.handle(stepContext);
     }
   }
@@ -153,15 +154,22 @@ public class WorkflowInstanceLifecycle implements Lifecycle<WorkflowInstanceInte
   }
 
   @Override
-  public void onPublish(TypedRecord<WorkflowInstanceRecord> context, long key,
-      WorkflowInstanceIntent intent, WorkflowInstanceRecord value) {
+  public void onPublish(long key, WorkflowInstanceIntent intent, WorkflowInstanceRecord value) {
 
+    final WorkflowInstance workflowInstance;
     switch (intent)
     {
+      case CREATED:
+        workflowInstances.newWorkflowInstance(key);
+        break;
       case ACTIVITY_READY:
-
-      default:
-        ;
+        workflowInstance = workflowInstances.getWorkflowInstance(value.getWorkflowInstanceKey());
+        workflowInstance.newActivityInstance(key);
+        break;
+      case ACTIVITY_COMPLETED:
+        workflowInstance = workflowInstances.getWorkflowInstance(value.getWorkflowInstanceKey());
+        workflowInstance.removeActivityInstance(key);
+        break;
     }
   }
 

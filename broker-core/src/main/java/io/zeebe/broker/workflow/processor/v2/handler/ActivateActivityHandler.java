@@ -8,6 +8,7 @@ import io.zeebe.broker.workflow.data.WorkflowInstanceRecord;
 import io.zeebe.broker.workflow.processor.v2.BpmnStepContext;
 import io.zeebe.broker.workflow.processor.v2.BpmnStepHandler;
 import io.zeebe.broker.workflow.processor.v2.Lifecycle;
+import io.zeebe.broker.workflow.processor.v2.RecordWriter;
 import io.zeebe.model.bpmn.instance.ServiceTask;
 import io.zeebe.msgpack.mapping.Mapping;
 import io.zeebe.msgpack.mapping.MappingException;
@@ -42,7 +43,7 @@ public class ActivateActivityHandler implements BpmnStepHandler<ServiceTask> {
 
     context.getActivityInstance().setPayload(value.getPayload());
 
-    context.getRecordWriter().publish(context.getCurrentRecord().getKey(),
+    context.getRecordWriter().publishEvent(context.getCurrentRecord().getKey(),
         WorkflowInstanceIntent.ACTIVITY_ACTIVATED,
         value);
   }
@@ -56,15 +57,15 @@ public class ActivateActivityHandler implements BpmnStepHandler<ServiceTask> {
         .setErrorType(ErrorType.CONDITION_ERROR)
         .setErrorMessage(message);
 
-    final Lifecycle writer = context.getRecordWriter();
+    final RecordWriter writer = context.getRecordWriter();
 
     if (record.getMetadata().hasIncidentKey())
     {
-      writer.publish(IncidentIntent.CREATE, incidentCommand);
+      writer.publishEvent(IncidentIntent.CREATE, incidentCommand);
     }
     else
     {
-      writer.publish(record.getMetadata().getIncidentKey(), IncidentIntent.RESOLVE_FAILED, incidentCommand);
+      writer.publishEvent(record.getMetadata().getIncidentKey(), IncidentIntent.RESOLVE_FAILED, incidentCommand);
     }
 
   }

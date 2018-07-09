@@ -9,6 +9,7 @@ import io.zeebe.broker.workflow.data.WorkflowInstanceRecord;
 import io.zeebe.broker.workflow.processor.v2.BpmnStepContext;
 import io.zeebe.broker.workflow.processor.v2.BpmnStepHandler;
 import io.zeebe.broker.workflow.processor.v2.Lifecycle;
+import io.zeebe.broker.workflow.processor.v2.RecordWriter;
 import io.zeebe.model.bpmn.instance.ExclusiveGateway;
 import io.zeebe.model.bpmn.instance.SequenceFlow;
 import io.zeebe.msgpack.el.CompiledJsonCondition;
@@ -50,7 +51,7 @@ public class ExclusiveSplitHandler implements BpmnStepHandler<ExclusiveGateway> 
     final WorkflowInstanceRecord value = context.getCurrentValue();
     value.setActivityId(sequenceFlow.getIdAsBuffer());
 
-    context.getRecordWriter().publish(WorkflowInstanceIntent.SEQUENCE_FLOW_TAKEN, value);
+    context.getRecordWriter().publishEvent(WorkflowInstanceIntent.SEQUENCE_FLOW_TAKEN, value);
   }
 
   private void raiseIncident(BpmnStepContext<ExclusiveGateway> context, String message) {
@@ -62,15 +63,15 @@ public class ExclusiveSplitHandler implements BpmnStepHandler<ExclusiveGateway> 
         .setErrorType(ErrorType.CONDITION_ERROR)
         .setErrorMessage(message);
 
-    final Lifecycle writer = context.getRecordWriter();
+    final RecordWriter writer = context.getRecordWriter();
 
     if (record.getMetadata().hasIncidentKey())
     {
-      writer.publish(IncidentIntent.CREATE, incidentCommand);
+      writer.publishCommand(IncidentIntent.CREATE, incidentCommand);
     }
     else
     {
-      writer.publish(record.getMetadata().getIncidentKey(), IncidentIntent.RESOLVE_FAILED, incidentCommand);
+      writer.publishEvent(record.getMetadata().getIncidentKey(), IncidentIntent.RESOLVE_FAILED, incidentCommand);
     }
   }
 

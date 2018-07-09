@@ -17,6 +17,6 @@ public class StartActivityHandler implements BpmnStepHandler<SequenceFlow> {
     final WorkflowInstanceRecord value = context.getCurrentValue();
     value.setActivityId(targetNode.getIdAsBuffer());
 
-    context.getRecordWriter().publish(WorkflowInstanceIntent.ACTIVITY_READY, value);
+    context.getRecordWriter().publishEvent(WorkflowInstanceIntent.ACTIVITY_READY, value);
   }
 }

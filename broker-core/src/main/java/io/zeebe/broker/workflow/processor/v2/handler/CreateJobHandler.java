@@ -39,7 +39,7 @@ public class CreateJobHandler implements BpmnStepHandler<ServiceTask> {
       jobCommand.setCustomHeaders(customHeaders.asMsgpackEncoded());
     }
 
-    context.getRecordWriter().publish(JobIntent.CREATE, jobCommand);
+    context.getRecordWriter().publishCommand(JobIntent.CREATE, jobCommand);
   }
 
 }

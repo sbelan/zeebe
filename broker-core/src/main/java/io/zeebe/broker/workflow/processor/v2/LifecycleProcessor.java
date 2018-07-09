@@ -22,7 +22,7 @@ public class LifecycleProcessor implements StreamProcessor, EventProcessor {
 
   private final RecordMetadata metadata = new RecordMetadata();
 
-  private EnumMap<ValueType, LifecycleHandler<?, ?>> lifecycles = new EnumMap<>(ValueType.class);
+  private EnumMap<ValueType, Lifecycle<?, ?>> lifecycles = new EnumMap<>(ValueType.class);
   private final EnumMap<ValueType, UnpackedObject> eventCache;
 
   private TypedStreamEnvironment environment;
@@ -30,8 +30,10 @@ public class LifecycleProcessor implements StreamProcessor, EventProcessor {
   private TypedStreamWriter streamWriter;
 
   // record processing context
-  private LifecycleHandler<?, ?> selectedHandler;
+  private Lifecycle<?, ?> selectedLifecycle;
   protected final TypedEventImpl typedEvent = new TypedEventImpl();
+
+  private final RecordWriter writer;
 
   public LifecycleProcessor(TypedStreamEnvironment environment, int partition)
   {
@@ -40,14 +42,12 @@ public class LifecycleProcessor implements StreamProcessor, EventProcessor {
     this.responseWriter = new TypedResponseWriterImpl(environment.getOutput(), partition);
     eventCache = new EnumMap<>(ValueType.class);
     environment.getEventRegistry().forEach((t, c) -> eventCache.put(t, ReflectUtil.newInstance(c)));
+    this.writer = new RecordWriter();
   }
 
   public void addLifecycle(ValueType type, Lifecycle<?, ?> lifecycle)
   {
-    lifecycles.put(type, new LifecycleHandler<>(
-        lifecycle,
-        streamWriter,
-        responseWriter));
+    lifecycles.put(type, lifecycle);
   }
 
   @Override
@@ -59,13 +59,15 @@ public class LifecycleProcessor implements StreamProcessor, EventProcessor {
   @Override
   public EventProcessor onEvent(LoggedEvent event) {
 
+    writer.reset();
+
     metadata.wrap(event.getMetadata(), event.getMetadataOffset(), event.getMetadataLength());
 
     final ValueType valueType = metadata.getValueType();
 
     if (lifecycles.containsKey(valueType))
     {
-      selectedHandler = lifecycles.get(valueType);
+      selectedLifecycle = lifecycles.get(valueType);
       final UnpackedObject value = eventCache.get(valueType);
       value.wrap(event.getValueBuffer(), event.getValueOffset(), event.getValueLength());
 
@@ -81,17 +83,17 @@ public class LifecycleProcessor implements StreamProcessor, EventProcessor {
 
   @Override
   public void processEvent(EventLifecycleContext ctx) {
-    selectedHandler.setContext(typedEvent);
+    selectedLifecycle.process(writer, typedEvent);
   }
 
   @Override
   public long writeEvent(LogStreamWriter writer) {
-    return selectedHandler.flushEvents();
+    return this.writer.flushEvents();
   }
 
   @Override
   public boolean executeSideEffects() {
-    return selectedHandler.flushSideEffects();
+    return writer.flushSideEffects();
   }
 
 }

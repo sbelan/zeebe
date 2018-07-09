@@ -22,7 +22,7 @@ public class ConsumeTokenHandler implements BpmnStepHandler<FlowElement> {
     if (rootScope.getActiveTokens() == 0)
     {
       value.setActivityId("");
-      context.getRecordWriter().publish(value.getWorkflowInstanceKey(), WorkflowInstanceIntent.COMPLETED, value);
+      context.getRecordWriter().publishEvent(value.getWorkflowInstanceKey(), WorkflowInstanceIntent.COMPLETED, value);
     }
   }
 

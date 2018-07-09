@@ -17,7 +17,7 @@ public class TriggerNoneEventHandler implements BpmnStepHandler<SequenceFlow> {
     final WorkflowInstanceRecord value = context.getCurrentValue();
     value.setActivityId(targetNode.getIdAsBuffer());
 
-    context.getRecordWriter().publish(WorkflowInstanceIntent.END_EVENT_OCCURRED, value);
+    context.getRecordWriter().publishEvent(WorkflowInstanceIntent.END_EVENT_OCCURRED, value);
   }
 
 }

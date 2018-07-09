@@ -7,9 +7,9 @@ import io.zeebe.util.sched.ActorControl;
 
 public interface Lifecycle<I extends Enum<I> & Intent, V extends UnpackedObject> {
 
-  void onEnter(TypedRecord<V> value);
+  void process(RecordWriter recordWriter, TypedRecord<V> record);
 
-  void onPublish(TypedRecord<V> context, long key, I intent, V value);
+  void onPublish(long key, I intent, V value);
 
   // TODO: consolidate with StreamProcessorLifecycleAware
   void onOpen(ActorControl streamProcessorActor);

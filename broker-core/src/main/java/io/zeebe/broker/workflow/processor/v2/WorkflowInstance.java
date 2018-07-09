@@ -28,4 +28,9 @@ public class WorkflowInstance {
     return activityInstances.get(activityInstanceKey);
 
   }
+
+  public void removeActivityInstance(long key) {
+    // TODO Auto-generated method stub
+
+  }
 }
