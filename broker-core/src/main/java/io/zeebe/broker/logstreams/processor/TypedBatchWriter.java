@@ -18,6 +18,7 @@
 package io.zeebe.broker.logstreams.processor;
 
 import io.zeebe.msgpack.UnpackedObject;
+import io.zeebe.protocol.clientapi.RecordType;
 import io.zeebe.protocol.impl.RecordMetadata;
 import io.zeebe.protocol.intent.Intent;
 import java.util.function.Consumer;
@@ -30,6 +31,8 @@ public interface TypedBatchWriter {
   TypedBatchWriter addNewEvent(Intent intent, UnpackedObject value);
 
   TypedBatchWriter addFollowUpEvent(long key, Intent intent, UnpackedObject value);
+
+  TypedBatchWriter addRecord(RecordType recordType, long key, Intent intent, UnpackedObject value);
 
   TypedBatchWriter addFollowUpEvent(
       long key, Intent intent, UnpackedObject value, Consumer<RecordMetadata> metadata);

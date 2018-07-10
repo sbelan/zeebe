@@ -26,6 +26,7 @@ import io.zeebe.broker.incident.processor.IncidentStreamProcessor;
 import io.zeebe.broker.logstreams.processor.StreamProcessorServiceFactory;
 import io.zeebe.broker.logstreams.processor.TypedStreamEnvironment;
 import io.zeebe.broker.workflow.processor.WorkflowInstanceStreamProcessor;
+import io.zeebe.broker.workflow.processor.v2.LifecycleProcessor;
 import io.zeebe.servicecontainer.Injector;
 import io.zeebe.servicecontainer.Service;
 import io.zeebe.servicecontainer.ServiceGroupReference;
@@ -68,15 +69,24 @@ public class WorkflowStreamProcessingManagerService
       Partition partition, ServiceName<Partition> partitionServiceName) {
     final ServerTransport transport = clientApiTransportInjector.getValue();
 
-    final WorkflowInstanceStreamProcessor streamProcessor =
-        new WorkflowInstanceStreamProcessor(
-            managementApiClientInjector.getValue(), topologyManager, PAYLOAD_CACHE_SIZE);
+
+//    final WorkflowInstanceStreamProcessor streamProcessor =
+//        new WorkflowInstanceStreamProcessor(
+//            managementApiClientInjector.getValue(), topologyManager, PAYLOAD_CACHE_SIZE);
     final TypedStreamEnvironment env =
         new TypedStreamEnvironment(partition.getLogStream(), transport.getOutput());
 
+    final LifecycleProcessor processor = new LifecycleProcessor(
+        env,
+        partition.getInfo().getPartitionId(),
+        topologyManager,
+        managementApiClientInjector.getValue()
+        );
+
     streamProcessorServiceFactory
         .createService(partition, partitionServiceName)
-        .processor(streamProcessor.createStreamProcessor(env))
+//        .processor(streamProcessor.createStreamProcessor(env))
+        .processor(processor)
         .processorId(WORKFLOW_INSTANCE_PROCESSOR_ID)
         .processorName("workflow-instance")
         .build();

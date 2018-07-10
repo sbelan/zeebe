@@ -28,6 +28,7 @@ import io.zeebe.client.impl.record.RecordImpl;
 import io.zeebe.client.impl.subscription.SubscriptionManager;
 import io.zeebe.util.CheckedConsumer;
 import io.zeebe.util.EnsureUtil;
+import io.zeebe.util.collection.BiEnumMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import org.agrona.collections.Long2LongHashMap;

@@ -20,8 +20,11 @@ import io.zeebe.logstreams.processor.EventLifecycleContext;
 import io.zeebe.model.bpmn.instance.BpmnStep;
 import io.zeebe.model.bpmn.instance.FlowElement;
 import io.zeebe.msgpack.UnpackedObject;
+import io.zeebe.protocol.clientapi.RecordType;
+import io.zeebe.protocol.impl.RecordMetadata;
 import io.zeebe.protocol.intent.WorkflowInstanceIntent;
 import io.zeebe.transport.ClientResponse;
+import io.zeebe.util.collection.BiEnumMap;
 import io.zeebe.util.sched.ActorControl;
 import io.zeebe.util.sched.future.ActorFuture;
 import io.zeebe.util.sched.future.CompletableActorFuture;
@@ -31,10 +34,12 @@ public class WorkflowInstanceLifecycle implements Lifecycle<WorkflowInstanceInte
   private final WorkflowCache workflowCache;
   private final EnumMap<BpmnStep, BpmnStepHandler<?>> stepHandlers;
   private final WorkflowInstances workflowInstances;
+  private final BiEnumMap<RecordType, WorkflowInstanceIntent, RecordHandler<WorkflowInstanceRecord>> recordHandlers =
+      new BiEnumMap<>(RecordType.class, WorkflowInstanceIntent.class, RecordHandler.class);
 
   private ActorControl actor;
 
-  public WorkflowInstanceLifecycle(WorkflowCache workflowCache)
+  public WorkflowInstanceLifecycle(WorkflowCache workflowCache, WorkflowInstances workflowInstances)
   {
     stepHandlers = new EnumMap<>(BpmnStep.class);
     stepHandlers.put(BpmnStep.ACTIVATE_GATEWAY, new ActivateGatewayHandler());
@@ -50,6 +55,7 @@ public class WorkflowInstanceLifecycle implements Lifecycle<WorkflowInstanceInte
     stepHandlers.put(BpmnStep.COMPLETE_ACTIVITY, new CompleteActivityHandler());
 
     this.workflowCache = workflowCache;
+    this.workflowInstances = workflowInstances;
   }
 
   @Override
@@ -57,9 +63,23 @@ public class WorkflowInstanceLifecycle implements Lifecycle<WorkflowInstanceInte
     this.actor = streamProcessorActor;
   }
 
+  // TODO: hier erstmal einfach den Kontext reingeben
   @Override
-  public void process(RecordWriter recordWriter, TypedRecord<WorkflowInstanceRecord> record) {
+  public void process(RecordWriter recordWriter, TypedRecord<WorkflowInstanceRecord> record, EventLifecycleContext ctx) {
     // TODO: select step handler and call
+
+    final RecordMetadata metadata = record.getMetadata();
+
+    final RecordHandler<WorkflowInstanceRecord> handler = recordHandlers.get(metadata.getRecordType(), (WorkflowInstanceIntent) metadata.getIntent());
+
+    if (handler != null)
+    {
+      callRecordHandler(handler);
+    }
+    else
+    {
+      callStepHandler();
+    }
 
     final long workflowKey = record.getValue().getWorkflowKey();
     final DeployedWorkflow deployedWorkflow = workflowCache.getWorkflowByKey(workflowKey);

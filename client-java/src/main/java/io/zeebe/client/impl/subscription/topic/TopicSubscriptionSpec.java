@@ -21,6 +21,7 @@ import io.zeebe.client.api.subscription.RecordHandler;
 import io.zeebe.client.cmd.ClientException;
 import io.zeebe.client.impl.record.*;
 import io.zeebe.util.CheckedConsumer;
+import io.zeebe.util.collection.BiEnumMap;
 import org.agrona.collections.Long2LongHashMap;
 
 public class TopicSubscriptionSpec {

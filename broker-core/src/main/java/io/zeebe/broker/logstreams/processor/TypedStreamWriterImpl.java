@@ -196,6 +196,12 @@ public class TypedStreamWriterImpl implements TypedStreamWriter, TypedBatchWrite
     return addRecord(key, RecordType.EVENT, intent, value, metadata);
   }
 
+  @Override
+  public TypedBatchWriter addRecord(RecordType recordType, long key, Intent intent,
+      UnpackedObject value) {
+    return addRecord(key, recordType, intent, value, noop);
+  }
+
   private TypedBatchWriter addRecord(
       long key,
       RecordType type,

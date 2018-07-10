@@ -20,7 +20,7 @@ import io.zeebe.client.api.events.*;
 import io.zeebe.client.api.record.*;
 import io.zeebe.client.impl.command.*;
 import io.zeebe.client.impl.event.*;
-import io.zeebe.client.impl.subscription.topic.BiEnumMap;
+import io.zeebe.util.collection.BiEnumMap;
 import java.util.HashMap;
 import java.util.Map;
 
