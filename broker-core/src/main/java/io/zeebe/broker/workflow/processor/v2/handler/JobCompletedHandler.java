@@ -36,8 +36,16 @@ public class JobCompletedHandler implements RecordHandler<JobRecord> {
       if (workflowInstance != null)
       {
         final ActivityInstance activityInstance = workflowInstance.getActivityInstance(jobHeaders.getActivityInstanceKey());
-        if (activityInstance != null) // && assert it is active
+        if (activityInstance != null)
         {
+          workflowInstanceEvent
+            .setBpmnProcessId(jobHeaders.getBpmnProcessId())
+            .setVersion(jobHeaders.getWorkflowDefinitionVersion())
+            .setWorkflowKey(jobHeaders.getWorkflowKey())
+            .setWorkflowInstanceKey(jobHeaders.getWorkflowInstanceKey())
+            .setActivityId(jobHeaders.getActivityId())
+            .setPayload(jobEvent.getPayload());
+
           recordWriter.publishEvent(activityInstanceKey,
               WorkflowInstanceIntent.ACTIVITY_COMPLETING,
               workflowInstanceEvent);

@@ -32,9 +32,10 @@ public class NewWorkflowInstanceStreamProcessor {
     final WorkflowCache wfCache =
         new WorkflowCache(managementApiClient, topologyManager, environment.getStream().getTopicName());
     final WorkflowInstances wfInstances = new WorkflowInstances();
+    final KeyGenerator keyGenerator = new KeyGenerator();
 
     final DelegatingRecordProcessor<WorkflowInstanceRecord> stepProcessor = new DelegatingRecordProcessor<>(
-          environment, new BpmnStepRecordProcessor(wfCache, wfInstances));
+          environment, keyGenerator, new BpmnStepRecordProcessor(wfCache, wfInstances));
 
     // TODO: the handlers could be organized in packages according to the entity types they handle (activity instance, workflow instance, ..)
 
@@ -43,15 +44,15 @@ public class NewWorkflowInstanceStreamProcessor {
         .onCommand(
             ValueType.WORKFLOW_INSTANCE,
             WorkflowInstanceIntent.CREATE,
-            new DelegatingRecordProcessor<>(environment, new CreateWorkflowInstanceProcessor(wfCache, wfInstances)))
+            new DelegatingRecordProcessor<>(environment, keyGenerator, new CreateWorkflowInstanceProcessor(wfCache, wfInstances)))
         .onEvent(
             ValueType.WORKFLOW_INSTANCE,
             WorkflowInstanceIntent.CREATED,
-            new DelegatingRecordProcessor<>(environment, new WorkflowInstanceCreatedProcessor()))
+            new DelegatingRecordProcessor<>(environment, keyGenerator, new WorkflowInstanceCreatedProcessor()))
         .onRejection(
             ValueType.WORKFLOW_INSTANCE,
             WorkflowInstanceIntent.CREATE,
-            new DelegatingRecordProcessor<>(environment, new WorkflowInstanceRejectedProcessor()))
+            new DelegatingRecordProcessor<>(environment, keyGenerator, new WorkflowInstanceRejectedProcessor()))
 //        .onCommand(
 //            ValueType.WORKFLOW_INSTANCE,
 //            WorkflowInstanceIntent.CANCEL,
@@ -103,7 +104,7 @@ public class NewWorkflowInstanceStreamProcessor {
 //            (Consumer<WorkflowInstanceRecord>)
 //                (e) -> workflowInstanceEventCompleted.incrementOrdered())
 //        .onEvent(ValueType.JOB, JobIntent.CREATED, new JobCreatedProcessor())
-        .onEvent(ValueType.JOB, JobIntent.COMPLETED, new DelegatingRecordProcessor<>(environment, new JobCompletedHandler(wfInstances)))
+        .onEvent(ValueType.JOB, JobIntent.COMPLETED, new DelegatingRecordProcessor<>(environment, keyGenerator, new JobCompletedHandler(wfInstances)))
 //        .withStateResource(workflowInstanceIndex.getMap())
 //        .withStateResource(activityInstanceMap.getMap())
 //        .withStateResource(payloadCache.getMap())

@@ -3,7 +3,6 @@ package io.zeebe.broker.workflow.processor.v2;
 import java.util.function.Consumer;
 import io.zeebe.broker.logstreams.processor.TypedBatchWriter;
 import io.zeebe.broker.logstreams.processor.TypedRecord;
-import io.zeebe.broker.logstreams.processor.TypedStreamWriter;
 import io.zeebe.broker.logstreams.processor.TypedStreamWriterImpl;
 import io.zeebe.msgpack.UnpackedObject;
 import io.zeebe.protocol.clientapi.RecordType;
@@ -23,9 +22,9 @@ public class RecordWriter {
   private TypedBatchWriter batchWriter;
   private int numStagedRecords;
 
-  public RecordWriter(TypedStreamWriterImpl streamWriter, ResponseWriter responseWriter)
+  public RecordWriter(KeyGenerator keyGenerator, TypedStreamWriterImpl streamWriter, ResponseWriter responseWriter)
   {
-    this.keyGenerator = new KeyGenerator();
+    this.keyGenerator = keyGenerator;
     this.streamWriter = streamWriter;
     this.responseWriter = responseWriter;
   }

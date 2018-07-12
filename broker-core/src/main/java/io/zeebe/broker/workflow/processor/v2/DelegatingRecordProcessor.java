@@ -18,8 +18,8 @@ public class DelegatingRecordProcessor<T extends UnpackedObject> implements Type
   // TODO: when consolidating stream processor, this must go away
   private int producerId;
 
-  public DelegatingRecordProcessor(TypedStreamEnvironment env, RecordHandler<T> handler) {
-    this.writer = new RecordWriter((TypedStreamWriterImpl) env.getStreamWriter(), new ResponseWriter(env.getOutput(), env.getStream().getPartitionId()));
+  public DelegatingRecordProcessor(TypedStreamEnvironment env, KeyGenerator keyGenerator, RecordHandler<T> handler) {
+    this.writer = new RecordWriter(keyGenerator, (TypedStreamWriterImpl) env.getStreamWriter(), new ResponseWriter(env.getOutput(), env.getStream().getPartitionId()));
     this.handler = handler;
   }
 
