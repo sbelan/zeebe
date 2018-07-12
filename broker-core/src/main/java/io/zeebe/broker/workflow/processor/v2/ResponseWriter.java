@@ -50,12 +50,15 @@ public class ResponseWriter {
   {
     final RecordMetadata metadata = record.getMetadata();
 
+    // this differentiation is required because we do not always send a response on the command
+    // => https://github.com/zeebe-io/zeebe/issues/1040
+    final boolean basedOnCommand = record.getMetadata().getRecordType() == RecordType.COMMAND;
+
     writer
         .partitionId(partitionId)
-        .position(0) // TODO: this depends on the value of written event =>
+        .position(basedOnCommand ? 0 : record.getPosition()) // TODO: this depends on the value of written event =>
         // https://github.com/zeebe-io/zeebe/issues/374
-        // TODO: must set source position correctly, based on if we are sending on COMMAND or EVENT
-        .sourcePosition(record.getPosition())
+        .sourcePosition(basedOnCommand ? record.getPosition() : record.getSourcePosition())
         .key(record.getKey())
         .timestamp(record.getTimestamp())
         .intent(intent)

@@ -1,11 +1,10 @@
 package io.zeebe.broker.workflow.processor.v2;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.function.Consumer;
 import io.zeebe.broker.logstreams.processor.TypedBatchWriter;
 import io.zeebe.broker.logstreams.processor.TypedRecord;
 import io.zeebe.broker.logstreams.processor.TypedStreamWriter;
+import io.zeebe.broker.logstreams.processor.TypedStreamWriterImpl;
 import io.zeebe.msgpack.UnpackedObject;
 import io.zeebe.protocol.clientapi.RecordType;
 import io.zeebe.protocol.clientapi.RejectionType;
@@ -16,16 +15,15 @@ public class RecordWriter {
 
   private static final Consumer<RecordMetadata> DO_NOTHING = m -> {};
 
-  private Map<Class<?>, Lifecycle<?, ?>> lifecycles = new HashMap<>();
   private final KeyGenerator keyGenerator; // TODO: must be part of snapshotted state
 
-  private final TypedStreamWriter streamWriter;
+  private final TypedStreamWriterImpl streamWriter;
   private final ResponseWriter responseWriter;
 
   private TypedBatchWriter batchWriter;
   // TODO: Must be able to stage the response
 
-  public RecordWriter(TypedStreamWriter streamWriter, ResponseWriter responseWriter)
+  public RecordWriter(TypedStreamWriterImpl streamWriter, ResponseWriter responseWriter)
   {
     this.keyGenerator = new KeyGenerator();
     this.streamWriter = streamWriter;
@@ -33,8 +31,9 @@ public class RecordWriter {
   }
 
 
-  public void reset()
+  public void reset(int producerId, long sourceRecordPosition)
   {
+    streamWriter.configureSourceContext(producerId, sourceRecordPosition);
     batchWriter = streamWriter.newBatch();
   }
 
@@ -82,10 +81,6 @@ public class RecordWriter {
   private void publishRecord(long key, Intent intent, UnpackedObject value, RecordType recordType, Consumer<RecordMetadata> metadata)
   {
     batchWriter.addRecord(recordType, key, intent, value, metadata);
-
-    final Lifecycle lifecycle = lifecycles.get(value.getClass());
-
-    lifecycle.onPublish(key, (Enum) intent, value);
   }
 
   public void sendAccept(TypedRecord<?> record, Intent intent)

@@ -115,7 +115,7 @@ public class CreateWorkflowInstanceTest {
     final SubscribedRecord createWorkflowCommand =
         testClient.receiveFirstWorkflowInstanceCommand(CREATE);
 
-    assertThat(resp.key()).isEqualTo(createWorkflowCommand.position());
+    assertThat(resp.key()).isGreaterThan(0);
     assertThat(resp.position()).isGreaterThan(createWorkflowCommand.position());
     assertThat(resp.sourceRecordPosition()).isEqualTo(createWorkflowCommand.position());
     assertThat(resp.partitionId()).isEqualTo(apiRule.getDefaultPartitionId());
@@ -123,7 +123,7 @@ public class CreateWorkflowInstanceTest {
     assertThat(resp.getValue())
         .containsEntry(PROP_WORKFLOW_BPMN_PROCESS_ID, "process")
         .containsEntry(PROP_WORKFLOW_VERSION, 1)
-        .containsEntry(PROP_WORKFLOW_INSTANCE_KEY, resp.key());
+        .containsEntry(PROP_WORKFLOW_INSTANCE_KEY, (int) resp.key());
   }
 
   @Test
@@ -161,7 +161,7 @@ public class CreateWorkflowInstanceTest {
 
     assertThat(event.value())
         .containsEntry(PROP_WORKFLOW_BPMN_PROCESS_ID, "process")
-        .containsEntry(PROP_WORKFLOW_INSTANCE_KEY, resp.key())
+        .containsEntry(PROP_WORKFLOW_INSTANCE_KEY, (int) resp.key())
         .containsEntry(PROP_WORKFLOW_ACTIVITY_ID, "bar")
         .containsEntry(PROP_WORKFLOW_VERSION, 2)
         .containsEntry(PROP_WORKFLOW_KEY, workflowKey);
@@ -202,7 +202,7 @@ public class CreateWorkflowInstanceTest {
 
     assertThat(event.value())
         .containsEntry(PROP_WORKFLOW_BPMN_PROCESS_ID, "process")
-        .containsEntry(PROP_WORKFLOW_INSTANCE_KEY, resp.key())
+        .containsEntry(PROP_WORKFLOW_INSTANCE_KEY, (int) resp.key())
         .containsEntry(PROP_WORKFLOW_ACTIVITY_ID, "foo")
         .containsEntry(PROP_WORKFLOW_VERSION, 1)
         .containsEntry(PROP_WORKFLOW_KEY, workflowKey);
@@ -238,7 +238,7 @@ public class CreateWorkflowInstanceTest {
         .containsEntry(PROP_WORKFLOW_BPMN_PROCESS_ID, "process")
         .containsEntry(PROP_WORKFLOW_VERSION, 2)
         .containsEntry(PROP_WORKFLOW_KEY, workflowKey)
-        .containsEntry(PROP_WORKFLOW_INSTANCE_KEY, resp.key());
+        .containsEntry(PROP_WORKFLOW_INSTANCE_KEY, (int) resp.key());
   }
 
   @Test
@@ -271,7 +271,7 @@ public class CreateWorkflowInstanceTest {
         .containsEntry(PROP_WORKFLOW_BPMN_PROCESS_ID, "process")
         .containsEntry(PROP_WORKFLOW_VERSION, 1)
         .containsEntry(PROP_WORKFLOW_KEY, workflowKey)
-        .containsEntry(PROP_WORKFLOW_INSTANCE_KEY, resp.key());
+        .containsEntry(PROP_WORKFLOW_INSTANCE_KEY, (int) resp.key());
   }
 
   @Test
@@ -295,14 +295,14 @@ public class CreateWorkflowInstanceTest {
     final SubscribedRecord createWorkflowCommand =
         testClient.receiveFirstWorkflowInstanceCommand(CREATE);
 
-    assertThat(resp.key()).isEqualTo(createWorkflowCommand.position());
+    assertThat(resp.key()).isGreaterThan(0);
     assertThat(resp.position()).isGreaterThan(createWorkflowCommand.position());
     assertThat(resp.sourceRecordPosition()).isEqualTo(createWorkflowCommand.position());
     assertThat(resp.partitionId()).isEqualTo(apiRule.getDefaultPartitionId());
     assertThat(resp.intent()).isEqualTo(CREATED);
     assertThat(resp.getValue())
         .containsEntry(PROP_WORKFLOW_BPMN_PROCESS_ID, "process")
-        .containsEntry(PROP_WORKFLOW_INSTANCE_KEY, resp.key())
+        .containsEntry(PROP_WORKFLOW_INSTANCE_KEY, (int) resp.key())
         .containsEntry(PROP_WORKFLOW_VERSION, 1)
         .containsEntry(PROP_WORKFLOW_PAYLOAD, MSGPACK_PAYLOAD);
   }
@@ -551,7 +551,7 @@ public class CreateWorkflowInstanceTest {
 
     assertThat(workflowInstanceEvent.value())
         .containsEntry("bpmnProcessId", "yaml-workflow")
-        .containsEntry("workflowInstanceKey", workflowInstanceKey);
+        .containsEntry("workflowInstanceKey", (int) workflowInstanceKey);
   }
 
   @Test
