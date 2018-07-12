@@ -15,25 +15,39 @@
  */
 package io.zeebe.model.bpmn.impl.transformation;
 
-import io.zeebe.model.bpmn.BpmnAspect;
-import io.zeebe.model.bpmn.impl.error.ErrorCollector;
-import io.zeebe.model.bpmn.impl.instance.FlowElementImpl;
-import io.zeebe.model.bpmn.impl.instance.ProcessImpl;
-import io.zeebe.model.bpmn.impl.instance.StartEventImpl;
-import io.zeebe.model.bpmn.impl.transformation.nodes.ExclusiveGatewayTransformer;
-import io.zeebe.model.bpmn.impl.transformation.nodes.SequenceFlowTransformer;
-import io.zeebe.model.bpmn.impl.transformation.nodes.task.ServiceTaskTransformer;
-import io.zeebe.model.bpmn.instance.ExclusiveGateway;
-import io.zeebe.model.bpmn.instance.FlowElement;
-import io.zeebe.model.bpmn.instance.FlowNode;
-import io.zeebe.model.bpmn.instance.SequenceFlow;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.agrona.DirectBuffer;
+import io.zeebe.model.bpmn.impl.error.ErrorCollector;
+import io.zeebe.model.bpmn.impl.instance.EndEventImpl;
+import io.zeebe.model.bpmn.impl.instance.ExclusiveGatewayImpl;
+import io.zeebe.model.bpmn.impl.instance.FlowElementImpl;
+import io.zeebe.model.bpmn.impl.instance.ProcessImpl;
+import io.zeebe.model.bpmn.impl.instance.SequenceFlowImpl;
+import io.zeebe.model.bpmn.impl.instance.ServiceTaskImpl;
+import io.zeebe.model.bpmn.impl.instance.StartEventImpl;
+import io.zeebe.model.bpmn.impl.transformation.nodes.ExclusiveGatewayTransformer;
+import io.zeebe.model.bpmn.impl.transformation.nodes.SequenceFlowTransformer;
+import io.zeebe.model.bpmn.impl.transformation.nodes.task.ServiceTaskTransformer;
+import io.zeebe.model.bpmn.instance.FlowElement;
+import io.zeebe.model.bpmn.instance.FlowNode;
 
 public class ProcessTransformer {
+
+  private static final Map<Class<?>, ElementLifecycleFactory> LIFECYCLE_FACTORIES = new HashMap<>();
+
+  static
+  {
+    LIFECYCLE_FACTORIES.put(StartEventImpl.class, new NoneStartEventLifecycleFactory());
+    LIFECYCLE_FACTORIES.put(EndEventImpl.class, new NoneEndEventLifecycleFactory());
+    LIFECYCLE_FACTORIES.put(ServiceTaskImpl.class, new ServiceTaskLifecycleFactory());
+    LIFECYCLE_FACTORIES.put(ExclusiveGatewayImpl.class, new ExclusiveGatewayLifecycleFactory());
+    LIFECYCLE_FACTORIES.put(SequenceFlowImpl.class, new SequenceFlowLifecycleFactory());
+  }
+
   private final SequenceFlowTransformer sequenceFlowTransformer = new SequenceFlowTransformer();
   private final ServiceTaskTransformer serviceTaskTransformer = new ServiceTaskTransformer();
   private final ExclusiveGatewayTransformer exclusiveGatewayTransformer =
@@ -52,7 +66,7 @@ public class ProcessTransformer {
     serviceTaskTransformer.transform(errorCollector, process.getServiceTasks());
     exclusiveGatewayTransformer.transform(process.getExclusiveGateways());
 
-    transformBpmnAspects(process);
+    transformStepLifecycle(process);
   }
 
   private List<FlowElementImpl> collectFlowElements(final ProcessImpl process) {
@@ -82,24 +96,14 @@ public class ProcessTransformer {
     }
   }
 
-  private void transformBpmnAspects(ProcessImpl process) {
+  private void transformStepLifecycle(ProcessImpl process) {
     final List<FlowElement> flowElements = process.getFlowElements();
     for (int f = 0; f < flowElements.size(); f++) {
       final FlowElementImpl flowElement = (FlowElementImpl) flowElements.get(f);
 
-      if (flowElement instanceof FlowNode) {
-        final FlowNode flowNode = (FlowNode) flowElement;
-
-        final List<SequenceFlow> outgoingSequenceFlows = flowNode.getOutgoingSequenceFlows();
-        if (outgoingSequenceFlows.isEmpty()) {
-          flowElement.setBpmnAspect(BpmnAspect.CONSUME_TOKEN);
-        } else if (outgoingSequenceFlows.size() == 1
-            && !outgoingSequenceFlows.get(0).hasCondition()) {
-          flowElement.setBpmnAspect(BpmnAspect.TAKE_SEQUENCE_FLOW);
-        } else if (flowElement instanceof ExclusiveGateway) {
-          flowElement.setBpmnAspect(BpmnAspect.EXCLUSIVE_SPLIT);
-        }
-      }
+      final ElementLifecycleFactory lifecycleFactory = LIFECYCLE_FACTORIES.get(flowElement.getClass());
+      final EnumMap steps = lifecycleFactory.buildLifecycle(flowElement);
+      flowElement.setBpmnSteps(steps);
     }
   }
 }

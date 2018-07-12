@@ -17,10 +17,12 @@ package io.zeebe.model.bpmn.impl.instance;
 
 import static io.zeebe.util.buffer.BufferUtil.bufferAsString;
 import static io.zeebe.util.buffer.BufferUtil.wrapString;
-
+import java.util.EnumMap;
 import io.zeebe.model.bpmn.BpmnAspect;
 import io.zeebe.model.bpmn.BpmnConstants;
+import io.zeebe.model.bpmn.instance.BpmnStep;
 import io.zeebe.model.bpmn.instance.FlowElement;
+import io.zeebe.protocol.intent.WorkflowInstanceIntent;
 import javax.xml.bind.annotation.*;
 import org.agrona.DirectBuffer;
 
@@ -31,6 +33,7 @@ public class FlowElementImpl extends BaseElement implements FlowElement {
   private ExtensionElementsImpl extensionElements;
 
   private BpmnAspect bpmnAspect = BpmnAspect.NONE;
+  private EnumMap<WorkflowInstanceIntent, BpmnStep> steps;
 
   @XmlID
   @XmlAttribute(name = BpmnConstants.BPMN_ATTRIBUTE_ID, required = true)
@@ -72,13 +75,14 @@ public class FlowElementImpl extends BaseElement implements FlowElement {
   }
 
   @Override
-  public BpmnAspect getBpmnAspect() {
-    return bpmnAspect;
+  public BpmnStep getBpmnStep(WorkflowInstanceIntent intent) {
+    return steps.get(intent);
   }
 
   @XmlTransient
-  public void setBpmnAspect(BpmnAspect bpmnAspect) {
-    this.bpmnAspect = bpmnAspect;
+  public void setBpmnSteps(EnumMap<WorkflowInstanceIntent, BpmnStep> steps)
+  {
+    this.steps = steps;
   }
 
   @Override

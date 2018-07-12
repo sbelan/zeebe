@@ -89,8 +89,7 @@ public class BpmnStepRecordProcessor implements RecordHandler<WorkflowInstanceRe
     }
     else
     {
-      element = null;
-      step = workflow.getWorkflow().getBpmnStep((WorkflowInstanceIntent) record.getMetadata().getIntent());
+      return;
     }
 
     final BpmnStepHandler<?> stepHandler = stepHandlers.get(step);

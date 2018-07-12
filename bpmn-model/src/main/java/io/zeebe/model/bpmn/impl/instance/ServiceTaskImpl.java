@@ -18,8 +18,10 @@ package io.zeebe.model.bpmn.impl.instance;
 import io.zeebe.model.bpmn.impl.metadata.InputOutputMappingImpl;
 import io.zeebe.model.bpmn.impl.metadata.TaskDefinitionImpl;
 import io.zeebe.model.bpmn.impl.metadata.TaskHeadersImpl;
+import io.zeebe.model.bpmn.instance.BpmnStep;
 import io.zeebe.model.bpmn.instance.ServiceTask;
 import io.zeebe.model.bpmn.instance.TaskDefinition;
+import io.zeebe.protocol.intent.WorkflowInstanceIntent;
 
 public class ServiceTaskImpl extends FlowNodeImpl implements ServiceTask {
 

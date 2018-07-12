@@ -21,7 +21,7 @@ public class RecordWriter {
   private final ResponseWriter responseWriter;
 
   private TypedBatchWriter batchWriter;
-  // TODO: Must be able to stage the response
+  private int numStagedRecords;
 
   public RecordWriter(TypedStreamWriterImpl streamWriter, ResponseWriter responseWriter)
   {
@@ -35,6 +35,7 @@ public class RecordWriter {
   {
     streamWriter.configureSourceContext(producerId, sourceRecordPosition);
     batchWriter = streamWriter.newBatch();
+    numStagedRecords = 0;
   }
 
   public void publishCommand(Intent intent, UnpackedObject value)
@@ -81,6 +82,7 @@ public class RecordWriter {
   private void publishRecord(long key, Intent intent, UnpackedObject value, RecordType recordType, Consumer<RecordMetadata> metadata)
   {
     batchWriter.addRecord(recordType, key, intent, value, metadata);
+    numStagedRecords++;
   }
 
   public void sendAccept(TypedRecord<?> record, Intent intent)
@@ -103,7 +105,14 @@ public class RecordWriter {
    */
   public long flushEvents()
   {
-    return batchWriter.write();
+    if (numStagedRecords > 0)
+    {
+      return batchWriter.write();
+    }
+    else
+    {
+      return 0L;
+    }
   }
 
   /**

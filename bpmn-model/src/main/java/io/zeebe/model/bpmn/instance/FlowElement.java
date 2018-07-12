@@ -23,8 +23,6 @@ public interface FlowElement {
 
   DirectBuffer getIdAsBuffer();
 
-  BpmnAspect getBpmnAspect();
-
   // TODO: this requires a zb-protocol dependency and the BpmnStep class to be in model API.
   // when we move the runtime datastructures to the broker, this will resolve
   BpmnStep getBpmnStep(WorkflowInstanceIntent intent);
