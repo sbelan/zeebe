@@ -9,6 +9,7 @@ import io.zeebe.broker.workflow.processor.v2.RecordHandler;
 import io.zeebe.broker.workflow.processor.v2.RecordWriter;
 import io.zeebe.broker.workflow.processor.v2.WorkflowInstance;
 import io.zeebe.broker.workflow.processor.v2.WorkflowInstances;
+import io.zeebe.logstreams.processor.EventLifecycleContext;
 import io.zeebe.protocol.intent.WorkflowInstanceIntent;
 
 public class JobCompletedHandler implements RecordHandler<JobRecord> {
@@ -23,7 +24,7 @@ public class JobCompletedHandler implements RecordHandler<JobRecord> {
   private long activityInstanceKey;
 
   @Override
-  public void handle(RecordWriter recordWriter, TypedRecord<JobRecord> record) {
+  public void handle(RecordWriter recordWriter, TypedRecord<JobRecord> record, EventLifecycleContext ctx) {
     final JobRecord jobEvent = record.getValue();
     final JobHeaders jobHeaders = jobEvent.headers();
     activityInstanceKey = jobHeaders.getActivityInstanceKey();

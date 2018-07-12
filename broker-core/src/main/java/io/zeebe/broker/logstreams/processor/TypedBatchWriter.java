@@ -32,7 +32,12 @@ public interface TypedBatchWriter {
 
   TypedBatchWriter addFollowUpEvent(long key, Intent intent, UnpackedObject value);
 
-  TypedBatchWriter addRecord(RecordType recordType, long key, Intent intent, UnpackedObject value);
+  TypedBatchWriter addRecord(
+      RecordType recordType,
+      long key,
+      Intent intent,
+      UnpackedObject value,
+      Consumer<RecordMetadata> metadata);
 
   TypedBatchWriter addFollowUpEvent(
       long key, Intent intent, UnpackedObject value, Consumer<RecordMetadata> metadata);
