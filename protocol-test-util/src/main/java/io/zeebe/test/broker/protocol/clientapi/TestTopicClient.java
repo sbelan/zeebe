@@ -383,7 +383,7 @@ public class TestTopicClient {
     return receiveEvents()
         .ofTypeWorkflowInstance()
         .withIntent(intent)
-        .filter(r -> (Long) r.value().get("workflowInstanceKey") == wfInstanceKey)
+        .filter(r -> ((Number) r.value().get("workflowInstanceKey")).longValue() == wfInstanceKey)
         .findFirst()
         .get();
   }

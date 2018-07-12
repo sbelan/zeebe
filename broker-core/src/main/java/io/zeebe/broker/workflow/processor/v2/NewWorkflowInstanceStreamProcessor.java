@@ -43,7 +43,7 @@ public class NewWorkflowInstanceStreamProcessor {
         .onCommand(
             ValueType.WORKFLOW_INSTANCE,
             WorkflowInstanceIntent.CREATE,
-            new DelegatingRecordProcessor<>(environment, new CreateWorkflowInstanceProcessor(wfCache)))
+            new DelegatingRecordProcessor<>(environment, new CreateWorkflowInstanceProcessor(wfCache, wfInstances)))
         .onEvent(
             ValueType.WORKFLOW_INSTANCE,
             WorkflowInstanceIntent.CREATED,

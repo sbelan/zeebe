@@ -87,7 +87,7 @@ public class ResponseWriter {
 
   public void reset()
   {
-
+    isStaged = false;
   }
 
 

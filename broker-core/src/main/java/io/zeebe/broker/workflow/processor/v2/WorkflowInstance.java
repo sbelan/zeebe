@@ -20,6 +20,7 @@ public class WorkflowInstance {
   public ActivityInstance newActivityInstance(long key)
   {
     final ActivityInstance instance = new ActivityInstance();
+    instance.spawnTokens(1);
     activityInstances.put(key, instance);
     return instance;
   }

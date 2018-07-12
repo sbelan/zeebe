@@ -36,6 +36,7 @@ public class RecordWriter {
     streamWriter.configureSourceContext(producerId, sourceRecordPosition);
     batchWriter = streamWriter.newBatch();
     numStagedRecords = 0;
+    responseWriter.reset();
   }
 
   public void publishCommand(Intent intent, UnpackedObject value)
@@ -60,7 +61,7 @@ public class RecordWriter {
     final UnpackedObject value = command.getValue();
 
     // TODO: not garbage-free
-    publishRecord(command.getKey(), metadata.getIntent(), value, RecordType.COMMAND, metadataWriter.andThen(m -> m.rejectionType(type).rejectionReason(reason)));
+    publishRecord(command.getKey(), metadata.getIntent(), value, RecordType.COMMAND_REJECTION, metadataWriter.andThen(m -> m.rejectionType(type).rejectionReason(reason)));
   }
 
   public void publishEvent(long key, Intent intent, UnpackedObject value)

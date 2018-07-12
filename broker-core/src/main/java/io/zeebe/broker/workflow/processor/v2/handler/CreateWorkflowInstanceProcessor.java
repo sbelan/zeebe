@@ -8,6 +8,7 @@ import io.zeebe.broker.workflow.map.DeployedWorkflow;
 import io.zeebe.broker.workflow.map.WorkflowCache;
 import io.zeebe.broker.workflow.processor.v2.RecordHandler;
 import io.zeebe.broker.workflow.processor.v2.RecordWriter;
+import io.zeebe.broker.workflow.processor.v2.WorkflowInstances;
 import io.zeebe.logstreams.processor.EventLifecycleContext;
 import io.zeebe.model.bpmn.instance.StartEvent;
 import io.zeebe.model.bpmn.instance.Workflow;
@@ -24,12 +25,14 @@ public class CreateWorkflowInstanceProcessor implements RecordHandler<WorkflowIn
   // TODO: why write both events here?
   private final WorkflowInstanceRecord startEventRecord = new WorkflowInstanceRecord();
   private final WorkflowCache workflowCache;
+  private final WorkflowInstances workflowInstances;
 
   private ActorControl actor;
 
-  public CreateWorkflowInstanceProcessor(WorkflowCache workflowCache)
+  public CreateWorkflowInstanceProcessor(WorkflowCache workflowCache, WorkflowInstances workflowInstances)
   {
     this.workflowCache = workflowCache;
+    this.workflowInstances = workflowInstances;
   }
 
   @Override
@@ -139,8 +142,13 @@ public class CreateWorkflowInstanceProcessor implements RecordHandler<WorkflowIn
     value.setVersion(resolvedWorkflow.getVersion());
 
     final RecordMetadata metadata = command.getMetadata();
-    recordWriter.publishEvent(key, WorkflowInstanceIntent.CREATED, command.getValue(),
+    recordWriter.publishEvent(
+        key,
+        WorkflowInstanceIntent.CREATED,
+        command.getValue(),
         m -> m.requestId(metadata.getRequestId()).requestStreamId(metadata.getRequestStreamId()));
+
+    workflowInstances.newWorkflowInstance(key);
 
     final Workflow workflow = resolvedWorkflow.getWorkflow();
     final StartEvent startEvent = workflow.getInitialStartEvent();
@@ -155,10 +163,16 @@ public class CreateWorkflowInstanceProcessor implements RecordHandler<WorkflowIn
         .setWorkflowKey(value.getWorkflowKey());
 
     recordWriter.publishEvent(WorkflowInstanceIntent.START_EVENT_OCCURRED, startEventRecord);
+
   }
 
   private void rejectCommand(TypedRecord<WorkflowInstanceRecord> command, RecordWriter recordWriter, RejectionType type, String reason)
   {
-    recordWriter.publishRejection(command, type, reason);
+    final RecordMetadata metadata = command.getMetadata();
+    recordWriter.publishRejection(
+        command,
+        type,
+        reason,
+        m -> m.requestId(metadata.getRequestId()).requestStreamId(metadata.getRequestStreamId()));
   }
 }

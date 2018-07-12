@@ -415,11 +415,11 @@ public class CreateWorkflowInstanceTest {
 
     assertThat(workflowInstanceEvents.get(0).value())
         .containsEntry("bpmnProcessId", "foo")
-        .containsEntry("workflowInstanceKey", workflowInstanceKeyFoo);
+        .containsEntry("workflowInstanceKey", (int) workflowInstanceKeyFoo);
 
     assertThat(workflowInstanceEvents.get(1).value())
         .containsEntry("bpmnProcessId", "baaaar")
-        .containsEntry("workflowInstanceKey", workflowInstanceKeyBaaaar);
+        .containsEntry("workflowInstanceKey", (int) workflowInstanceKeyBaaaar);
   }
 
   @Test
@@ -460,11 +460,11 @@ public class CreateWorkflowInstanceTest {
             .collect(Collectors.toList());
 
     assertThat(workflowInstanceEvents.get(0).value())
-        .containsEntry("workflowInstanceKey", workflowInstance1)
+        .containsEntry("workflowInstanceKey", (int) workflowInstance1)
         .containsEntry("version", 1);
 
     assertThat(workflowInstanceEvents.get(1).value())
-        .containsEntry("workflowInstanceKey", resp.key())
+        .containsEntry("workflowInstanceKey", (int) resp.key())
         .containsEntry("version", 2);
 
     final long createdTasks =
@@ -513,11 +513,11 @@ public class CreateWorkflowInstanceTest {
             .collect(Collectors.toList());
 
     assertThat(workflowInstanceEvents.get(0).value())
-        .containsEntry("workflowInstanceKey", workflowInstance1)
+        .containsEntry("workflowInstanceKey", (int) workflowInstance1)
         .containsEntry("version", 1);
 
     assertThat(workflowInstanceEvents.get(1).value())
-        .containsEntry("workflowInstanceKey", resp.key())
+        .containsEntry("workflowInstanceKey", (int) resp.key())
         .containsEntry("version", 2);
 
     final long createdJobs =

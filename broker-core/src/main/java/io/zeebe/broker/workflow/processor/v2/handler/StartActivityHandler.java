@@ -3,6 +3,7 @@ package io.zeebe.broker.workflow.processor.v2.handler;
 import io.zeebe.broker.workflow.data.WorkflowInstanceRecord;
 import io.zeebe.broker.workflow.processor.v2.BpmnStepContext;
 import io.zeebe.broker.workflow.processor.v2.BpmnStepHandler;
+import io.zeebe.broker.workflow.processor.v2.RecordWriter;
 import io.zeebe.model.bpmn.instance.FlowNode;
 import io.zeebe.model.bpmn.instance.SequenceFlow;
 import io.zeebe.protocol.intent.WorkflowInstanceIntent;
@@ -17,6 +18,10 @@ public class StartActivityHandler implements BpmnStepHandler<SequenceFlow> {
     final WorkflowInstanceRecord value = context.getCurrentValue();
     value.setActivityId(targetNode.getIdAsBuffer());
 
-    context.getRecordWriter().publishEvent(WorkflowInstanceIntent.ACTIVITY_READY, value);
+    final RecordWriter recordWriter = context.getRecordWriter();
+    final long activityInstanceKey = recordWriter.generateKey();
+
+    context.getRecordWriter().publishEvent(activityInstanceKey, WorkflowInstanceIntent.ACTIVITY_READY, value);
+    context.getWorkflowInstance().newActivityInstance(activityInstanceKey);
   }
 }

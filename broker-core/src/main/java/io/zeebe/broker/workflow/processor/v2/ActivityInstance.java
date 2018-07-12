@@ -8,7 +8,7 @@ import io.zeebe.broker.workflow.data.WorkflowInstanceRecord;
 
 public class ActivityInstance {
 
-  private int activeTokens;
+  private int activeTokens = 0;
   private UnsafeBuffer payload;
   private TypedRecord<WorkflowInstanceRecord> latestState;
 
@@ -20,6 +20,11 @@ public class ActivityInstance {
   public void consumeTokens(int number)
   {
     activeTokens -= number;
+  }
+
+  public void spawnTokens(int number)
+  {
+    activeTokens += number;
   }
 
   public void setLatestState(TypedRecord<WorkflowInstanceRecord> state)

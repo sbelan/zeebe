@@ -96,7 +96,7 @@ public class BpmnStepRecordProcessor implements RecordHandler<WorkflowInstanceRe
 
     if (stepHandler != null)
     {
-      final WorkflowInstance workflowInstance = workflowInstances.getWorkflowInstance(record.getKey());
+      final WorkflowInstance workflowInstance = workflowInstances.getWorkflowInstance(value.getWorkflowInstanceKey());
 
       // TODO: this is supposed to be the containing activity instance; for sequence flows, it is the scope;
       // for ACTIVITY_READY, it is the current activity instance; the current way to find the activity instance is quite hacky
