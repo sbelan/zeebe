@@ -161,6 +161,12 @@
         <artifactId>zeebe-gateway</artifactId>
         <version>${project.version}</version>
       </dependency>
+
+      <dependency>
+        <groupId>io.zeebe</groupId>
+        <artifactId>zb-exporter</artifactId>
+        <version>${project.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -170,10 +176,10 @@
       <name>Zeebe Repository</name>
       <url>https://app.camunda.com/nexus/content/repositories/zeebe-io/</url>
       <releases>
-        <enabled>true</enabled>
+        <enabledExporters>true</enabledExporters>
       </releases>
       <snapshots>
-        <enabled>false</enabled>
+        <enabledExporters>false</enabledExporters>
       </snapshots>
     </repository>
 
@@ -182,10 +188,10 @@
       <name>Zeebe Snapshot Repository</name>
       <url>https://app.camunda.com/nexus/content/repositories/zeebe-io-snapshots/</url>
       <releases>
-        <enabled>false</enabled>
+        <enabledExporters>false</enabledExporters>
       </releases>
       <snapshots>
-        <enabled>true</enabled>
+        <enabledExporters>true</enabledExporters>
       </snapshots>
     </repository>
   </repositories>

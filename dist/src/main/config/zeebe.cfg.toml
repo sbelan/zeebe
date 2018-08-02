@@ -252,3 +252,50 @@ replicationFactor = 1
 # heartbeatInterval = "250ms"
 # electionInterval = "1s"
 # leaveTimeout = "1s"
+
+# Exporters are lightweight, read-only stream processors which are used to export data to external
+# systems, which relieve Zeebe from the responsibility of persisting data forever.
+#
+# Each exporter must be configured before system startup, and an exporter can only see data from
+# the moment they are installed, meaning that any events that occurred before it existed in the
+# system will not be seen by the exporter; conversely, every event that occurs after *will* be seen
+# by the exporter.
+#
+# The following is a complete example of a configuration for one exporter:
+#
+# [[exporter]]
+# id = "MongoDB"
+# path = "exporters/myExporter.jar"
+# className = "io.zeebe.exporters.mongodb.MongoDbExporter"
+# required = true
+#   [[exporter.args]]
+#   host = "localhost"
+#   port = 21707
+#   user_name = "john@doe"
+#
+# id:
+#   property should be unique in this configuration file, as it will server as the exporter
+#   ID for loading/unloading.
+# path:
+#   path to the JAR file containing the exporter class. JARs are only loaded once, so you can define
+#   two exporters that point to the same JAR, with the same class or a different one, and use args
+#   to parametrize its instantiation.
+# className:
+#   entry point of the exporter, a class which *must* extend the io.zeebe.exporter.Exporter
+#   interface.
+# required:
+#   if true, broker will not exit if the exporter fails during startup. if false, an error is
+#   emitted, but nothing more.
+#
+# A nested table as [[exporter.args]] will allow you to inject arbitrary arguments into your
+# class through the use of annotations.
+# Given the above table, you could have class with the following:
+#
+# public class MyExporter implements Exporter {
+#   @ConfigArgument private String host;
+#   @ConfigArgument private int port;
+#   @ConfigArgument("user_name") private String username;
+#
+#   ...
+# }
+#

@@ -18,6 +18,7 @@
 package io.zeebe.broker;
 
 import io.zeebe.broker.clustering.ClusterComponent;
+import io.zeebe.broker.exporter.ExporterComponent;
 import io.zeebe.broker.job.JobQueueComponent;
 import io.zeebe.broker.logstreams.LogStreamsComponent;
 import io.zeebe.broker.subscription.SubscriptionComponent;
@@ -29,8 +30,9 @@ import io.zeebe.broker.transport.TransportComponent;
 import io.zeebe.broker.workflow.WorkflowComponent;
 import io.zeebe.util.LogUtil;
 import io.zeebe.util.sched.clock.ActorClock;
-import java.io.InputStream;
 import org.slf4j.Logger;
+
+import java.io.InputStream;
 
 public class Broker implements AutoCloseable {
   public static final Logger LOG = Loggers.SYSTEM_LOGGER;
@@ -73,6 +75,7 @@ public class Broker implements AutoCloseable {
     brokerContext.addComponent(new SubscriptionComponent());
     brokerContext.addComponent(new ClusterComponent());
     brokerContext.addComponent(new GatewayComponent());
+    brokerContext.addComponent(new ExporterComponent());
 
     brokerContext.init();
   }
