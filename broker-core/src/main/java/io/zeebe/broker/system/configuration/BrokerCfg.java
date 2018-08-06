@@ -19,7 +19,6 @@ package io.zeebe.broker.system.configuration;
 
 import io.zeebe.gossip.GossipConfiguration;
 import io.zeebe.raft.RaftConfiguration;
-
 import java.util.ArrayList;
 import java.util.List;
 

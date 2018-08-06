@@ -45,7 +45,6 @@
     <module>gateway</module>
     <module>clients/java</module>
     <module>exporter</module>
-    <module>exporters</module>
   </modules>
 
   <build>

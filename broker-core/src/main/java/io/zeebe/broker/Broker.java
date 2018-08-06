@@ -30,9 +30,8 @@ import io.zeebe.broker.transport.TransportComponent;
 import io.zeebe.broker.workflow.WorkflowComponent;
 import io.zeebe.util.LogUtil;
 import io.zeebe.util.sched.clock.ActorClock;
-import org.slf4j.Logger;
-
 import java.io.InputStream;
+import org.slf4j.Logger;
 
 public class Broker implements AutoCloseable {
   public static final Logger LOG = Loggers.SYSTEM_LOGGER;
