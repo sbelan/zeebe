@@ -32,12 +32,17 @@ public class LogExporter implements Exporter, Configuration {
   private String id;
 
   @Override
-  public Future<Configuration> start(Context context) {
+  public Configuration getConfiguration() {
+    return this;
+  }
+
+  @Override
+  public Future<Void> start(Context context) {
     id = context.getId();
     logger = context.getLogger();
     logger.info("Starting exporter {}", id);
 
-    return CompletableFuture.completedFuture(this);
+    return CompletableFuture.completedFuture(null);
   }
 
   @Override

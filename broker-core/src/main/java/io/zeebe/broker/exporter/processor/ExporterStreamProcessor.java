@@ -17,18 +17,24 @@
  */
 package io.zeebe.broker.exporter.processor;
 
+import io.zeebe.exporter.spi.Configuration;
+import io.zeebe.exporter.spi.Event;
 import io.zeebe.exporter.spi.Exporter;
 import io.zeebe.logstreams.log.LoggedEvent;
 import io.zeebe.logstreams.processor.EventProcessor;
 import io.zeebe.logstreams.processor.StreamProcessor;
 import io.zeebe.logstreams.spi.SnapshotSupport;
+import io.zeebe.msgpack.UnpackedObject;
+import io.zeebe.protocol.impl.RecordMetadata;
 
 public class ExporterStreamProcessor implements StreamProcessor {
-  private final ExporterEventProcessor eventProcessor;
   private final Exporter exporter;
+  private final Configuration config;
+  private final ExporterEventProcessor eventProcessor;
 
   public ExporterStreamProcessor(final Exporter exporter) {
     this.exporter = exporter;
+    this.config = exporter.getConfiguration();
     this.eventProcessor = new ExporterEventProcessor(exporter);
   }
 
@@ -39,7 +45,7 @@ public class ExporterStreamProcessor implements StreamProcessor {
 
   @Override
   public EventProcessor onEvent(LoggedEvent event) {
-    // eventProcessor.wrap(event);
+
     return eventProcessor;
   }
 

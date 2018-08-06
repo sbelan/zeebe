@@ -19,12 +19,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
 public interface Exporter {
-  /**
-   * Starts the exporter. After this returns, the exporter will start receiving events.
-   *
-   * @return the configuration to use for this exporter
-   */
-  default Future<Configuration> start(Context context) {
+  /** @return configuration to use for this exporter */
+  Configuration getConfiguration();
+
+  /** Starts the exporter. After this returns, the exporter will start receiving events. */
+  default Future<Void> start(Context context) {
     return CompletableFuture.completedFuture(null);
   }
 

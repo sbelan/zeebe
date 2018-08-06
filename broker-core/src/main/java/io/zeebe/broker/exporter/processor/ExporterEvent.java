@@ -17,69 +17,80 @@
  */
 package io.zeebe.broker.exporter.processor;
 
+import static io.zeebe.util.buffer.BufferUtil.toByteBuffer;
+
 import io.zeebe.exporter.spi.Event;
 import io.zeebe.logstreams.log.LoggedEvent;
+import io.zeebe.msgpack.UnpackedObject;
+import io.zeebe.protocol.impl.RecordMetadata;
 import java.nio.ByteBuffer;
+import org.agrona.DirectBuffer;
 
 public class ExporterEvent implements Event {
-  private LoggedEvent event;
+  private LoggedEvent rawEvent;
+  private RecordMetadata metadata = new RecordMetadata();
+  private UnpackedObject value = new UnpackedObject();
+  private int partitionId;
 
-  public void wrap(final LoggedEvent event) {
-    this.event = event;
+  public void wrap(final LoggedEvent rawEvent, int partitionId) {
+    this.rawEvent = rawEvent;
+    this.rawEvent.readMetadata(metadata);
+    this.rawEvent.readValue(value);
+    this.partitionId = partitionId;
   }
 
   @Override
   public int getPartitionId() {
-    return 0;
+    return partitionId;
   }
 
   @Override
   public long getPosition() {
-    return 0;
+    return rawEvent.getPosition();
   }
 
   @Override
   public long getSourceRecordPosition() {
-    return 0;
+    return rawEvent.getSourceEventPosition();
   }
 
   @Override
   public long getTimestamp() {
-    return 0;
+    return rawEvent.getTimestamp();
   }
 
   @Override
   public long getKey() {
-    return 0;
+    return rawEvent.getKey();
   }
 
   @Override
   public short getIntent() {
-    return 0;
+    return metadata.getIntent().value();
   }
 
   @Override
   public short getRecordType() {
-    return 0;
+    return metadata.getRecordType().value();
   }
 
   @Override
   public short getRejectionType() {
-    return 0;
+    return metadata.getRejectionType().value();
   }
 
   @Override
   public ByteBuffer getRejectionReason() {
-    return null;
+    return toByteBuffer(metadata.getRejectionReason());
   }
 
   @Override
   public ByteBuffer getValue() {
-    return null;
+    return toByteBuffer(rawEvent.getValueBuffer());
   }
 
   @Override
   public short getValueType() {
-    return 0;
+    return metadata.getValueType().value();
   }
 }

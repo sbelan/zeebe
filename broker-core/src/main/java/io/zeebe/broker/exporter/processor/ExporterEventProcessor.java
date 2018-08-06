@@ -17,34 +17,34 @@
  */
 package io.zeebe.broker.exporter.processor;
 
+import io.zeebe.exporter.spi.Batch;
+import io.zeebe.exporter.spi.Configuration;
 import io.zeebe.exporter.spi.Event;
 import io.zeebe.exporter.spi.Exporter;
 import io.zeebe.logstreams.log.LogStreamRecordWriter;
+import io.zeebe.logstreams.log.LoggedEvent;
 import io.zeebe.logstreams.processor.EventLifecycleContext;
 import io.zeebe.logstreams.processor.EventProcessor;
 
 public class ExporterEventProcessor implements EventProcessor {
+  private final ExporterEventBatch batch;
   private final Exporter exporter;
-  private Event currentEvent;
+  private final Configuration config;
 
   public ExporterEventProcessor(final Exporter exporter) {
     this.exporter = exporter;
+    this.config = exporter.getConfiguration();
+    this.batch = new ExporterEventBatch(config.getBatchSize());
   }
 
-  public void wrap(Event event) {
-    this.currentEvent = event;
-  }
+  public void wrap(final LoggedEvent rawEvent, final int partitionId) {}
 
   @Override
   public void processEvent(EventLifecycleContext ctx) {}
 
   @Override
   public boolean executeSideEffects() {
-    if (currentEvent == null) {
-      return false;
-    }
 
-    currentEvent = null;
     return true;
   }
 

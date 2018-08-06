@@ -17,10 +17,13 @@ package io.zeebe.util.buffer;
 
 import static io.zeebe.util.StringUtil.getBytes;
 import static io.zeebe.util.buffer.BufferUtil.cloneBuffer;
+import static io.zeebe.util.buffer.BufferUtil.toByteBuffer;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.nio.ByteBuffer;
 import org.agrona.DirectBuffer;
 import org.agrona.ExpandableArrayBuffer;
+import org.agrona.ExpandableDirectByteBuffer;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.junit.Test;
@@ -66,6 +69,52 @@ public class BufferUtilTest {
 
     // then
     assertThat(dst).isNotSameAs(src).isEqualTo(src).hasSameClassAs(src);
+  }
+
+  @Test
+  public void testToByteBufferFromArrayBacked() {
+    // given
+    DirectBuffer src = new UnsafeBuffer(BYTES1);
+
+    // when
+    ByteBuffer dst = toByteBuffer(src);
+
+    // then
+    assertThat(dst).isEqualTo(ByteBuffer.wrap(BYTES1));
+
+    // given
+    int offset = 1;
+    src = new UnsafeBuffer(BYTES1, offset, BYTES1.length - offset);
+
+    // when
+    dst = toByteBuffer(src);
+
+    // then
+    assertThat(dst).isEqualTo(ByteBuffer.wrap(BYTES1, offset, BYTES1.length - offset));
+  }
+
+  @Test
+  public void testToByteBufferFromDirect() {
+    // given
+    final ByteBuffer bytes = ByteBuffer.allocate(BYTES1.length);
+    bytes.put(BYTES1);
+    DirectBuffer src = new UnsafeBuffer(bytes);
+
+    // when
+    ByteBuffer dst = toByteBuffer(src);
+
+    // then
+    assertThat(dst).isEqualTo(ByteBuffer.wrap(BYTES1));
+
+    // given
+    int offset = 1;
+    src = new UnsafeBuffer(bytes, offset, bytes.capacity() - offset);
+
+    // when
+    dst = toByteBuffer(src);
+
+    // then
+    assertThat(dst).isEqualTo(ByteBuffer.wrap(BYTES1, offset, BYTES1.length - offset));
   }
 
   public DirectBuffer asBuffer(byte[] bytes) {

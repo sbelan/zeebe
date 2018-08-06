@@ -18,6 +18,7 @@ package io.zeebe.util.buffer;
 import static io.zeebe.util.EnsureUtil.ensureGreaterThanOrEqual;
 import static io.zeebe.util.StringUtil.getBytes;
 
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import org.agrona.DirectBuffer;
 import org.agrona.ExpandableArrayBuffer;
@@ -222,5 +223,20 @@ public final class BufferUtil {
     }
 
     return result;
+  }
+
+  public static ByteBuffer toByteBuffer(final DirectBuffer buffer) {
+    final ByteBuffer converted;
+
+    if (buffer.byteBuffer() != null) {
+      final int offset = buffer.wrapAdjustment();
+      converted = buffer.byteBuffer().duplicate();
+      converted.position(offset);
+      converted.limit(buffer.capacity() + offset);
+    } else {
+      converted = ByteBuffer.wrap(buffer.byteArray(), buffer.wrapAdjustment(), buffer.capacity());
+    }
+
+    return converted;
   }
 }
