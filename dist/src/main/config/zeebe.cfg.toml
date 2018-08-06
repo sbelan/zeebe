@@ -283,18 +283,15 @@ replicationFactor = 1
 # className:
 #   entry point of the exporter, a class which *must* extend the io.zeebe.exporter.Exporter
 #   interface.
-# required:
-#   if true, broker will not exit if the exporter fails during startup. if false, an error is
-#   emitted, but nothing more.
 #
 # A nested table as [[exporter.args]] will allow you to inject arbitrary arguments into your
 # class through the use of annotations.
 # Given the above table, you could have class with the following:
 #
 # public class MyExporter implements Exporter {
-#   @ConfigArgument private String host;
-#   @ConfigArgument private int port;
-#   @ConfigArgument("user_name") private String username;
+#   @Argument private String host;
+#   @Argument private int port;
+#   @Argument("user_name") private String username;
 #
 #   ...
 # }

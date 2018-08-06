@@ -16,9 +16,6 @@ public class ExporterCfg implements ConfigurationEntry {
   /** fully qualified class name pointing to the class implementing the exporter interface */
   private String className;
 
-  /** whether or not the exporter should cause startup to fail */
-  private boolean required;
-
   /** map of arguments to use when instantiating the exporter */
   private Map<String, Object> args;
 
@@ -49,14 +46,6 @@ public class ExporterCfg implements ConfigurationEntry {
 
   public void setClassName(String className) {
     this.className = className;
-  }
-
-  public boolean isRequired() {
-    return required;
-  }
-
-  public void setRequired(boolean required) {
-    this.required = required;
   }
 
   public Map<String, Object> getArgs() {

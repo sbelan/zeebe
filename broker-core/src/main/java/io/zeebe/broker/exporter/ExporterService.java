@@ -1,29 +1,24 @@
 package io.zeebe.broker.exporter;
 
-import io.zeebe.exporter.spi.Context;
-import io.zeebe.exporter.spi.Exporter;
 import io.zeebe.servicecontainer.Service;
 import io.zeebe.servicecontainer.ServiceStartContext;
-import io.zeebe.servicecontainer.ServiceStopContext;
 import io.zeebe.util.sched.Actor;
 
-public class ExporterService extends Actor implements Service<Exporter> {
-  private final String name;
-  private final Exporter exporter;
+public class ExporterService extends Actor implements Service<ExporterDescriptor> {
+  private final ExporterDescriptor descriptor;
 
-  public ExporterService(final Exporter exporter, final String name) {
-    this.exporter = exporter;
-    this.name = name;
+  public ExporterService(final ExporterDescriptor descriptor) {
+    this.descriptor = descriptor;
   }
 
   @Override
   public String getName() {
-    return name;
+    return descriptor.getName();
   }
 
   @Override
   protected void onActorStarting() {
-    final Context context = new ExporterContext();
+    super.onActorStarting();
   }
 
   @Override
@@ -40,10 +35,7 @@ public class ExporterService extends Actor implements Service<Exporter> {
   public void start(ServiceStartContext startContext) {}
 
   @Override
-  public void stop(ServiceStopContext stopContext) {}
-
-  @Override
-  public Exporter get() {
-    return exporter;
+  public ExporterDescriptor get() {
+    return descriptor;
   }
 }

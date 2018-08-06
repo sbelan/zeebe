@@ -43,4 +43,5 @@ public class StreamProcessorIds {
   public static final int SYSTEM_ID_PROCESSOR_ID = 1002;
 
   public static final int CLUSTER_TOPIC_STATE = 2000;
+  public static final int EXPORTER_MANAGER_PROCESSOR_ID = 3000;
 }

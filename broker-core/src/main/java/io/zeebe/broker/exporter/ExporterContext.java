@@ -1,32 +1,40 @@
 package io.zeebe.broker.exporter;
 
-import io.zeebe.broker.Loggers;
 import io.zeebe.exporter.spi.Context;
 import org.slf4j.Logger;
 
 import java.nio.file.Path;
+import java.util.Map;
 
 public class ExporterContext implements Context {
-  private final Logger logger;
-  private final Path workingDirectory;
+  private final String id;
+  private final Map<String, Object> args;
+  private final ExporterEnvironment env;
 
-  public ExporterContext() {
-    this.logger = Loggers.EXPORTERS;
-    this.workingDirectory = null;
-  }
-
-  public ExporterContext(final Logger logger, final Path workingDirectory) {
-    this.logger = logger;
-    this.workingDirectory = workingDirectory;
+  public ExporterContext(
+      final String id, final Map<String, Object> args, final ExporterEnvironment env) {
+    this.id = id;
+    this.args = args;
+    this.env = env;
   }
 
   @Override
   public Logger getLogger() {
-    return logger;
+    return env.getLogger();
   }
 
   @Override
   public Path getWorkingDirectory() {
-    return workingDirectory;
+    return env.getWorkingDirectory();
+  }
+
+  @Override
+  public Map<String, Object> getArgs() {
+    return args;
+  }
+
+  @Override
+  public String getId() {
+    return id;
   }
 }

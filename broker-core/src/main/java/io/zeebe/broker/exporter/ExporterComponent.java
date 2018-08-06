@@ -12,10 +12,15 @@ public class ExporterComponent implements Component {
   @Override
   public void init(SystemContext context) {
     final BrokerCfg brokerCfg = context.getBrokerConfiguration();
-    final ExporterContext exporterContext = new ExporterContext();
+    final ExporterEnvironment env = new ExporterEnvironment();
+    final ExporterManager manager = new ExporterManager(env);
 
-    final ExporterManager manager = new ExporterManager(exporterContext);
-    manager.loadExporters(brokerCfg.getExporters());
+    // Add any internal exporters here
+    manager.load("io.zeebe.broker.exporter.LogExporter", LogExporter.class);
+    manager.load(brokerCfg.getExporters());
+
+    // TODO: should we use context.requiredStartActions and allow exporters to verify their
+    //       configurations are valid? give them a chance to fail early?
 
     final ExporterManagerService service = new ExporterManagerService(manager);
     context.getServiceContainer().createService(SERVICE_NAME, service).install();

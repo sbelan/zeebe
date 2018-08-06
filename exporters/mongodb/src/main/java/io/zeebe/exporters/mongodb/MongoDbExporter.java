@@ -1,6 +1,5 @@
 package io.zeebe.exporters.mongodb;
 
-import io.zeebe.exporter.spi.Configuration;
 import io.zeebe.exporter.spi.Context;
 import io.zeebe.exporter.spi.Event;
 import io.zeebe.exporter.spi.Exporter;

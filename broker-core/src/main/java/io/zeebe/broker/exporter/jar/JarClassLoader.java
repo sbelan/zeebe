@@ -1,4 +1,4 @@
-package io.zeebe.broker.exporter;
+package io.zeebe.broker.exporter.jar;
 
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -7,11 +7,11 @@ import java.net.URLClassLoader;
  * Provides a class loader which isolates the Exporter, exposing only: system classes,
  * io.zeebe.exporter.* classes, all classes contained in the exporter's JAR
  */
-public class ExporterClassLoader extends URLClassLoader {
+public class JarClassLoader extends URLClassLoader {
   private static final String JAVA_PACKAGE_PREFIX = "java.";
   private static final String EXPORTER_PACKAGE_PREFIX = "io.zeebe.exporter.";
 
-  public ExporterClassLoader(final URL jarUrl) {
+  public JarClassLoader(final URL jarUrl) {
     super(new URL[] {jarUrl});
   }
 
