@@ -18,13 +18,13 @@
 package io.zeebe.broker.exporter.jar;
 
 import io.zeebe.broker.Loggers;
+import org.slf4j.Logger;
+
 import java.net.MalformedURLException;
-import java.net.URL;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Predicate;
-import org.slf4j.Logger;
 
 /**
  * Loads JARs and keeps a cache of loaded JARs => JarClassLoader, allowing easy reuse without
@@ -54,8 +54,7 @@ public class JarLoader {
 
   private JarClassLoader createClassLoader(final Path jarPath) {
     try {
-      final URL jarUrl = jarPath.toUri().toURL();
-      return new JarClassLoader(jarUrl);
+      return new JarClassLoader(jarPath);
     } catch (MalformedURLException e) {
       LOG.error("cannot load given JAR at {}", jarPath, e);
       throw new IllegalArgumentException("JAR could not be loaded", e);

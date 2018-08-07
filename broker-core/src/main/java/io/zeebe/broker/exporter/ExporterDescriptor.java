@@ -19,10 +19,10 @@ package io.zeebe.broker.exporter;
 
 import io.zeebe.exporter.spi.Argument;
 import io.zeebe.exporter.spi.Exporter;
+
 import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 
 public class ExporterDescriptor {
   private static final String NAME_FORMAT = "exporter-%s";
@@ -105,11 +105,20 @@ public class ExporterDescriptor {
       throws IllegalAccessException {
     for (final Field field : fields) {
       if (field.isAnnotationPresent(Argument.class)) {
-        final String arg =
-            Optional.of(field.getAnnotation(Argument.class).value()).orElse(field.getName());
+        String arg = field.getAnnotation(Argument.class).value();
+        if (arg.equals(Argument.DEFAULT)) {
+          arg = field.getName();
+        }
 
         if (args.containsKey(arg)) {
-          field.set(instance, args.get(arg));
+          final Object value = args.get(arg);
+          final Class<?> fieldClass = value.getClass();
+
+          if (fieldClass.isAssignableFrom(field.getType())) {
+            field.setAccessible(true);
+            field.set(instance, fieldClass.cast(value));
+            field.get(instance);
+          }
         }
       }
     }

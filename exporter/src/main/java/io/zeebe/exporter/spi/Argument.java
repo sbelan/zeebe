@@ -21,5 +21,7 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited
 public @interface Argument {
-  String value() default "";
+  public static final String DEFAULT = "";
+
+  String value() default DEFAULT;
 }
