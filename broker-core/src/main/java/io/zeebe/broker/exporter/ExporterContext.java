@@ -20,18 +20,24 @@ package io.zeebe.broker.exporter;
 import io.zeebe.exporter.spi.Context;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.function.Consumer;
 import org.slf4j.Logger;
 
 public class ExporterContext implements Context {
   private final String id;
   private final Map<String, Object> args;
   private final ExporterEnvironment env;
+  private final Consumer<Long> lastPositionUpdater;
 
   public ExporterContext(
-      final String id, final Map<String, Object> args, final ExporterEnvironment env) {
+      final String id,
+      final Map<String, Object> args,
+      final ExporterEnvironment env,
+      Consumer<Long> lastPositionUpdater) {
     this.id = id;
     this.args = args;
     this.env = env;
+    this.lastPositionUpdater = lastPositionUpdater;
   }
 
   @Override
@@ -52,5 +58,10 @@ public class ExporterContext implements Context {
   @Override
   public String getId() {
     return id;
+  }
+
+  @Override
+  public Consumer<Long> getLastPositionUpdater() {
+    return lastPositionUpdater;
   }
 }

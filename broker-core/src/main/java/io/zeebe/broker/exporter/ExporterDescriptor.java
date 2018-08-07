@@ -25,25 +25,25 @@ import java.util.Objects;
 import java.util.Optional;
 
 public class ExporterDescriptor {
-  private static final String NAME_FORMAT = "%s/%s";
+  private static final String NAME_FORMAT = "exporter-%s";
 
   private final String id;
   private final Class<? extends Exporter> exporterClass;
   private final Map<String, Object> args;
   private final String name;
-  private final ExporterContext context;
+  private final ExporterEnvironment env;
 
   public ExporterDescriptor(
       final String id,
       final Class<? extends Exporter> exporterClass,
       final Map<String, Object> args,
-      final ExporterContext context) {
+      final ExporterEnvironment env) {
     this.id = id;
     this.exporterClass = exporterClass;
     this.args = args;
-    this.context = context;
+    this.env = env;
 
-    this.name = String.format(NAME_FORMAT, exporterClass.getCanonicalName(), id);
+    this.name = String.format(NAME_FORMAT, id);
   }
 
   @Override
@@ -73,8 +73,12 @@ public class ExporterDescriptor {
     return name;
   }
 
-  public ExporterContext getContext() {
-    return context;
+  public Map<String, Object> getArgs() {
+    return args;
+  }
+
+  public ExporterEnvironment getEnv() {
+    return env;
   }
 
   // TODO: this sucks

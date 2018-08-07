@@ -15,21 +15,22 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package io.zeebe.broker.exporter;
+package io.zeebe.broker.exporter.impl;
 
-import io.zeebe.exporter.spi.*;
+import io.zeebe.exporter.spi.Configuration;
+import io.zeebe.exporter.spi.Context;
+import io.zeebe.exporter.spi.Event;
+import io.zeebe.exporter.spi.Exporter;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
-import org.slf4j.Logger;
 
 public class LogExporter implements Exporter, Configuration {
   private static final Future<Void> FINISHED = CompletableFuture.completedFuture(null);
   private static final int BATCH_SIZE = 100;
   private static final Duration BATCH_FLUSH_TIMEOUT = Duration.ofSeconds(1);
 
-  private Logger logger;
-  private String id;
+  private Context context;
 
   @Override
   public Configuration getConfiguration() {
@@ -37,28 +38,19 @@ public class LogExporter implements Exporter, Configuration {
   }
 
   @Override
-  public Future<Void> start(Context context) {
-    id = context.getId();
-    logger = context.getLogger();
-    logger.info("Starting exporter {}", id);
-
-    return CompletableFuture.completedFuture(null);
+  public void start(Context context) {
+    context.getLogger().info("Starting exporter {}", context.getId());
   }
 
   @Override
-  public Future<Void> stop() {
-    logger.info("Stopping exporter {}", id);
-
-    return FINISHED;
+  public void stop() {
+    context.getLogger().info("Stopping exporter {}", context.getId());
   }
 
   @Override
-  public void exporter(Batch batch) {
-    for (Event event : batch) {
-      logger.info("Processed {}", event.toString());
-    }
-
-    batch.commit();
+  public void export(Event event) {
+    context.getLogger().info("Exporter {} exporting {}", context.getId(), event);
+    context.getLastPositionUpdater().accept(event.getPosition());
   }
 
   @Override

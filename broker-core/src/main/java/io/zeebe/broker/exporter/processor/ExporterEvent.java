@@ -24,19 +24,23 @@ import io.zeebe.logstreams.log.LoggedEvent;
 import io.zeebe.msgpack.UnpackedObject;
 import io.zeebe.protocol.impl.RecordMetadata;
 import java.nio.ByteBuffer;
-import org.agrona.DirectBuffer;
 
 public class ExporterEvent implements Event {
   private LoggedEvent rawEvent;
   private RecordMetadata metadata = new RecordMetadata();
   private UnpackedObject value = new UnpackedObject();
-  private int partitionId;
+  private final int partitionId;
 
-  public void wrap(final LoggedEvent rawEvent, int partitionId) {
+  public ExporterEvent(int partitionId) {
+    this.partitionId = partitionId;
+  }
+
+  public ExporterEvent wrap(final LoggedEvent rawEvent) {
     this.rawEvent = rawEvent;
     this.rawEvent.readMetadata(metadata);
     this.rawEvent.readValue(value);
-    this.partitionId = partitionId;
+
+    return this;
   }
 
   @Override

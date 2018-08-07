@@ -23,7 +23,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.nio.ByteBuffer;
 import org.agrona.DirectBuffer;
 import org.agrona.ExpandableArrayBuffer;
-import org.agrona.ExpandableDirectByteBuffer;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.junit.Test;
@@ -83,7 +82,7 @@ public class BufferUtilTest {
     assertThat(dst).isEqualTo(ByteBuffer.wrap(BYTES1));
 
     // given
-    int offset = 1;
+    final int offset = 1;
     src = new UnsafeBuffer(BYTES1, offset, BYTES1.length - offset);
 
     // when
@@ -107,7 +106,7 @@ public class BufferUtilTest {
     assertThat(dst).isEqualTo(ByteBuffer.wrap(BYTES1));
 
     // given
-    int offset = 1;
+    final int offset = 1;
     src = new UnsafeBuffer(bytes, offset, bytes.capacity() - offset);
 
     // when

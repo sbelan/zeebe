@@ -87,17 +87,4 @@ public class JobInstanceStateController extends StateController {
       LangUtil.rethrowUnchecked(e);
     }
   }
-
-  private boolean tryGet(final byte[] keyBuffer, final byte[] valueBuffer) {
-    boolean found = false;
-
-    try {
-      final int bytesRead = getDb().get(keyBuffer, valueBuffer);
-      found = bytesRead == valueBuffer.length;
-    } catch (RocksDBException e) {
-      LangUtil.rethrowUnchecked(e);
-    }
-
-    return found;
-  }
 }

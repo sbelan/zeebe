@@ -13,26 +13,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.zeebe.exporter.spi;
+package io.zeebe.protocol.intent;
 
-import java.nio.file.Path;
-import java.util.Map;
-import java.util.function.Consumer;
-import org.slf4j.Logger;
+public enum ExporterIntent implements Intent {
+  COMMIT((short) 0),
+  COMMITTED((short) 1);
 
-public interface Context {
-  /** @return pre-configured logger for an exporter */
-  Logger getLogger();
+  private short value;
 
-  /** @return Zeebe working directory * */
-  Path getWorkingDirectory();
+  ExporterIntent(short value) {
+    this.value = value;
+  }
 
-  /** @return ID of the exporter * */
-  String getId();
+  public short getIntent() {
+    return value;
+  }
 
-  /** @return Map of arguments specified in the configuration file */
-  Map<String, Object> getArgs();
+  public static Intent from(short value) {
+    switch (value) {
+      case 0:
+        return COMMIT;
+      case 1:
+        return COMMITTED;
+      default:
+        return Intent.UNKNOWN;
+    }
+  }
 
-  /** @return a consumer which should be called with the latest exported event position */
-  Consumer<Long> getLastPositionUpdater();
+  @Override
+  public short value() {
+    return value;
+  }
 }

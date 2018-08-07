@@ -15,8 +15,11 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package io.zeebe.broker.exporter;
+package io.zeebe.broker.exporter.manager;
 
+import io.zeebe.broker.exporter.ExporterDescriptor;
+import io.zeebe.broker.exporter.ExporterEnvironment;
+import io.zeebe.broker.exporter.ExporterLoadException;
 import io.zeebe.broker.exporter.jar.JarClassLoader;
 import io.zeebe.broker.exporter.jar.JarLoader;
 import io.zeebe.broker.system.configuration.ExporterCfg;
@@ -46,8 +49,7 @@ public class ExporterManager {
       final String id,
       final Class<? extends Exporter> exporterClass,
       final Map<String, Object> args) {
-    final ExporterContext context = new ExporterContext(id, args, env);
-    final ExporterDescriptor container = new ExporterDescriptor(id, exporterClass, args, context);
+    final ExporterDescriptor container = new ExporterDescriptor(id, exporterClass, args, env);
 
     try {
       container.verify();

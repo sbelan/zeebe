@@ -17,6 +17,9 @@
  */
 package io.zeebe.broker.exporter;
 
+import io.zeebe.broker.exporter.impl.LogExporter;
+import io.zeebe.broker.exporter.manager.ExporterManager;
+import io.zeebe.broker.exporter.manager.ExporterManagerService;
 import io.zeebe.broker.system.Component;
 import io.zeebe.broker.system.SystemContext;
 import io.zeebe.broker.system.configuration.BrokerCfg;
@@ -33,11 +36,8 @@ public class ExporterComponent implements Component {
     final ExporterManager manager = new ExporterManager(env);
 
     // Add any internal exporters here
-    manager.load("io.zeebe.broker.exporter.LogExporter", LogExporter.class);
+    manager.load("io.zeebe.broker.exporter.impl.LogExporter", LogExporter.class);
     manager.load(brokerCfg.getExporters());
-
-    // TODO: should we use context.requiredStartActions and allow exporters to verify their
-    //       configurations are valid? give them a chance to fail early?
 
     final ExporterManagerService service = new ExporterManagerService(manager);
     context.getServiceContainer().createService(SERVICE_NAME, service).install();

@@ -17,42 +17,38 @@
  */
 package io.zeebe.broker.exporter.processor;
 
-import io.zeebe.exporter.spi.Batch;
-import io.zeebe.exporter.spi.Configuration;
-import io.zeebe.exporter.spi.Event;
+import io.zeebe.broker.Loggers;
 import io.zeebe.exporter.spi.Exporter;
-import io.zeebe.logstreams.log.LogStreamRecordWriter;
 import io.zeebe.logstreams.log.LoggedEvent;
-import io.zeebe.logstreams.processor.EventLifecycleContext;
 import io.zeebe.logstreams.processor.EventProcessor;
+import org.slf4j.Logger;
 
 public class ExporterEventProcessor implements EventProcessor {
-  private final ExporterEventBatch batch;
-  private final Exporter exporter;
-  private final Configuration config;
+  private static final Logger LOG = Loggers.EXPORTERS;
 
-  public ExporterEventProcessor(final Exporter exporter) {
+  private final Exporter exporter;
+  private final int partitionId;
+
+  private ExporterEvent event;
+
+  public ExporterEventProcessor(final Exporter exporter, final int partitionId) {
     this.exporter = exporter;
-    this.config = exporter.getConfiguration();
-    this.batch = new ExporterEventBatch(config.getBatchSize());
+    this.partitionId = partitionId;
   }
 
-  public void wrap(final LoggedEvent rawEvent, final int partitionId) {}
-
-  @Override
-  public void processEvent(EventLifecycleContext ctx) {}
+  public ExporterEventProcessor wrap(final LoggedEvent rawEvent) {
+    event = new ExporterEvent(partitionId).wrap(rawEvent);
+    return this;
+  }
 
   @Override
   public boolean executeSideEffects() {
-
-    return true;
+    try {
+      exporter.export(event);
+      return true;
+    } catch (final Exception ex) {
+      LOG.error("Error exporting event {}", event, ex);
+      return false;
+    }
   }
-
-  @Override
-  public long writeEvent(LogStreamRecordWriter writer) {
-    return 0;
-  }
-
-  @Override
-  public void updateState() {}
 }

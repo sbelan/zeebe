@@ -42,6 +42,7 @@
         <validValue name="MESSAGE">10</validValue>
         <validValue name="MESSAGE_SUBSCRIPTION">11</validValue>
         <validValue name="WORKFLOW_INSTANCE_SUBSCRIPTION">12</validValue>
+        <validValue name="EXPORTER">13</validValue>
     </enum>
 
     <enum name="ControlMessageType" encodingType="uint8" description="The type of the control message.">
@@ -115,8 +116,8 @@
   </sbe:message>
 
   <sbe:message name="SubscribedRecord" id="30">
-    <field name="partitionId" id="1" type="uint16" />
-    <field name="position" id="2" type="uint64" />
+    <field name="partitionId" id="1" type="uint16"/>
+    <field name="position" id="2" type="uint64"/>
     <field name="sourceRecordPosition" id="3" type="uint64" presence="optional"/>
     <field name="key" id="4" type="uint64" />
     <field name="subscriberKey" id="5" type="uint64" />

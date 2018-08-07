@@ -15,28 +15,16 @@
  */
 package io.zeebe.exporter.spi;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
-
 public interface Exporter {
   /** @return configuration to use for this exporter */
   Configuration getConfiguration();
 
   /** Starts the exporter. After this returns, the exporter will start receiving events. */
-  default Future<Void> start(Context context) {
-    return CompletableFuture.completedFuture(null);
-  }
+  default void start(Context context) {}
 
   /** Stops the exporter. After this returns, the exporter will not be receiving events anymore. */
-  default Future<Void> stop() {
-    return CompletableFuture.completedFuture(null);
-  }
+  default void stop() {}
 
-  /**
-   * Should export the given batch of events. The user should call `batch.commit()` to mark the
-   * batch as exported.
-   *
-   * @param batch batch to export
-   */
-  void exporter(Batch batch);
+  /** @param event the event to export */
+  void export(Event event);
 }

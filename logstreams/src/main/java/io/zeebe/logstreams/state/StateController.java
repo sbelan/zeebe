@@ -17,23 +17,12 @@ package io.zeebe.logstreams.state;
 
 import io.zeebe.logstreams.impl.Loggers;
 import io.zeebe.util.ByteValue;
+import io.zeebe.util.LangUtil;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import org.agrona.CloseHelper;
-import org.rocksdb.BlockBasedTableConfig;
-import org.rocksdb.BloomFilter;
-import org.rocksdb.Cache;
-import org.rocksdb.ChecksumType;
-import org.rocksdb.ClockCache;
-import org.rocksdb.Env;
-import org.rocksdb.Filter;
-import org.rocksdb.MemTableConfig;
-import org.rocksdb.Options;
-import org.rocksdb.RocksDB;
-import org.rocksdb.RocksDBException;
-import org.rocksdb.SkipListMemTableConfig;
-import org.rocksdb.TableFormatConfig;
+import org.rocksdb.*;
 import org.slf4j.Logger;
 
 /**
@@ -155,5 +144,18 @@ public class StateController implements AutoCloseable {
           String.format("%s cannot be executed unless database is opened", operation);
       throw new IllegalStateException(message);
     }
+  }
+
+  protected boolean tryGet(final byte[] keyBuffer, final byte[] valueBuffer) {
+    boolean found = false;
+
+    try {
+      final int bytesRead = getDb().get(keyBuffer, valueBuffer);
+      found = bytesRead == valueBuffer.length;
+    } catch (RocksDBException e) {
+      LangUtil.rethrowUnchecked(e);
+    }
+
+    return found;
   }
 }
