@@ -37,9 +37,8 @@ import io.zeebe.protocol.intent.ExporterIntent;
 import org.rocksdb.RocksDBException;
 import org.slf4j.Logger;
 
-public class ExporterManagerProcessorWrapper {
-  public static final String NAME =
-      StringUtil.simpleClassName(ExporterManagerProcessorWrapper.class);
+public class ExporterManagerProcessor {
+  public static final String NAME = StringUtil.simpleClassName(ExporterManagerProcessor.class);
   private static final Logger LOG = Loggers.EXPORTERS;
 
   private final ExporterManagerState state = new ExporterManagerState();
@@ -48,7 +47,7 @@ public class ExporterManagerProcessorWrapper {
     final StateStorage stateStorage =
         partition
             .getStateStorageFactory()
-            .create(EXPORTER_MANAGER_PROCESSOR_ID, ExporterManagerProcessorWrapper.NAME);
+            .create(EXPORTER_MANAGER_PROCESSOR_ID, ExporterManagerProcessor.NAME);
     return new StateSnapshotController(state, stateStorage);
   }
 

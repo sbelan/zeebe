@@ -17,25 +17,28 @@
  */
 package io.zeebe.broker.exporter.processor;
 
-import static io.zeebe.broker.logstreams.processor.StreamProcessorIds.EXPORTER_PROCESSOR_ID;
-
+import io.zeebe.broker.Loggers;
 import io.zeebe.broker.exporter.ExporterContext;
 import io.zeebe.broker.exporter.ExporterDescriptor;
 import io.zeebe.broker.exporter.ExporterRecord;
 import io.zeebe.broker.logstreams.processor.NoopSnapshotSupport;
 import io.zeebe.exporter.spi.Exporter;
+import io.zeebe.logstreams.log.LogStreamReader;
 import io.zeebe.logstreams.log.LogStreamRecordWriter;
 import io.zeebe.logstreams.log.LoggedEvent;
 import io.zeebe.logstreams.processor.EventProcessor;
 import io.zeebe.logstreams.processor.StreamProcessor;
 import io.zeebe.logstreams.processor.StreamProcessorContext;
 import io.zeebe.logstreams.spi.SnapshotSupport;
+import io.zeebe.protocol.clientapi.RecordType;
 import io.zeebe.protocol.clientapi.ValueType;
 import io.zeebe.protocol.impl.RecordMetadata;
 import io.zeebe.protocol.intent.ExporterIntent;
 import io.zeebe.util.sched.ActorControl;
+import org.slf4j.Logger;
 
-public class ExporterStreamProcessor implements StreamProcessor {
+public class ExporterProcessor implements StreamProcessor {
+  private static final Logger LOG = Loggers.EXPORTERS;
   private static final SnapshotSupport NONE = new NoopSnapshotSupport();
 
   private final ExporterRecord record = new ExporterRecord();
@@ -49,7 +52,7 @@ public class ExporterStreamProcessor implements StreamProcessor {
   private LogStreamRecordWriter writer;
   private ActorControl actor;
 
-  public ExporterStreamProcessor(
+  public ExporterProcessor(
       final ExporterDescriptor descriptor, final int partitionId, final long startPosition) {
     this.exporter = descriptor.create();
     this.exporterContext =
@@ -69,7 +72,10 @@ public class ExporterStreamProcessor implements StreamProcessor {
 
   @Override
   public void onOpen(StreamProcessorContext context) {
-    context.getLogStreamReader().seek(startPosition);
+    if (startPosition >= 0) {
+      restartFromPosition(context.getLogStreamReader(), startPosition);
+    }
+
     actor = context.getActorControl();
     writer = context.getLogStreamWriter();
   }
@@ -77,6 +83,7 @@ public class ExporterStreamProcessor implements StreamProcessor {
   @Override
   public void onRecovered() {
     exporter.start(exporterContext);
+    LOG.info("Recovered!");
   }
 
   @Override
@@ -105,14 +112,20 @@ public class ExporterStreamProcessor implements StreamProcessor {
     writer.reset();
     metadata.reset();
 
-    metadata.valueType(ValueType.EXPORTER).intent(ExporterIntent.COMMIT);
+    metadata
+        .valueType(ValueType.EXPORTER)
+        .intent(ExporterIntent.COMMIT)
+        .recordType(RecordType.COMMAND);
     record.setId(exporterContext.getId()).setPosition(position);
 
-    writer
-        .positionAsKey()
-        .producerId(EXPORTER_PROCESSOR_ID)
-        .valueWriter(record)
-        .metadataWriter(record)
-        .tryWrite();
+    writer.positionAsKey().valueWriter(record).metadataWriter(metadata).tryWrite();
+  }
+
+  private void restartFromPosition(final LogStreamReader reader, final long position) {
+    if (reader.seek(position)) {
+      if (reader.hasNext()) {
+        reader.seek(position + 1);
+      }
+    }
   }
 }

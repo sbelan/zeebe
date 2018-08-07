@@ -23,7 +23,7 @@ import static io.zeebe.broker.logstreams.processor.StreamProcessorIds.EXPORTER_P
 import io.zeebe.broker.Loggers;
 import io.zeebe.broker.clustering.base.partitions.Partition;
 import io.zeebe.broker.exporter.ExporterDescriptor;
-import io.zeebe.broker.exporter.processor.ExporterStreamProcessor;
+import io.zeebe.broker.exporter.processor.ExporterProcessor;
 import io.zeebe.broker.logstreams.processor.StreamProcessorLifecycleAware;
 import io.zeebe.broker.logstreams.processor.StreamProcessorServiceFactory;
 import io.zeebe.broker.logstreams.processor.TypedStreamEnvironment;
@@ -45,7 +45,6 @@ public class ExporterManagerService
       ServiceGroupReference.<Partition>create().onAdd(this::installManager).build();
 
   private final ExporterManager manager;
-  private ServiceStartContext serviceStartContext;
 
   public ExporterManagerService(final ExporterManager manager) {
     this.manager = manager;
@@ -53,7 +52,6 @@ public class ExporterManagerService
 
   @Override
   public void start(ServiceStartContext startContext) {
-    serviceStartContext = startContext;
     streamProcessorServiceFactory = streamProcessorServiceFactoryInjector.getValue();
   }
 
@@ -75,7 +73,7 @@ public class ExporterManagerService
 
   private void installManager(final ServiceName<Partition> name, final Partition partition) {
     final TypedStreamEnvironment env = new TypedStreamEnvironment(partition.getLogStream(), null);
-    final ExporterManagerProcessorWrapper wrapper = new ExporterManagerProcessorWrapper();
+    final ExporterManagerProcessor wrapper = new ExporterManagerProcessor();
 
     streamProcessorServiceFactory
         .createService(partition, name)
@@ -89,7 +87,7 @@ public class ExporterManagerService
                   }
                 }))
         .processorId(EXPORTER_MANAGER_PROCESSOR_ID)
-        .processorName(ExporterManagerProcessorWrapper.NAME)
+        .processorName(ExporterManagerProcessor.NAME)
         .snapshotController(wrapper.createSnapshotController(partition))
         .additionalDependencies(name)
         .build();
@@ -100,7 +98,7 @@ public class ExporterManagerService
   private void installExporters(
       final ServiceName<Partition> name,
       final Partition partition,
-      final ExporterManagerProcessorWrapper wrapper) {
+      final ExporterManagerProcessor wrapper) {
     final TypedStreamEnvironment env = new TypedStreamEnvironment(partition.getLogStream(), null);
     final Set<ExporterDescriptor> descriptors = manager.getLoadedExporters();
     for (final ExporterDescriptor descriptor : descriptors) {
@@ -113,14 +111,14 @@ public class ExporterManagerService
   private void installExporter(
       ServiceName<Partition> name,
       Partition partition,
-      ExporterManagerProcessorWrapper wrapper,
+      ExporterManagerProcessor wrapper,
       ExporterDescriptor descriptor) {
     final long position = wrapper.getPosition(descriptor.getId());
 
     streamProcessorServiceFactory
         .createService(partition, name)
         .processor(
-            new ExporterStreamProcessor(descriptor, partition.getInfo().getPartitionId(), position))
+            new ExporterProcessor(descriptor, partition.getInfo().getPartitionId(), position))
         .processorId(EXPORTER_PROCESSOR_ID)
         .processorName(descriptor.getName())
         .eventFilter(e -> e.getValueType() != ValueType.EXPORTER)
