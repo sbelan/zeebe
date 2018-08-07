@@ -97,4 +97,18 @@ public class ExporterEvent implements Event {
   public short getValueType() {
     return metadata.getValueType().value();
   }
+
+  @Override
+  public String toString() {
+    return "ExporterEvent{"
+        + "rawEvent="
+        + rawEvent
+        + ", metadata="
+        + metadata
+        + ", value="
+        + value
+        + ", partitionId="
+        + partitionId
+        + '}';
+  }
 }

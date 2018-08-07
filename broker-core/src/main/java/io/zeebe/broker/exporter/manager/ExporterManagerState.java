@@ -17,7 +17,7 @@
  */
 package io.zeebe.broker.exporter.manager;
 
-import static io.zeebe.broker.exporter.ExporterCommitMessage.POSITION_UNKNOWN;
+import static io.zeebe.broker.exporter.ExporterRecord.POSITION_UNKNOWN;
 import static io.zeebe.util.StringUtil.getBytes;
 
 import io.zeebe.logstreams.state.StateController;

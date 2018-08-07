@@ -22,14 +22,14 @@ import io.zeebe.msgpack.property.LongProperty;
 import io.zeebe.msgpack.property.StringProperty;
 import org.agrona.DirectBuffer;
 
-public class ExporterCommitMessage extends UnpackedObject {
+public class ExporterRecord extends UnpackedObject {
   public static final long POSITION_UNKNOWN = -1L;
   public static final String ID_UNKNOWN = "";
 
   private StringProperty idProperty = new StringProperty("id", ID_UNKNOWN);
   private LongProperty positionProperty = new LongProperty("position", POSITION_UNKNOWN);
 
-  public ExporterCommitMessage() {
+  public ExporterRecord() {
     this.declareProperty(idProperty);
     this.declareProperty(positionProperty);
   }
@@ -42,12 +42,12 @@ public class ExporterCommitMessage extends UnpackedObject {
     return idProperty.getValue();
   }
 
-  public ExporterCommitMessage setId(final String id) {
+  public ExporterRecord setId(final String id) {
     idProperty.setValue(id);
     return this;
   }
 
-  public ExporterCommitMessage setPosition(final long position) {
+  public ExporterRecord setPosition(final long position) {
     positionProperty.setValue(position);
     return this;
   }

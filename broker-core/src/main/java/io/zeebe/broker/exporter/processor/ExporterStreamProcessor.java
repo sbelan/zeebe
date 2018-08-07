@@ -19,9 +19,9 @@ package io.zeebe.broker.exporter.processor;
 
 import static io.zeebe.broker.logstreams.processor.StreamProcessorIds.EXPORTER_PROCESSOR_ID;
 
-import io.zeebe.broker.exporter.ExporterCommitMessage;
 import io.zeebe.broker.exporter.ExporterContext;
 import io.zeebe.broker.exporter.ExporterDescriptor;
+import io.zeebe.broker.exporter.ExporterRecord;
 import io.zeebe.broker.logstreams.processor.NoopSnapshotSupport;
 import io.zeebe.exporter.spi.Exporter;
 import io.zeebe.logstreams.log.LogStreamRecordWriter;
@@ -38,7 +38,7 @@ import io.zeebe.util.sched.ActorControl;
 public class ExporterStreamProcessor implements StreamProcessor {
   private static final SnapshotSupport NONE = new NoopSnapshotSupport();
 
-  private final ExporterCommitMessage message = new ExporterCommitMessage();
+  private final ExporterRecord record = new ExporterRecord();
   private final RecordMetadata metadata = new RecordMetadata();
 
   private final Exporter exporter;
@@ -106,13 +106,13 @@ public class ExporterStreamProcessor implements StreamProcessor {
     metadata.reset();
 
     metadata.valueType(ValueType.EXPORTER).intent(ExporterIntent.COMMIT);
-    message.setId(exporterContext.getId()).setPosition(position);
+    record.setId(exporterContext.getId()).setPosition(position);
 
     writer
         .positionAsKey()
         .producerId(EXPORTER_PROCESSOR_ID)
-        .valueWriter(message)
-        .metadataWriter(message)
+        .valueWriter(record)
+        .metadataWriter(record)
         .tryWrite();
   }
 }

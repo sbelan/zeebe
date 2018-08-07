@@ -16,9 +16,6 @@
 package io.zeebe.exporter.spi;
 
 public interface Exporter {
-  /** @return configuration to use for this exporter */
-  Configuration getConfiguration();
-
   /** Starts the exporter. After this returns, the exporter will start receiving events. */
   default void start(Context context) {}
 

@@ -17,14 +17,20 @@
  */
 package io.zeebe.broker.exporter.manager;
 
+import static io.zeebe.broker.logstreams.processor.StreamProcessorIds.EXPORTER_MANAGER_PROCESSOR_ID;
+
 import io.netty.util.internal.StringUtil;
 import io.zeebe.broker.Loggers;
-import io.zeebe.broker.exporter.ExporterCommitMessage;
+import io.zeebe.broker.clustering.base.partitions.Partition;
+import io.zeebe.broker.exporter.ExporterRecord;
 import io.zeebe.broker.logstreams.processor.CommandProcessor;
 import io.zeebe.broker.logstreams.processor.StreamProcessorLifecycleAware;
 import io.zeebe.broker.logstreams.processor.TypedRecord;
 import io.zeebe.broker.logstreams.processor.TypedStreamEnvironment;
 import io.zeebe.logstreams.processor.StreamProcessor;
+import io.zeebe.logstreams.spi.SnapshotController;
+import io.zeebe.logstreams.state.StateSnapshotController;
+import io.zeebe.logstreams.state.StateStorage;
 import io.zeebe.protocol.clientapi.RejectionType;
 import io.zeebe.protocol.clientapi.ValueType;
 import io.zeebe.protocol.intent.ExporterIntent;
@@ -38,6 +44,14 @@ public class ExporterManagerProcessorWrapper {
 
   private final ExporterManagerState state = new ExporterManagerState();
 
+  public SnapshotController createSnapshotController(final Partition partition) {
+    final StateStorage stateStorage =
+        partition
+            .getStateStorageFactory()
+            .create(EXPORTER_MANAGER_PROCESSOR_ID, ExporterManagerProcessorWrapper.NAME);
+    return new StateSnapshotController(state, stateStorage);
+  }
+
   public long getPosition(final String exporterId) {
     return state.getPosition(exporterId);
   }
@@ -47,28 +61,28 @@ public class ExporterManagerProcessorWrapper {
     return environment
         .newStreamProcessor()
         .onCommand(ValueType.EXPORTER, ExporterIntent.COMMIT, new CommitMessageProcessor())
+        .withStateController(state)
         .withListener(listener)
         .build();
   }
 
-  private class CommitMessageProcessor implements CommandProcessor<ExporterCommitMessage> {
+  private class CommitMessageProcessor implements CommandProcessor<ExporterRecord> {
     @Override
-    public void onCommand(
-        TypedRecord<ExporterCommitMessage> command, CommandControl commandControl) {
-      final ExporterCommitMessage message = command.getValue();
-      final long currentPosition = state.getPosition(message.getId());
+    public void onCommand(TypedRecord<ExporterRecord> command, CommandControl commandControl) {
+      final ExporterRecord record = command.getValue();
+      final long currentPosition = state.getPosition(record.getId());
 
-      if (currentPosition >= message.getPosition()) {
+      if (currentPosition >= record.getPosition()) {
         LOG.debug(
             "Tried committing lower position than current, {} < {}",
-            message.getPosition(),
+            record.getPosition(),
             currentPosition);
         commandControl.reject(
             RejectionType.BAD_VALUE, "cannot commit previously committed position");
       }
 
       try {
-        state.setPosition(message.getId(), message.getPosition());
+        state.setPosition(record.getId(), record.getPosition());
         commandControl.accept(ExporterIntent.COMMITTED);
       } catch (final RocksDBException e) {
         LOG.error("Error updating exporter manager state", e);

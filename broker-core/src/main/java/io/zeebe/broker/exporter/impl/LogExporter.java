@@ -17,29 +17,20 @@
  */
 package io.zeebe.broker.exporter.impl;
 
-import io.zeebe.exporter.spi.Configuration;
 import io.zeebe.exporter.spi.Context;
 import io.zeebe.exporter.spi.Event;
 import io.zeebe.exporter.spi.Exporter;
-import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
-public class LogExporter implements Exporter, Configuration {
+public class LogExporter implements Exporter {
   private static final Future<Void> FINISHED = CompletableFuture.completedFuture(null);
-  private static final int BATCH_SIZE = 100;
-  private static final Duration BATCH_FLUSH_TIMEOUT = Duration.ofSeconds(1);
-
   private Context context;
 
   @Override
-  public Configuration getConfiguration() {
-    return this;
-  }
-
-  @Override
   public void start(Context context) {
-    context.getLogger().info("Starting exporter {}", context.getId());
+    this.context = context;
+    this.context.getLogger().info("Starting exporter {}", this.context.getId());
   }
 
   @Override
@@ -51,15 +42,5 @@ public class LogExporter implements Exporter, Configuration {
   public void export(Event event) {
     context.getLogger().info("Exporter {} exporting {}", context.getId(), event);
     context.getLastPositionUpdater().accept(event.getPosition());
-  }
-
-  @Override
-  public int getBatchSize() {
-    return BATCH_SIZE;
-  }
-
-  @Override
-  public Duration getBatchFlushTimeout() {
-    return BATCH_FLUSH_TIMEOUT;
   }
 }

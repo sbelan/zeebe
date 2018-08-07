@@ -17,6 +17,7 @@
  */
 package io.zeebe.broker.exporter.manager;
 
+import io.zeebe.broker.Loggers;
 import io.zeebe.broker.exporter.ExporterDescriptor;
 import io.zeebe.broker.exporter.ExporterEnvironment;
 import io.zeebe.broker.exporter.ExporterLoadException;
@@ -27,8 +28,10 @@ import io.zeebe.exporter.spi.Exporter;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import org.slf4j.Logger;
 
 public class ExporterManager {
+  private static final Logger LOG = Loggers.EXPORTERS;
   private final ExporterEnvironment env;
   private final Set<ExporterDescriptor> loadedExporters = new HashSet<>();
   private final JarLoader loader = new JarLoader();
@@ -39,6 +42,7 @@ public class ExporterManager {
 
   public void load(List<ExporterCfg> configs) {
     configs.forEach(this::load);
+    LOG.info("Loaded {} exporters", loadedExporters.size());
   }
 
   public void load(final String id, final Class<? extends Exporter> exporterClass) {
