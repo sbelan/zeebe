@@ -17,14 +17,15 @@
  */
 package io.zeebe.broker.exporter;
 
-import io.zeebe.exporter.spi.Argument;
+import com.moandjiezana.toml.Toml;
+import com.moandjiezana.toml.TomlWriter;
 import io.zeebe.exporter.spi.Exporter;
-
-import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.Objects;
 
 public class ExporterDescriptor {
+  private static final TomlWriter TOML_WRITER = new TomlWriter();
+  private static final Toml TOML_READER = new Toml();
   private static final String NAME_FORMAT = "exporter-%s";
 
   private final String id;
@@ -83,44 +84,15 @@ public class ExporterDescriptor {
 
   // TODO: this sucks
   // just verifies we can create it properly
-  public void verify() throws IllegalAccessException, InstantiationException {
+  public void verify() throws ExporterLoadException {
     create();
   }
 
   public Exporter create() throws ExporterLoadException {
-    final Field[] fields = exporterClass.getDeclaredFields();
-    final Exporter instance;
     try {
-      instance = exporterClass.newInstance();
-      setArgs(instance, args, fields);
-    } catch (InstantiationException | IllegalAccessException e) {
-      throw new ExporterLoadException(id, args, e);
-    }
-
-    return instance;
-  }
-
-  private void setArgs(
-      final Exporter instance, final Map<String, Object> args, final Field[] fields)
-      throws IllegalAccessException {
-    for (final Field field : fields) {
-      if (field.isAnnotationPresent(Argument.class)) {
-        String arg = field.getAnnotation(Argument.class).value();
-        if (arg.equals(Argument.DEFAULT)) {
-          arg = field.getName();
-        }
-
-        if (args.containsKey(arg)) {
-          final Object value = args.get(arg);
-          final Class<?> fieldClass = value.getClass();
-
-          if (fieldClass.isAssignableFrom(field.getType())) {
-            field.setAccessible(true);
-            field.set(instance, fieldClass.cast(value));
-            field.get(instance);
-          }
-        }
-      }
+      return TOML_READER.read(TOML_WRITER.write(args)).to(exporterClass);
+    } catch (final Exception ex) {
+      throw new ExporterLoadException(getId(), getArgs(), ex);
     }
   }
 }

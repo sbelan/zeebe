@@ -27,6 +27,7 @@ import java.nio.file.Path;
  * io.zeebe.exporter.* classes, all classes contained in the exporter's JAR
  */
 public class JarClassLoader extends URLClassLoader {
+  private static final String JAR_URL_FORMAT = "jar:%s!/";
   private static final String JAVA_PACKAGE_PREFIX = "java.";
   private static final String EXPORTER_PACKAGE_PREFIX = "io.zeebe.exporter.";
   private static final String SLF4J_PACKAGE_PREFIX = "org.slf4j.";
@@ -37,7 +38,12 @@ public class JarClassLoader extends URLClassLoader {
   }
 
   public JarClassLoader(final Path jarPath) throws MalformedURLException {
-    this(new URL("jar:file://" + jarPath.toAbsolutePath() + "!/"));
+    this(JarClassLoader.jarUrl(jarPath));
+  }
+
+  private static URL jarUrl(final Path jarPath) throws MalformedURLException {
+    final String jarUrl = jarPath.toUri().toURL().toString();
+    return new URL(String.format(JAR_URL_FORMAT, jarUrl));
   }
 
   @Override

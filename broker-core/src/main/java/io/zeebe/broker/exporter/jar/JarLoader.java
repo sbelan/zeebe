@@ -18,13 +18,12 @@
 package io.zeebe.broker.exporter.jar;
 
 import io.zeebe.broker.Loggers;
-import org.slf4j.Logger;
-
 import java.net.MalformedURLException;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Predicate;
+import org.slf4j.Logger;
 
 /**
  * Loads JARs and keeps a cache of loaded JARs => JarClassLoader, allowing easy reuse without

@@ -40,8 +40,8 @@ public class ExporterComponent implements Component {
     final ExporterManager manager = new ExporterManager(env);
 
     // Add any internal exporters here
-    manager.load("io.zeebe.broker.exporter.impl.LogExporter", LogExporter.class);
-    manager.load(brokerCfg.getExporters());
+    // manager.load("io.zeebe.broker.exporter.impl.LogExporter", LogExporter.class);
+    manager.load(brokerCfg.getExporter());
 
     final ExporterManagerService service = new ExporterManagerService(manager);
     context

@@ -35,6 +35,7 @@ import io.zeebe.protocol.clientapi.ValueType;
 import io.zeebe.protocol.impl.RecordMetadata;
 import io.zeebe.protocol.intent.ExporterIntent;
 import io.zeebe.util.sched.ActorControl;
+import java.time.Duration;
 import org.slf4j.Logger;
 
 public class ExporterProcessor implements StreamProcessor {
@@ -60,7 +61,8 @@ public class ExporterProcessor implements StreamProcessor {
             descriptor.getId(),
             descriptor.getArgs(),
             descriptor.getEnv(),
-            this::schedulePositionUpdate);
+            this::schedulePositionUpdate,
+            this::scheduleDelayedTask);
     this.eventProcessor = new ExporterEventProcessor(exporter, partitionId);
     this.startPosition = startPosition;
   }
@@ -106,6 +108,10 @@ public class ExporterProcessor implements StreamProcessor {
             actor.yield();
           }
         });
+  }
+
+  private void scheduleDelayedTask(final Runnable task, final Duration delay) {
+    actor.runDelayed(delay, task);
   }
 
   private void commitPosition(final long position) {

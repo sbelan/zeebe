@@ -33,7 +33,7 @@ public class BrokerCfg {
   private GossipConfiguration gossip = new GossipConfiguration();
   private RaftConfiguration raft = new RaftConfiguration();
   private List<TopicCfg> topics = new ArrayList<>();
-  private List<ExporterCfg> exporters = new ArrayList<>();
+  private List<ExporterCfg> exporter = new ArrayList<>();
 
   public void init(String brokerBase) {
     init(brokerBase, new Environment());
@@ -45,7 +45,7 @@ public class BrokerCfg {
     threads.init(this, brokerBase, environment);
     metrics.init(this, brokerBase, environment);
     data.init(this, brokerBase, environment);
-    exporters.forEach(e -> e.init(this, brokerBase, environment));
+    exporter.forEach(e -> e.init(this, brokerBase, environment));
   }
 
   public int getBootstrap() {
@@ -120,11 +120,11 @@ public class BrokerCfg {
     this.topics = topics;
   }
 
-  public List<ExporterCfg> getExporters() {
-    return exporters;
+  public List<ExporterCfg> getExporter() {
+    return exporter;
   }
 
-  public void setExporters(List<ExporterCfg> exporters) {
-    this.exporters = exporters;
+  public void setExporter(List<ExporterCfg> exporter) {
+    this.exporter = exporter;
   }
 }

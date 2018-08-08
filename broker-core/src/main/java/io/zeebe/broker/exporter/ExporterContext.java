@@ -19,7 +19,9 @@ package io.zeebe.broker.exporter;
 
 import io.zeebe.exporter.spi.Context;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Map;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
 
@@ -29,15 +31,20 @@ public class ExporterContext implements Context {
   private final ExporterEnvironment env;
   private final Consumer<Long> lastPositionUpdater;
 
+  // TODO: potentially have reference to ActorControl
+  private final BiConsumer<Runnable, Duration> scheduler;
+
   public ExporterContext(
       final String id,
       final Map<String, Object> args,
       final ExporterEnvironment env,
-      Consumer<Long> lastPositionUpdater) {
+      Consumer<Long> lastPositionUpdater,
+      BiConsumer<Runnable, Duration> scheduler) {
     this.id = id;
     this.args = args;
     this.env = env;
     this.lastPositionUpdater = lastPositionUpdater;
+    this.scheduler = scheduler;
   }
 
   @Override
@@ -61,7 +68,12 @@ public class ExporterContext implements Context {
   }
 
   @Override
-  public Consumer<Long> getLastPositionUpdater() {
-    return lastPositionUpdater;
+  public void updateLastExportedPosition(long position) {
+    lastPositionUpdater.accept(position);
+  }
+
+  @Override
+  public void schedule(final Runnable task, final Duration delay) {
+    scheduler.accept(task, delay);
   }
 }

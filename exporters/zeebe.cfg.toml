@@ -1,0 +1,306 @@
+# Zeebe broker configuration file
+
+# Overview -------------------------------------------
+
+# This file contains a complete list of available configuration options.
+
+# Default values:
+#
+# When the default value is used for a configuration option, the option is
+# commented out. You can learn the default value from this file
+
+# Conventions:
+#
+# Byte sizes
+# For buffers and others must be specified as strings and follow the following
+# format: "10U" where U (unit) must be replaced with K = Kilobytes, M = Megabytes or G = Gigabytes.
+# If unit is omitted then the default unit is simply bytes.
+# Example:
+# sendBufferSize = "16M" (creates a buffer of 16 Megabytes)
+#
+# Time units
+# Timeouts, intervals, and the likes, must be specified as strings and follow the following
+# format: "VU", where:
+#   - V is a numerical value (e.g. 1, 1.2, 3.56, etc.)
+#   - U is the unit, one of: ms = Millis, s = Seconds, m = Minutes, or h = Hours
+#
+# Paths:
+# Relative paths are resolved relative to the installation directory of the
+# broker.
+
+# ----------------------------------------------------
+
+# Controls the number of nodes this broker waits for until doing bootstrapping:
+#
+# * When using a single-node cluster, the value should be 1
+# * When using a multi-node cluster, one node should be configured with
+#   bootstrap = 3 (or 5, depending on the cluster size) and for all the other
+#   nodes it should be set to 0 (or removed from the configuration since default
+#   value is 0).
+#
+# (Note that the broker includes itself in the count, ie. when specifying '1',
+# the broker waits for itself.)
+#
+# Explanation: When doing bootstrapping, the broker ensures that internally used
+# resources such as the 'internal-system' topic are available. The
+# 'internal-system' topic is used for storing information about all the other,
+# user-defined, topics that are available in the cluster. When specifying a
+# value > 1 for this configuration property, the broker will wait for the
+# specified number of nodes to appear in the cluster and then create the
+# internal-system topic if not yet present, using the specified value as
+# replication factor.
+bootstrap = 1
+
+# Topics defined below are created automatically during bootstrapping.
+# You can configure them as follows:
+# * name: the topic name, e.g. "default-topic"
+# * partitions: the number of partitions that should be created for this topic, e.g. 1
+# * replicationFactor: the number of nodes this on which the partitions should be replicated, e.g. 3
+#                      the replication factor cannot be greater than the number of nodes in the
+#                      cluster.
+[[topics]]
+name = "default-topic"
+partitions = 1
+replicationFactor = 1
+
+[network]
+
+# This section contains the network configuration. Particularly, it allows to
+# configure the hosts and ports the broker should bind to. the broker exposes 3
+# ports: 1. client: the port on which client (Java, CLI, Go, ...) connections
+# are handled 2. management: used internally by the cluster for the gossip
+# membership protocol and other management interactions 3. replication: used
+# internally by the cluster for replicating data across nodes using the raft
+# protocol
+
+# Controls the default host the broker should bind to. Can be overwritten on a
+# per binding basis for client, management and replication
+# host = "0.0.0.0"
+
+# If a port offset is set it will be added to all ports specified in the config
+# or the default values. This is a shortcut to not always specifying every port.
+#
+# The offset will be added to the second last position of the port, as Zeebe
+# requires multiple ports. As example a portOffset of 5 will increment all ports
+# by 50, i.e. 26500 will become 26550 and so on.
+#
+# This setting can also be overridden using the environment variable ZEEBE_PORT_OFFSET.
+# portOffset = 0
+
+# Controls the default size of the buffers that are used for buffering outgoing
+# messages. Can be overwritten on a per binding basis for client, management and
+# replication
+# defaultSendBufferSize = "16M"
+
+[network.gateway]
+
+# Enables embedded gateway to start
+# enabled = true
+#
+# Overrides the host the gateway binds to
+# host = "localhost"
+#
+# Sets the port the gateway binds to
+# port = 26500
+
+[network.client]
+
+# Allows to override the host the client api binds to
+# host = "localhost"
+#
+# The port the client api binds to
+# port = 26501
+#
+# Overrides the size of the buffer used for buffering outgoing messages to
+# clients
+# sendBufferSize = "16M"
+#
+# Sets the size of the buffer used for receiving control messages from clients
+# (such as management of subscriptions)
+# controlMessageBufferSize = "8M"
+
+[network.management]
+
+# Overrides the host the management api binds to
+# host = "localhost"
+#
+# Sets the port the management api binds to
+# port = 26502
+#
+# Overrides the size of the buffer to be used for buffering outgoing messages to
+# other brokers through the management protocols
+# sendBufferSize = "16M"
+#
+# Sets the buffer size used for receiving gossip messages and others
+# receiveBufferSize = "8M"
+
+[network.replication]
+
+# Overrides the host the replication api binds to
+# host = "localhost"
+#
+# Sets the port the replication api binds to
+# port = 26503
+#
+# Sets the buffer size used for buffering outgoing raft (replication) messages
+# sendBufferSize = "16M"
+
+[network.subscription]
+
+# Overrides the host the subscription api binds to
+# host = "localhost"
+#
+# Sets the port the subscription api binds to
+# port = 26504
+#
+# Overrides the size of the buffer to be used for buffering outgoing messages to
+# other brokers through the subscription protocols
+# sendBufferSize = "16M"
+#
+# Sets the buffer size used for receiving subscription messages and others
+# receiveBufferSize = "8M"
+
+
+[data]
+
+# This section allows to configure Zeebe's data storage. Data is stored in
+# "partition folders". A partition folder has the following structure:
+#
+# internal-system-0                 (root partition folder)
+# ├── partition.json                (metadata about the partition)
+# ├── segments                      (the actual data as segment files)
+# │   ├── 00.data
+# │   └── 01.data
+# └── snapshots                     (snapshot data)
+#
+
+# Specify a list of directories in which data is stored. Using multiple
+# directories makes sense in case the machine which is running Zeebe has
+# multiple disks which are used in a JBOD (just a bunch of disks) manner. This
+# allows to get greater throughput in combination with a higher io thread count
+# since writes to different disks can potentially be done in parallel.
+directories = [ "broker/data" ]
+
+# The default size of data segments.
+# defaultSegmentSize = "512M"
+
+# How often we take snapshots of streams (time unit)
+# snapshotPeriod = "15m"
+
+# How often follower partitions will check for new snapshots to replicate from
+# the leader partitions. Snapshot replication enables faster failover by
+# reducing how many log entries must be reprocessed in case of leader change.
+# snapshotReplicationPeriod = "5m"
+
+
+[cluster]
+
+# Allows to specify a list of known other nodes to connect to on startup
+# The contact points of the management api must be specified.
+# The format is [HOST:PORT]
+# Example:
+# initialContactPoints = [ "192.168.1.22:26502", "192.168.1.32:26502" ]
+#
+# Default is empty list:
+# initialContactPoints = []
+
+[threads]
+
+# Controls the number of non-blocking CPU threads to be used. WARNING: You
+# should never specify a value that is larger than the number of physical cores
+# available. Good practice is to leave 1-2 cores for ioThreads and the operating
+# system (it has to run somewhere). For example, when running Zeebe on a machine
+# which has 4 cores, a good value would be 2.
+#
+# The default value is 2.
+#cpuThreadCount = 2
+
+# Controls the number of io threads to be used. These threads are used for
+# workloads that write data to disk. While writing, these threads are blocked
+# which means that they yield the CPU.
+#
+# The default value is 2.
+#ioThreadCount = 2
+
+[metrics]
+
+# Path to the file to which metrics are written. Metrics are written in a
+# text-based format understood by prometheus.io
+metricsFile = "broker/metrics/zeebe.prom"
+
+# Controls the interval at which the metrics are written to the metrics file
+# reportingInterval = "5s"
+
+[gossip]
+
+# retransmissionMultiplier = 3
+# probeInterval = "1s"
+# probeTimeout = "500ms"
+# probeIndirectNodes = 3
+# probeIndirectTimeout = "1s"
+# suspicionMultiplier = 5
+# syncTimeout = "3s"
+# syncInterval = "15s"
+# joinTimeout = "1s"
+# joinInterval = "5s"
+# leaveTimeout = "1s"
+# maxMembershipEventsPerMessage = 32
+# maxCustomEventsPerMessage = 8
+
+[raft]
+
+# heartbeatInterval = "250ms"
+# electionInterval = "1s"
+# leaveTimeout = "1s"
+
+# Exporters are lightweight, read-only stream processors which are used to export data to external
+# systems, which relieve Zeebe from the responsibility of persisting data forever.
+#
+# Each exporter must be configured before system startup, and an exporter can only see data from
+# the moment they are installed, meaning that any events that occurred before it existed in the
+# system will not be seen by the exporter; conversely, every event that occurs after *will* be seen
+# by the exporter.
+#
+# The following is a complete example of a configuration for one exporter:
+#
+# [[exporter]]
+# id = "MongoDB"
+# path = "exporters/myExporter.jar"
+# className = "io.zeebe.exporters.mongodb.MongoDbExporter"
+#   [exporter.args]
+#   host = "localhost"
+#   port = 21707
+#   user_name = "john@doe"
+#
+# id:
+#   property should be unique in this configuration file, as it will server as the exporter
+#   ID for loading/unloading.
+# path:
+#   path to the JAR file containing the exporter class. JARs are only loaded once, so you can define
+#   two exporters that point to the same JAR, with the same class or a different one, and use args
+#   to parametrize its instantiation.
+# className:
+#   entry point of the exporter, a class which *must* extend the io.zeebe.exporter.Exporter
+#   interface.
+#
+# A nested table as [[exporter.args]] will allow you to inject arbitrary arguments into your
+# class through the use of annotations.
+# Given the above table, you could have class with the following:
+#
+# public class MyExporter implements Exporter {
+#   @Argument private String host;
+#   @Argument private int port;
+#   @Argument("user_name") private String username;
+#
+#   ...
+# }
+#
+
+[[exporter]]
+id = "elastic"
+path = "elasticsearch/target/zb-exporters-elasticsearch-1.0-SNAPSHOT-jar-with-dependencies.jar"
+className = "io.zeebe.exporters.elasticsearch.ElasticSearchExporter"
+  [exporter.args]
+  host = "localhost"
+  port = 9201
+  batchSize = "5"

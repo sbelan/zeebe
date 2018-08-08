@@ -41,6 +41,6 @@ public class LogExporter implements Exporter {
   @Override
   public void export(Event event) {
     context.getLogger().info("Exporter {} exporting {}", context.getId(), event);
-    context.getLastPositionUpdater().accept(event.getPosition());
+    context.updateLastExportedPosition(event.getPosition());
   }
 }

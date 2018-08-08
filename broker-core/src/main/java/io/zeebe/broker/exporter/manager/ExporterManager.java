@@ -25,11 +25,10 @@ import io.zeebe.broker.exporter.jar.JarClassLoader;
 import io.zeebe.broker.exporter.jar.JarLoader;
 import io.zeebe.broker.system.configuration.ExporterCfg;
 import io.zeebe.exporter.spi.Exporter;
-import org.slf4j.Logger;
-
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import org.slf4j.Logger;
 
 public class ExporterManager {
   private static final Logger LOG = Loggers.EXPORTERS;
@@ -56,12 +55,7 @@ public class ExporterManager {
       final Map<String, Object> args) {
     final ExporterDescriptor container = new ExporterDescriptor(id, exporterClass, args, env);
 
-    try {
-      container.verify();
-    } catch (IllegalAccessException | InstantiationException e) {
-      throw new ExporterLoadException(id, args, e);
-    }
-
+    container.verify();
     loadedExporters.add(container);
   }
 

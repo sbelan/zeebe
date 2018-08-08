@@ -55,6 +55,10 @@ public class ExporterManagerProcessor {
     return state.getPosition(exporterId);
   }
 
+  public long getLowestPosition() {
+    return state.getLowestPosition();
+  }
+
   public StreamProcessor createStreamProcessor(
       TypedStreamEnvironment environment, StreamProcessorLifecycleAware listener) {
     return environment

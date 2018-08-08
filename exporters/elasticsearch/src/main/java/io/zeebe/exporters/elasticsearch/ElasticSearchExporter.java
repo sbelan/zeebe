@@ -1,3 +1,18 @@
+/*
+ * Copyright © 2017 camunda services GmbH (info@camunda.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.zeebe.exporters.elasticsearch;
 
 import io.zeebe.exporter.spi.Argument;
@@ -13,14 +28,19 @@ import org.elasticsearch.client.RestHighLevelClient;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ElasticSearchExporter implements Exporter {
   @Argument private String host = "localhost";
   @Argument private int port = 9200;
   @Argument private String scheme = "http";
-  @Argument private int batchSize = 100;
+
+  @Argument("batch_size")
+  private int batchSize = 100;
 
   private Context context;
   private RestHighLevelClient client;
@@ -28,9 +48,12 @@ public class ElasticSearchExporter implements Exporter {
   private final BulkRequest bulkRequest = new BulkRequest();
   private long lastPosition = -1L;
 
+  private Instant lastFlush;
+  private Duration flushDelay = Duration.ofSeconds(1);
+  private AtomicBoolean flushScheduled = new AtomicBoolean(false);
+
   public void start(Context context) {
-    RestHighLevelClient client =
-        new RestHighLevelClient(RestClient.builder(new HttpHost(host, port, scheme)));
+    client = new RestHighLevelClient(RestClient.builder(new HttpHost(host, port, scheme)));
 
     this.context = context;
     this.context
@@ -56,6 +79,10 @@ public class ElasticSearchExporter implements Exporter {
 
     if (shouldFlush()) {
       flush();
+    } else {
+      if (flushScheduled.compareAndSet(false, true)) {
+        context.schedule(this::handleScheduledFlush, flushDelay);
+      }
     }
   }
 
@@ -78,6 +105,7 @@ public class ElasticSearchExporter implements Exporter {
 
     lastPosition = event.getPosition();
     bulkRequest.add(new UpdateRequest().doc(dict));
+    context.getLogger().info("Added {} to bulkRequest", event.getPosition());
   }
 
   private boolean shouldFlush() {
@@ -94,10 +122,24 @@ public class ElasticSearchExporter implements Exporter {
     return new String(StandardCharsets.UTF_8.decode(buffer).array());
   }
 
+  private void handleScheduledFlush() {
+    if (lastFlush == null
+        || Duration.between(Instant.now(), lastFlush).compareTo(flushDelay) >= 0) {
+      flushScheduled.set(false);
+      if (shouldFlush()) {
+        flush();
+      }
+    }
+  }
+
   private void flush() {
     try {
+      int requestsCount = bulkRequest.requests().size();
       client.bulk(bulkRequest);
-      context.getLastPositionUpdater().accept(lastPosition);
+      context.updateLastExportedPosition(lastPosition);
+      lastFlush = Instant.now();
+      context.getLogger().info("Exported {} events", requestsCount);
+      bulkRequest.requests().clear();
     } catch (IOException e) {
       context.getLogger().error("Failed to write bulk request", e);
     }

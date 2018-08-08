@@ -25,6 +25,7 @@ import io.zeebe.util.buffer.BufferUtil;
 import java.nio.ByteBuffer;
 import org.agrona.DirectBuffer;
 import org.rocksdb.RocksDBException;
+import org.rocksdb.RocksIterator;
 
 public class ExporterManagerState extends StateController {
   private final ByteBuffer dbLongBuffer = ByteBuffer.allocate(Long.BYTES);
@@ -60,5 +61,27 @@ public class ExporterManagerState extends StateController {
     }
 
     return position;
+  }
+
+  public long getLowestPosition() {
+    ensureIsOpened("getLowestPosition");
+
+    long lowestPosition = POSITION_UNKNOWN;
+    try (final RocksIterator iterator = getDb().newIterator()) {
+      long position = POSITION_UNKNOWN;
+
+      iterator.seekToFirst();
+      while (iterator.isValid()) {
+        System.arraycopy(iterator.value(), 0, dbLongBuffer.array(), 0, dbLongBuffer.capacity());
+        position = dbLongBuffer.getLong(0);
+        if (lowestPosition == POSITION_UNKNOWN || position < lowestPosition) {
+          lowestPosition = position;
+        }
+
+        iterator.next();
+      }
+    }
+
+    return lowestPosition;
   }
 }

@@ -16,8 +16,8 @@
 package io.zeebe.exporter.spi;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Map;
-import java.util.function.Consumer;
 import org.slf4j.Logger;
 
 public interface Context {
@@ -33,6 +33,19 @@ public interface Context {
   /** @return Map of arguments specified in the configuration file */
   Map<String, Object> getArgs();
 
-  /** @return a consumer which should be called with the latest exported event position */
-  Consumer<Long> getLastPositionUpdater();
+  /**
+   * Exporters must call this back once they have successfully exported events with the position of
+   * the latest event they received (in-order of reception).
+   *
+   * @param position the last successfully exported event position
+   */
+  void updateLastExportedPosition(long position);
+
+  /**
+   * Schedules the task to be ran after a given time.
+   *
+   * @param task task to be run after the delay
+   * @param delay how long to wait before running the task
+   */
+  void schedule(Runnable task, Duration delay);
 }
