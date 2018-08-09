@@ -15,7 +15,6 @@
  */
 package io.zeebe.exporters.elasticsearch;
 
-import io.zeebe.exporter.spi.Argument;
 import io.zeebe.exporter.spi.Context;
 import io.zeebe.exporter.spi.Event;
 import io.zeebe.exporter.spi.Exporter;
@@ -35,12 +34,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ElasticSearchExporter implements Exporter {
-  @Argument private String host = "localhost";
-  @Argument private int port = 9200;
-  @Argument private String scheme = "http";
-
-  @Argument("batch_size")
-  private int batchSize = 100;
+  private Configuration config;
 
   private Context context;
   private RestHighLevelClient client;
@@ -53,17 +47,20 @@ public class ElasticSearchExporter implements Exporter {
   private AtomicBoolean flushScheduled = new AtomicBoolean(false);
 
   public void start(Context context) {
-    client = new RestHighLevelClient(RestClient.builder(new HttpHost(host, port, scheme)));
+    this.client =
+        new RestHighLevelClient(
+            RestClient.builder(new HttpHost(config.host, config.port, config.scheme)));
 
+    this.config = context.configure(Configuration.class);
     this.context = context;
     this.context
         .getLogger()
         .info(
             "Started with config: host={}, port={}, scheme={}, batchSize={}",
-            host,
-            port,
-            scheme,
-            batchSize);
+            config.host,
+            config.port,
+            config.scheme,
+            config.batchSize);
   }
 
   public void stop() {
@@ -109,7 +106,7 @@ public class ElasticSearchExporter implements Exporter {
   }
 
   private boolean shouldFlush() {
-    return bulkRequest.requests().size() >= batchSize;
+    return bulkRequest.requests().size() >= config.batchSize;
   }
 
   private byte[] toArray(final ByteBuffer buffer) {

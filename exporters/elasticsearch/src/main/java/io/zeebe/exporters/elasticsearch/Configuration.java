@@ -13,15 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.zeebe.exporter.spi;
+package io.zeebe.exporters.elasticsearch;
 
-import java.lang.annotation.*;
-
-@Target(ElementType.FIELD)
-@Retention(RetentionPolicy.RUNTIME)
-@Inherited
-public @interface Argument {
-  String DEFAULT = "";
-
-  String value() default DEFAULT;
+public class Configuration {
+  String host = "localhost";
+  int port = 9200;
+  String scheme = "http";
+  int batchSize = 100;
 }

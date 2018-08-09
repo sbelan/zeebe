@@ -20,11 +20,8 @@ package io.zeebe.broker.exporter.impl;
 import io.zeebe.exporter.spi.Context;
 import io.zeebe.exporter.spi.Event;
 import io.zeebe.exporter.spi.Exporter;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
 
 public class LogExporter implements Exporter {
-  private static final Future<Void> FINISHED = CompletableFuture.completedFuture(null);
   private Context context;
 
   @Override

@@ -27,7 +27,11 @@ import io.zeebe.broker.system.configuration.ExporterCfg;
 import io.zeebe.exporter.spi.Exporter;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.slf4j.Logger;
 
 public class ExporterManager {
@@ -53,10 +57,10 @@ public class ExporterManager {
       final String id,
       final Class<? extends Exporter> exporterClass,
       final Map<String, Object> args) {
-    final ExporterDescriptor container = new ExporterDescriptor(id, exporterClass, args, env);
+    final ExporterDescriptor descriptor = new ExporterDescriptor(id, exporterClass, args, env);
 
-    container.verify();
-    loadedExporters.add(container);
+    descriptor.verify();
+    loadedExporters.add(descriptor);
   }
 
   public void load(final ExporterCfg config) throws ExporterLoadException {

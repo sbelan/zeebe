@@ -17,6 +17,8 @@
  */
 package io.zeebe.broker.exporter;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 import io.zeebe.exporter.spi.Context;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -26,6 +28,8 @@ import java.util.function.Consumer;
 import org.slf4j.Logger;
 
 public class ExporterContext implements Context {
+  private static final Gson CONFIG_CREATOR = new Gson();
+
   private final String id;
   private final Map<String, Object> args;
   private final ExporterEnvironment env;
@@ -33,6 +37,8 @@ public class ExporterContext implements Context {
 
   // TODO: potentially have reference to ActorControl
   private final BiConsumer<Runnable, Duration> scheduler;
+
+  private JsonElement intermediateConfig;
 
   public ExporterContext(
       final String id,
@@ -75,5 +81,18 @@ public class ExporterContext implements Context {
   @Override
   public void schedule(final Runnable task, final Duration delay) {
     scheduler.accept(task, delay);
+  }
+
+  @Override
+  public <T> T configure(Class<T> configClass) {
+    return CONFIG_CREATOR.fromJson(getIntermediateConfig(), configClass);
+  }
+
+  private JsonElement getIntermediateConfig() {
+    if (intermediateConfig == null) {
+      intermediateConfig = CONFIG_CREATOR.toJsonTree(args);
+    }
+
+    return intermediateConfig;
   }
 }

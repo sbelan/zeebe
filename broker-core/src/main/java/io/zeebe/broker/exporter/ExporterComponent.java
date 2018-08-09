@@ -21,7 +21,6 @@ import static io.zeebe.broker.clustering.base.ClusterBaseLayerServiceNames.LEADE
 import static io.zeebe.broker.clustering.base.ClusterBaseLayerServiceNames.LEADER_PARTITION_SYSTEM_GROUP_NAME;
 import static io.zeebe.broker.logstreams.LogStreamServiceNames.STREAM_PROCESSOR_SERVICE_FACTORY;
 
-import io.zeebe.broker.exporter.impl.LogExporter;
 import io.zeebe.broker.exporter.manager.ExporterManager;
 import io.zeebe.broker.exporter.manager.ExporterManagerService;
 import io.zeebe.broker.system.Component;

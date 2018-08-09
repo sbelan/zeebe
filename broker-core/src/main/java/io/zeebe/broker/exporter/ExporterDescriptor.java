@@ -17,22 +17,19 @@
  */
 package io.zeebe.broker.exporter;
 
-import com.moandjiezana.toml.Toml;
-import com.moandjiezana.toml.TomlWriter;
 import io.zeebe.exporter.spi.Exporter;
 import java.util.Map;
 import java.util.Objects;
 
 public class ExporterDescriptor {
-  private static final TomlWriter TOML_WRITER = new TomlWriter();
-  private static final Toml TOML_READER = new Toml();
   private static final String NAME_FORMAT = "exporter-%s";
 
   private final String id;
   private final Class<? extends Exporter> exporterClass;
   private final Map<String, Object> args;
-  private final String name;
   private final ExporterEnvironment env;
+
+  private final String name;
 
   public ExporterDescriptor(
       final String id,
@@ -82,17 +79,16 @@ public class ExporterDescriptor {
     return env;
   }
 
-  // TODO: this sucks
-  // just verifies we can create it properly
+  // TODO: this sucks; maybe test configuration as well?
   public void verify() throws ExporterLoadException {
     create();
   }
 
   public Exporter create() throws ExporterLoadException {
     try {
-      return TOML_READER.read(TOML_WRITER.write(args)).to(exporterClass);
-    } catch (final Exception ex) {
-      throw new ExporterLoadException(getId(), getArgs(), ex);
+      return exporterClass.newInstance();
+    } catch (InstantiationException | IllegalAccessException e) {
+      throw new ExporterLoadException(id, args, e);
     }
   }
 }

@@ -27,6 +27,7 @@ import org.agrona.DirectBuffer;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.RocksIterator;
 
+/** Potentially merge with normal Manager? */
 public class ExporterManagerState extends StateController {
   private final ByteBuffer dbLongBuffer = ByteBuffer.allocate(Long.BYTES);
 

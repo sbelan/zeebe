@@ -37,6 +37,7 @@ import io.zeebe.protocol.intent.ExporterIntent;
 import org.rocksdb.RocksDBException;
 import org.slf4j.Logger;
 
+/** Should eventually be ran read-only on follower partitions as well */
 public class ExporterManagerProcessor {
   public static final String NAME = StringUtil.simpleClassName(ExporterManagerProcessor.class);
   private static final Logger LOG = Loggers.EXPORTERS;

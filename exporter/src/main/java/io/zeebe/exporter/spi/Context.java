@@ -48,4 +48,14 @@ public interface Context {
    * @param delay how long to wait before running the task
    */
   void schedule(Runnable task, Duration delay);
+
+  /**
+   * Instantiates an object of type T based on the map of arguments. Keys present in the map but not
+   * in the class will be ignored; fields present in the class but not in the map will be left
+   * untouched and must be given default values by the user if need be.
+   *
+   * @param configClass the configuration object class
+   * @return new instance populated with the exporter configuration
+   */
+  <T> T configure(Class<T> configClass);
 }
