@@ -36,8 +36,6 @@ public interface Exporter {
    * <p>To fail-fast at startup time (e.g. database endpoint is missing), for now you must throw an
    * exception.
    *
-   * <p>Note that the instance configured at startup will be discarded immediately.
-   *
    * @param context the exporter context
    */
   default void configure(final Context context) {}
