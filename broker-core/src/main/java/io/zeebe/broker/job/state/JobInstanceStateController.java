@@ -18,17 +18,33 @@
 package io.zeebe.broker.job.state;
 
 import static io.zeebe.util.StringUtil.getBytes;
-
+import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.List;
 import io.zeebe.broker.logstreams.processor.KeyGenerator;
 import io.zeebe.logstreams.state.StateController;
 import io.zeebe.util.LangUtil;
-import java.nio.ByteBuffer;
-import org.rocksdb.RocksDBException;
+import org.rocksdb.*;
 
 public class JobInstanceStateController extends StateController {
   private static final byte[] LATEST_JOB_KEY_BUFFER = getBytes("latestJobKey");
   private final ByteBuffer dbLongBuffer = ByteBuffer.allocate(Long.BYTES);
   private final ByteBuffer dbShortBuffer = ByteBuffer.allocate(Short.BYTES);
+
+  @Override
+  protected RocksDB openDB(Options options) throws RocksDBException {
+
+    final ColumnFamilyOptions cfOpts = new ColumnFamilyOptions();
+    closeables.add(cfOpts);
+
+    final List<ColumnFamilyDescriptor> cfDescriptors = Arrays.asList(
+        new ColumnFamilyDescriptor(RocksDB.DEFAULT_COLUMN_FAMILY, cfOpts),
+        new ColumnFamilyDescriptor("activatable-jobs".getBytes(), cfOpts),
+        new ColumnFamilyDescriptor("activated-jobs".getBytes(), cfOpts)
+    );
+
+    return super.openDB(options);
+  }
 
   public void recoverLatestJobKey(KeyGenerator keyGenerator) {
     ensureIsOpened("recoverLatestJobKey");

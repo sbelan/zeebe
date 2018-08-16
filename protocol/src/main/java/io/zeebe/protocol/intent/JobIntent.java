@@ -35,7 +35,9 @@ public enum JobIntent implements Intent {
   RETRIES_UPDATED((short) 11),
 
   CANCEL((short) 12),
-  CANCELED((short) 13);
+  CANCELED((short) 13),
+
+  ACTIVATE_AND_FETCH((short) 14);
 
   private short value;
 
@@ -77,6 +79,8 @@ public enum JobIntent implements Intent {
         return CANCEL;
       case 13:
         return CANCELED;
+      case 14:
+        return ACTIVATE_AND_FETCH;
       default:
         return Intent.UNKNOWN;
     }

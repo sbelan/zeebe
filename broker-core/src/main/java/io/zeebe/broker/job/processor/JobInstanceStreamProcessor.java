@@ -81,6 +81,7 @@ public class JobInstanceStreamProcessor implements StreamProcessorLifecycleAware
         .onCommand(ValueType.JOB, JobIntent.TIME_OUT, new TimeOutJobProcessor())
         .onCommand(ValueType.JOB, JobIntent.UPDATE_RETRIES, new UpdateRetriesJobProcessor())
         .onCommand(ValueType.JOB, JobIntent.CANCEL, new CancelJobProcessor())
+        .onCommand(ValueType.JOB, JobIntent.ACTIVATE_AND_FETCH, new ActivateAndFetchJobProcessor())
         .withStateController(stateController)
         .withListener(this)
         .build();
@@ -239,5 +240,14 @@ public class JobInstanceStreamProcessor implements StreamProcessorLifecycleAware
         commandControl.reject(RejectionType.NOT_APPLICABLE, "Job does not exist");
       }
     }
+  }
+
+  private class ActivateAndFetchJobProcessor implements CommandProcessor<JobRecord> {
+
+    @Override
+    public void onCommand(TypedRecord<JobRecord> command, CommandControl commandControl) {
+
+    }
+
   }
 }
