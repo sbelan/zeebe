@@ -59,4 +59,7 @@ public class ZeebeClientTest {
                       });
             });
   }
+
+  @Test
+  public void shouldActivateJobs() {}
 }

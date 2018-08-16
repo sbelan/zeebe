@@ -13,26 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.zeebe.gateway.api.record;
+package io.zeebe.gateway.api.commands;
 
-public enum ValueType {
-  JOB,
-  WORKFLOW_INSTANCE,
-  INCIDENT,
-  SUBSCRIBER,
-  SUBSCRIPTION,
-  DEPLOYMENT,
+import io.zeebe.gateway.api.events.JobActivateEvent;
 
-  TOPIC,
+public interface ActivateJobsCommandStep1 extends FinalCommandStep<JobActivateEvent> {
 
-  MESSAGE,
-  MESSAGE_SUBSCRIPTION,
-  WORKFLOW_INSTANCE_SUBSCRIPTION,
+  ActivateJobsCommandStep1 jobType(String jobType);
 
-  RAFT,
+  ActivateJobsCommandStep1 amount(int amount);
 
-  JOB_ACTIVATE_REQUEST,
-  JOB_ACTIVATE_RESPONSE,
+  ActivateJobsCommandStep1 workerName(String workerName);
 
-  UNKNOWN
+  ActivateJobsCommandStep1 timeout(long timeout);
 }

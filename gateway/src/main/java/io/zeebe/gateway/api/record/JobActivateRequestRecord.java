@@ -15,24 +15,12 @@
  */
 package io.zeebe.gateway.api.record;
 
-public enum ValueType {
-  JOB,
-  WORKFLOW_INSTANCE,
-  INCIDENT,
-  SUBSCRIBER,
-  SUBSCRIPTION,
-  DEPLOYMENT,
+public interface JobActivateRequestRecord extends Record {
+  int getAmount();
 
-  TOPIC,
+  String getJobType();
 
-  MESSAGE,
-  MESSAGE_SUBSCRIPTION,
-  WORKFLOW_INSTANCE_SUBSCRIPTION,
+  long getTimeout();
 
-  RAFT,
-
-  JOB_ACTIVATE_REQUEST,
-  JOB_ACTIVATE_RESPONSE,
-
-  UNKNOWN
+  String getWorkerName();
 }

@@ -16,12 +16,14 @@
 package io.zeebe.gateway.impl;
 
 import io.zeebe.gateway.api.clients.JobClient;
+import io.zeebe.gateway.api.commands.ActivateJobsCommandStep1;
 import io.zeebe.gateway.api.commands.CompleteJobCommandStep1;
 import io.zeebe.gateway.api.commands.CreateJobCommandStep1;
 import io.zeebe.gateway.api.commands.FailJobCommandStep1;
 import io.zeebe.gateway.api.commands.UpdateRetriesJobCommandStep1;
 import io.zeebe.gateway.api.events.JobEvent;
 import io.zeebe.gateway.api.subscription.JobWorkerBuilderStep1;
+import io.zeebe.gateway.impl.job.ActivateJobsCommandImpl;
 import io.zeebe.gateway.impl.job.CompleteJobCommandImpl;
 import io.zeebe.gateway.impl.job.CreateJobCommandImpl;
 import io.zeebe.gateway.impl.job.FailJobCommandImpl;
@@ -54,6 +56,12 @@ public class JobClientImpl implements JobClient {
   @Override
   public UpdateRetriesJobCommandStep1 newUpdateRetriesCommand(JobEvent event) {
     return new UpdateRetriesJobCommandImpl(client.getCommandManager(), event);
+  }
+
+  @Override
+  public ActivateJobsCommandStep1 newActivateJobsCommand() {
+    return new ActivateJobsCommandImpl(
+        client.getCommandManager(), client.getObjectMapper(), client.getTopic());
   }
 
   @Override

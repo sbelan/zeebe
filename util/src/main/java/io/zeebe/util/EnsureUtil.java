@@ -16,6 +16,7 @@
 package io.zeebe.util;
 
 import java.time.Duration;
+import java.util.Optional;
 import org.agrona.DirectBuffer;
 
 public class EnsureUtil {
@@ -138,6 +139,12 @@ public class EnsureUtil {
   public static void ensureFalse(String property, boolean value) {
     if (value) {
       throw new RuntimeException(property + " must be false");
+    }
+  }
+
+  public static <T> void ensurePresent(String property, Optional<T> value) {
+    if (!value.isPresent()) {
+      throw new RuntimeException(property + " must be present");
     }
   }
 }

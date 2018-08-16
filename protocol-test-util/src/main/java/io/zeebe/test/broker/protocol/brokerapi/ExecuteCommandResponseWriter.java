@@ -42,6 +42,7 @@ public class ExecuteCommandResponseWriter extends AbstractMessageBuilder<Execute
   protected Function<ExecuteCommandRequest, Long> sourceRecordPositionFunction =
       r -> r.sourceRecordPosition();
   private Function<ExecuteCommandRequest, Intent> intentFunction = r -> r.intent();
+  private Function<ExecuteCommandRequest, ValueType> valueTypeFunction = r -> r.valueType();
 
   protected long key;
   protected int partitionId;
@@ -67,7 +68,7 @@ public class ExecuteCommandResponseWriter extends AbstractMessageBuilder<Execute
     sourceRecordPosition = sourceRecordPositionFunction.apply(request);
     final Map<String, Object> deserializedEvent = eventFunction.apply(request);
     value = msgPackHelper.encodeAsMsgPack(deserializedEvent);
-    this.valueType = request.valueType();
+    this.valueType = valueTypeFunction.apply(request);
     this.intent = intentFunction.apply(request);
   }
 
@@ -98,6 +99,10 @@ public class ExecuteCommandResponseWriter extends AbstractMessageBuilder<Execute
 
   public void setIntentFunction(Function<ExecuteCommandRequest, Intent> intentFunction) {
     this.intentFunction = intentFunction;
+  }
+
+  public void setValueTypeFunction(Function<ExecuteCommandRequest, ValueType> valueTypeFunction) {
+    this.valueTypeFunction = valueTypeFunction;
   }
 
   public void setTimestamp(Instant timestamp) {

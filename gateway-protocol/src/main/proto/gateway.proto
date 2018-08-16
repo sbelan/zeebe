@@ -28,7 +28,25 @@ message HealthResponse {
   repeated BrokerInfo brokers = 1;
 }
 
+message ActivateJobRequest {
+  string topicName = 1;
+  string worker = 2;
+  string type = 3;
+  int32 amount = 4;
+}
+
+message JobInfo {
+  int64 key = 1;
+}
+
+message ActivateJobResponse {
+  repeated JobInfo jobs = 1;
+}
+
 service Gateway {
   rpc Health (HealthRequest) returns (HealthResponse) {
+  }
+
+  rpc ActivateJobs (ActivateJobRequest) returns (ActivateJobResponse) {
   }
 }

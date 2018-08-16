@@ -15,6 +15,7 @@
  */
 package io.zeebe.gateway.api.clients;
 
+import io.zeebe.gateway.api.commands.ActivateJobsCommandStep1;
 import io.zeebe.gateway.api.commands.CompleteJobCommandStep1;
 import io.zeebe.gateway.api.commands.CreateJobCommandStep1;
 import io.zeebe.gateway.api.commands.FailJobCommandStep1;
@@ -111,6 +112,8 @@ public interface JobClient {
    * @return a builder for the command
    */
   UpdateRetriesJobCommandStep1 newUpdateRetriesCommand(JobEvent event);
+
+  ActivateJobsCommandStep1 newActivateJobsCommand();
 
   /**
    * Registers a new job worker for jobs of a given type.

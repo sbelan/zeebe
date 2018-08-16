@@ -15,24 +15,9 @@
  */
 package io.zeebe.gateway.api.record;
 
-public enum ValueType {
-  JOB,
-  WORKFLOW_INSTANCE,
-  INCIDENT,
-  SUBSCRIBER,
-  SUBSCRIPTION,
-  DEPLOYMENT,
+import io.zeebe.gateway.api.events.JobEvent;
+import java.util.List;
 
-  TOPIC,
-
-  MESSAGE,
-  MESSAGE_SUBSCRIPTION,
-  WORKFLOW_INSTANCE_SUBSCRIPTION,
-
-  RAFT,
-
-  JOB_ACTIVATE_REQUEST,
-  JOB_ACTIVATE_RESPONSE,
-
-  UNKNOWN
+public interface JobActivateResponseRecord extends Record {
+  List<JobEvent> getJobs();
 }

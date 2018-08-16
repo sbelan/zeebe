@@ -15,6 +15,7 @@
  */
 package io.zeebe.client.api.clients;
 
+import io.zeebe.client.api.commands.ActivateJobsRequestStep1;
 import io.zeebe.client.api.commands.CompleteJobCommandStep1;
 import io.zeebe.client.api.commands.CreateJobCommandStep1;
 import io.zeebe.client.api.commands.FailJobCommandStep1;
@@ -153,4 +154,6 @@ public interface JobClient {
    * @return a builder for the worker registration
    */
   JobWorkerBuilderStep1 newWorker();
+
+  ActivateJobsRequestStep1 activateJobs();
 }

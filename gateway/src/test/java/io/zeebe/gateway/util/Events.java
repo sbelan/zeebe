@@ -18,15 +18,43 @@ package io.zeebe.gateway.util;
 import static io.zeebe.gateway.util.ClientRule.DEFAULT_PARTITION;
 import static io.zeebe.protocol.Protocol.DEFAULT_TOPIC;
 
+import io.zeebe.gateway.api.events.JobEvent;
 import io.zeebe.gateway.impl.data.ZeebeObjectMapperImpl;
+import io.zeebe.gateway.impl.event.JobActivateEventImpl;
 import io.zeebe.gateway.impl.event.JobEventImpl;
 import io.zeebe.gateway.impl.event.WorkflowInstanceEventImpl;
 import io.zeebe.protocol.intent.JobIntent;
 import io.zeebe.protocol.intent.WorkflowInstanceIntent;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import org.assertj.core.util.Maps;
 
 public class Events {
+
+  public static JobActivateEventImpl exampleJobActivateResponse(
+      String worker, String type, int amount, long timeout) {
+    final ZeebeObjectMapperImpl mapper = new ZeebeObjectMapperImpl();
+    final JobActivateEventImpl baseEvent = new JobActivateEventImpl(mapper);
+    final List<JobEvent> jobs = new ArrayList<>();
+    baseEvent.setJobs(jobs);
+
+    for (int i = 0; i < amount; i++) {
+      final JobEventImpl job = new JobEventImpl(mapper);
+      job.setTopicName(DEFAULT_TOPIC);
+      job.setPartitionId(DEFAULT_PARTITION);
+
+      job.setIntent(JobIntent.ACTIVATED);
+      job.setKey(i);
+
+      job.setWorker(worker);
+      job.setType(type);
+      job.setPosition(i);
+      jobs.add(job);
+    }
+
+    return baseEvent;
+  }
 
   public static JobEventImpl exampleJob() {
     final JobEventImpl baseEvent = new JobEventImpl(new ZeebeObjectMapperImpl());

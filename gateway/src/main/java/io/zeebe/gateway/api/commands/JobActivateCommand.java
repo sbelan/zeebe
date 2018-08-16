@@ -13,26 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.zeebe.gateway.api.record;
+package io.zeebe.gateway.api.commands;
 
-public enum ValueType {
-  JOB,
-  WORKFLOW_INSTANCE,
-  INCIDENT,
-  SUBSCRIBER,
-  SUBSCRIPTION,
-  DEPLOYMENT,
+import io.zeebe.gateway.api.record.JobActivateRequestRecord;
 
-  TOPIC,
-
-  MESSAGE,
-  MESSAGE_SUBSCRIPTION,
-  WORKFLOW_INSTANCE_SUBSCRIPTION,
-
-  RAFT,
-
-  JOB_ACTIVATE_REQUEST,
-  JOB_ACTIVATE_RESPONSE,
-
-  UNKNOWN
-}
+public interface JobActivateCommand extends JobActivateRequestRecord {}

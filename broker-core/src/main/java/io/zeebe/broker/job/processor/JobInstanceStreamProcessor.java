@@ -245,9 +245,6 @@ public class JobInstanceStreamProcessor implements StreamProcessorLifecycleAware
   private class ActivateAndFetchJobProcessor implements CommandProcessor<JobRecord> {
 
     @Override
-    public void onCommand(TypedRecord<JobRecord> command, CommandControl commandControl) {
-
-    }
-
+    public void onCommand(TypedRecord<JobRecord> command, CommandControl commandControl) {}
   }
 }

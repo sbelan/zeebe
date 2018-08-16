@@ -16,6 +16,8 @@
 package io.zeebe.test.broker.protocol.brokerapi;
 
 import io.zeebe.protocol.clientapi.ValueType;
+import io.zeebe.protocol.intent.JobActivateRequestIntent;
+import io.zeebe.protocol.intent.JobActivateResponseIntent;
 import io.zeebe.protocol.intent.JobIntent;
 import java.util.function.Consumer;
 
@@ -106,6 +108,26 @@ public class JobStubs {
             .allOf((r) -> r.getCommand())
             .put("state", "RETRIES_UPDATED")
             .done();
+
+    modifier.accept(builder);
+
+    builder.register();
+  }
+
+  public void registerActivateJobsCommand() {
+    registerActivateJobsCommand((b) -> {});
+  }
+
+  public void registerActivateJobsCommand(Consumer<ExecuteCommandResponseBuilder> modifier) {
+    final ExecuteCommandResponseBuilder builder =
+        broker
+            .onExecuteCommandRequest(
+                ValueType.JOB_ACTIVATE_REQUEST, JobActivateRequestIntent.ACTIVATE)
+            .respondWith()
+            .event()
+            .valueType(ValueType.JOB_ACTIVATE_RESPONSE)
+            .intent(JobActivateResponseIntent.ACTIVATED)
+            .key(r -> r.key());
 
     modifier.accept(builder);
 

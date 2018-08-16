@@ -15,12 +15,12 @@
 package io.zeebe.broker.job.state;
 
 import static io.zeebe.util.StringUtil.getBytes;
-import java.nio.ByteBuffer;
-import java.util.*;
+
 import io.zeebe.broker.logstreams.processor.KeyGenerator;
 import io.zeebe.logstreams.state.StateController;
 import io.zeebe.util.LangUtil;
-import org.agrona.BitUtil;
+import java.nio.ByteBuffer;
+import java.util.*;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.rocksdb.*;
 

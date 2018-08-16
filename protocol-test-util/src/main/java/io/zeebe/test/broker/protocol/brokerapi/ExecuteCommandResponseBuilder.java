@@ -17,6 +17,7 @@ package io.zeebe.test.broker.protocol.brokerapi;
 
 import io.zeebe.protocol.clientapi.RecordType;
 import io.zeebe.protocol.clientapi.RejectionType;
+import io.zeebe.protocol.clientapi.ValueType;
 import io.zeebe.protocol.intent.Intent;
 import io.zeebe.test.broker.protocol.MsgPackHelper;
 import io.zeebe.test.util.collection.MapFactoryBuilder;
@@ -97,6 +98,11 @@ public class ExecuteCommandResponseBuilder {
 
   public ExecuteCommandResponseBuilder event() {
     commandResponseWriter.setRecordType(RecordType.EVENT);
+    return this;
+  }
+
+  public ExecuteCommandResponseBuilder valueType(ValueType valueType) {
+    commandResponseWriter.setValueTypeFunction(r -> valueType);
     return this;
   }
 
