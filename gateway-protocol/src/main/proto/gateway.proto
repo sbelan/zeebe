@@ -28,7 +28,15 @@ message HealthResponse {
   repeated BrokerInfo brokers = 1;
 }
 
+message DeployWorkflowRequest {
+  string topic = 1;
+  string name = 2;
+  bytes definition = 3;
+}
+
+message DeployWorkflowResponse { }
+
 service Gateway {
-  rpc Health (HealthRequest) returns (HealthResponse) {
-  }
+  rpc Health (HealthRequest) returns (HealthResponse) { }
+  rpc DeployWorkflow (DeployWorkflowRequest) returns (DeployWorkflowResponse) { }
 }

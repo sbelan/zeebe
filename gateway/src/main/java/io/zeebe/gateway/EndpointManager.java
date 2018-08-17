@@ -18,6 +18,8 @@ package io.zeebe.gateway;
 import io.grpc.stub.StreamObserver;
 import io.zeebe.gateway.api.commands.Topology;
 import io.zeebe.gateway.protocol.GatewayGrpc;
+import io.zeebe.gateway.protocol.GatewayOuterClass.DeployWorkflowRequest;
+import io.zeebe.gateway.protocol.GatewayOuterClass.DeployWorkflowResponse;
 import io.zeebe.gateway.protocol.GatewayOuterClass.HealthRequest;
 import io.zeebe.gateway.protocol.GatewayOuterClass.HealthResponse;
 
@@ -26,17 +28,17 @@ public class EndpointManager extends GatewayGrpc.GatewayImplBase {
   private final ResponseMapper responseMapper;
   private final ZeebeClient zbClient;
 
+  EndpointManager(final ResponseMapper mapper, final ZeebeClient clusterClient) {
+    this.responseMapper = mapper;
+    this.zbClient = clusterClient;
+  }
+
   public ResponseMapper getResponseMapper() {
     return responseMapper;
   }
 
   public ZeebeClient getZbClient() {
     return zbClient;
-  }
-
-  EndpointManager(final ResponseMapper mapper, final ZeebeClient clusterClient) {
-    this.responseMapper = mapper;
-    this.zbClient = clusterClient;
   }
 
   @Override
@@ -54,4 +56,9 @@ public class EndpointManager extends GatewayGrpc.GatewayImplBase {
       responseObserver.onCompleted();
     }
   }
+
+  @Override
+  public void deployWorkflow(
+      final DeployWorkflowRequest request,
+      final io.grpc.stub.StreamObserver<DeployWorkflowResponse> responseObserver) {}
 }
