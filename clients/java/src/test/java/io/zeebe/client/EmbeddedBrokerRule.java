@@ -41,16 +41,16 @@ import org.junit.rules.ExternalResource;
 import org.slf4j.Logger;
 
 public class EmbeddedBrokerRule extends ExternalResource {
+  protected static final Logger LOG = new ZbLogger("io.zeebe.client.test");
   static final ServiceName<Object> AWAIT_BROKER_SERVICE_NAME =
       ServiceName.newServiceName("testService", Object.class);
-
-  protected static final Logger LOG = new ZbLogger("io.zeebe.client.test");
-
   protected Broker broker;
 
   protected ControlledActorClock controlledActorClock = new ControlledActorClock();
 
   protected Supplier<InputStream> configSupplier;
+  protected long startTime;
+  private File brokerBase;
 
   public EmbeddedBrokerRule() {
     this(() -> EmbeddedBrokerRule.class.getResourceAsStream("/zeebe.default.cfg.toml"));
@@ -67,10 +67,6 @@ public class EmbeddedBrokerRule extends ExternalResource {
                 .getClassLoader()
                 .getResourceAsStream(configFileClasspathLocation));
   }
-
-  protected long startTime;
-
-  private File brokerBase;
 
   @Override
   protected void before() {
@@ -177,6 +173,10 @@ public class EmbeddedBrokerRule extends ExternalResource {
     return injector.getValue();
   }
 
+  public File getBrokerBase() {
+    return brokerBase;
+  }
+
   protected class NoneService implements Service<Object> {
     @Override
     public void start(final ServiceStartContext startContext) {}
@@ -188,9 +188,5 @@ public class EmbeddedBrokerRule extends ExternalResource {
     public Object get() {
       return null;
     }
-  }
-
-  public File getBrokerBase() {
-    return brokerBase;
   }
 }

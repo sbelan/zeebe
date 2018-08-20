@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.zeebe.client.api.ZeebeFuture;
 import io.zeebe.client.api.commands.BrokerInfo;
 import io.zeebe.client.api.commands.PartitionBrokerRole;
+import io.zeebe.client.api.commands.PartitionInfo;
 import io.zeebe.client.api.events.DeploymentEvent;
 import java.net.URISyntaxException;
 import java.util.stream.Stream;
@@ -41,7 +42,7 @@ public class ZeebeClientTest {
   @Test
   public void shouldGetHealthCheck() throws InterruptedException {
     Stream.generate(() -> client.newTopologyRequest().send())
-        .limit(10)
+        .limit(1000)
         .map(ZeebeFuture::join)
         .forEach(
             response -> {
@@ -49,16 +50,17 @@ public class ZeebeClientTest {
 
               final BrokerInfo broker = response.getBrokers().get(0);
               assertThat(broker.getAddress()).isEqualTo("0.0.0.0:26501");
-              assertThat(broker.getPartitions().size()).isEqualTo(1);
+              assertThat(broker.getPartitions().size()).isEqualTo(2);
+              final PartitionInfo internalSystem = broker.getPartitions().get(0);
+              final PartitionInfo defaultTopic = broker.getPartitions().get(1);
 
-              broker
-                  .getPartitions()
-                  .forEach(
-                      partition -> {
-                        assertThat(partition.getPartitionId()).isEqualTo(0);
-                        assertThat(partition.getTopicName()).isEqualTo("internal-system");
-                        assertThat(partition.getRole()).isEqualTo(PartitionBrokerRole.LEADER);
-                      });
+              assertThat(internalSystem.getPartitionId()).isEqualTo(0);
+              assertThat(internalSystem.getTopicName()).isEqualTo("internal-system");
+              assertThat(internalSystem.getRole()).isEqualTo(PartitionBrokerRole.LEADER);
+
+              assertThat(defaultTopic.getPartitionId()).isEqualTo(1);
+              assertThat(defaultTopic.getTopicName()).isEqualTo("default-topic");
+              assertThat(defaultTopic.getRole()).isEqualTo(PartitionBrokerRole.LEADER);
             });
   }
 
@@ -66,6 +68,7 @@ public class ZeebeClientTest {
   public void shouldDeployWorkflow() throws InterruptedException, URISyntaxException {
     final String filePath =
         getClass().getResource("/workflows/demo-process.bpmn").toURI().getPath();
+
     final DeploymentEvent deploymentResponse =
         client
             .topicClient()

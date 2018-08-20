@@ -74,7 +74,7 @@ public class Gateway {
   }
 
   public void start() throws IOException {
-    zbClient = ZeebeClient.newClientBuilder().requestTimeout(Duration.ofMillis(250)).build();
+    zbClient = ZeebeClient.newClientBuilder().requestTimeout(Duration.ofMillis(500)).build();
     final ClusterClient clusterClient = new ClusterClient(zbClient);
     final ActorScheduler actorScheduler = ((ZeebeClientImpl) zbClient).getScheduler();
     server =
