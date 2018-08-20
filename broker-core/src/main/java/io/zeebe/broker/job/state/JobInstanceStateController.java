@@ -21,9 +21,7 @@ import static io.zeebe.util.StringUtil.getBytes;
 
 import io.zeebe.broker.logstreams.processor.KeyGenerator;
 import io.zeebe.logstreams.state.StateController;
-import io.zeebe.util.LangUtil;
 import java.nio.ByteBuffer;
-import org.rocksdb.RocksDBException;
 
 public class JobInstanceStateController extends StateController {
   private static final byte[] LATEST_JOB_KEY_BUFFER = getBytes("latestJobKey");
@@ -42,34 +40,21 @@ public class JobInstanceStateController extends StateController {
     ensureIsOpened("putLatestJobKey");
 
     dbLongBuffer.putLong(0, key);
-
-    try {
-      getDb().put(LATEST_JOB_KEY_BUFFER, dbLongBuffer.array());
-    } catch (RocksDBException e) {
-      LangUtil.rethrowUnchecked(e);
-    }
+    put(LATEST_JOB_KEY_BUFFER, dbLongBuffer.array());
   }
 
   public void putJobState(long key, short state) {
     ensureIsOpened("putJobState");
 
-    dbLongBuffer.putLong(0, key);
     dbShortBuffer.putShort(0, state);
-
-    try {
-      getDb().put(dbLongBuffer.array(), dbShortBuffer.array());
-    } catch (RocksDBException e) {
-      LangUtil.rethrowUnchecked(e);
-    }
+    put(key, dbShortBuffer.array());
   }
 
   public short getJobState(long key) {
     ensureIsOpened("getJobState");
 
     short state = -1;
-    dbLongBuffer.putLong(0, key);
-
-    if (tryGet(dbLongBuffer.array(), dbShortBuffer.array())) {
+    if (tryGet(key, dbShortBuffer.array())) {
       state = dbShortBuffer.getShort(0);
     }
 
@@ -79,25 +64,6 @@ public class JobInstanceStateController extends StateController {
   public void deleteJobState(long key) {
     ensureIsOpened("deleteJobState");
 
-    dbLongBuffer.putLong(0, key);
-
-    try {
-      getDb().delete(dbLongBuffer.array());
-    } catch (RocksDBException e) {
-      LangUtil.rethrowUnchecked(e);
-    }
-  }
-
-  private boolean tryGet(final byte[] keyBuffer, final byte[] valueBuffer) {
-    boolean found = false;
-
-    try {
-      final int bytesRead = getDb().get(keyBuffer, valueBuffer);
-      found = bytesRead == valueBuffer.length;
-    } catch (RocksDBException e) {
-      LangUtil.rethrowUnchecked(e);
-    }
-
-    return found;
+    delete(key);
   }
 }

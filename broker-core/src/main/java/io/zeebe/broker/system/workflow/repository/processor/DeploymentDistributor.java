@@ -26,6 +26,7 @@ import io.zeebe.broker.system.management.topics.FetchCreatedTopicsRequest;
 import io.zeebe.broker.system.management.topics.FetchCreatedTopicsResponse;
 import io.zeebe.broker.system.workflow.repository.api.management.PushDeploymentRequest;
 import io.zeebe.broker.system.workflow.repository.api.management.PushDeploymentResponse;
+import io.zeebe.broker.system.workflow.repository.processor.state.PendingDeploymentsStateController;
 import io.zeebe.protocol.Protocol;
 import io.zeebe.transport.ClientResponse;
 import io.zeebe.transport.ClientTransport;
@@ -58,8 +59,8 @@ public class DeploymentDistributor {
   private final FetchCreatedTopicsResponse fetchCreatedTopicsResponse =
       new FetchCreatedTopicsResponse();
 
-  private final Long2ObjectHashMap<PendingDeploymentDistribution> pendingDistributions =
-      new Long2ObjectHashMap<>();
+  //  private final Long2ObjectHashMap<PendingDeploymentDistribution> pendingDistributions =
+  //      new Long2ObjectHashMap<>();
   private final ActorFuture<Void> partitionsResolved = new CompletableActorFuture<>();
 
   private final ClientTransport managementApi;
@@ -67,15 +68,21 @@ public class DeploymentDistributor {
   private final ActorControl actor;
   private final ActorCondition updatePartition;
 
+  private final transient Long2ObjectHashMap<ActorFuture<Void>> pendingDeploymentFutures =
+      new Long2ObjectHashMap<>();
+  private final PendingDeploymentsStateController pendingDeploymentsStateController;
+
   private IntArrayList partitionsToDistributeTo;
 
   public DeploymentDistributor(
       ClientTransport managementApi,
       TopologyPartitionListenerImpl partitionListener,
+      PendingDeploymentsStateController pendingDeploymentsStateController,
       ActorControl actor) {
     this.managementApi = managementApi;
     this.partitionListener = partitionListener;
     this.actor = actor;
+    this.pendingDeploymentsStateController = pendingDeploymentsStateController;
     this.updatePartition = actor.onCondition("updatePartition", this::fetchTopics);
   }
 
@@ -83,8 +90,9 @@ public class DeploymentDistributor {
     final ActorFuture<Void> pushedFuture = new CompletableActorFuture<>();
 
     final PendingDeploymentDistribution pendingDeploymentDistribution =
-        new PendingDeploymentDistribution(buffer, position, pushedFuture);
-    pendingDistributions.put(key, pendingDeploymentDistribution);
+        new PendingDeploymentDistribution(buffer, position);
+    pendingDeploymentsStateController.putPendingDeployment(key, pendingDeploymentDistribution);
+    pendingDeploymentFutures.put(key, pushedFuture);
 
     if (!partitionsResolved.isDone()) {
       final SocketAddress systemPartitionLeader = partitionListener.getSystemPartitionLeader();
@@ -105,7 +113,7 @@ public class DeploymentDistributor {
   }
 
   public PendingDeploymentDistribution removePendingDeployment(long key) {
-    return pendingDistributions.remove(key);
+    return pendingDeploymentsStateController.removePendingDeployment(key);
   }
 
   private void pushDeploymentToPartitions(long key) {
@@ -114,7 +122,7 @@ public class DeploymentDistributor {
     } else {
       LOG.trace("No other partitions to distribute deployment.");
       LOG.trace("Deployment finished.");
-      pendingDistributions.get(key).complete();
+      pendingDeploymentFutures.get(key).complete(null);
     }
   }
 
@@ -122,7 +130,7 @@ public class DeploymentDistributor {
     LOG.trace("Distribute deployment to other partitions.");
 
     final PendingDeploymentDistribution pendingDeploymentDistribution =
-        pendingDistributions.get(key);
+        pendingDeploymentsStateController.getPendingDeployment(key);
     final DirectBuffer directBuffer = pendingDeploymentDistribution.getDeployment();
     pendingDeploymentDistribution.setDistributionCount(partitionsToDistributeTo.size());
 
@@ -208,12 +216,12 @@ public class DeploymentDistributor {
     pushDeploymentResponse.wrap(response.getResponseBuffer());
     final long deploymentKey = pushDeploymentResponse.deploymentKey();
     final PendingDeploymentDistribution pendingDeploymentDistribution =
-        pendingDistributions.get(deploymentKey);
+        pendingDeploymentsStateController.getPendingDeployment(deploymentKey);
 
     final long remainingPartitions = pendingDeploymentDistribution.decrementCount();
     if (remainingPartitions == 0) {
       LOG.debug("Deployment pushed to all partitions successfully.");
-      pendingDeploymentDistribution.complete();
+      pendingDeploymentFutures.get(deploymentKey).complete(null);
     } else {
       LOG.trace(
           "Deployment was pushed to partition {} successfully.",

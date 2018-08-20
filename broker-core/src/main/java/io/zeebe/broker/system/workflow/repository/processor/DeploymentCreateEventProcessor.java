@@ -26,6 +26,7 @@ import io.zeebe.broker.logstreams.processor.TypedResponseWriter;
 import io.zeebe.broker.logstreams.processor.TypedStreamProcessor;
 import io.zeebe.broker.logstreams.processor.TypedStreamWriter;
 import io.zeebe.broker.system.workflow.repository.data.DeploymentRecord;
+import io.zeebe.broker.system.workflow.repository.processor.state.PendingDeploymentsStateController;
 import io.zeebe.broker.system.workflow.repository.processor.state.WorkflowRepositoryIndex;
 import io.zeebe.logstreams.log.LogStreamWriterImpl;
 import io.zeebe.logstreams.processor.EventLifecycleContext;
@@ -46,6 +47,7 @@ public class DeploymentCreateEventProcessor implements TypedRecordProcessor<Depl
   private final DeploymentTransformer deploymentTransformer;
   private final LogStreamWriterImpl logStreamWriter;
   private final ClientTransport managementApi;
+  private final PendingDeploymentsStateController pendingDeploymentsStateController;
 
   private ActorControl actor;
   private TopologyPartitionListenerImpl partitionListener;
@@ -55,9 +57,11 @@ public class DeploymentCreateEventProcessor implements TypedRecordProcessor<Depl
   public DeploymentCreateEventProcessor(
       TopologyManager topologyManager,
       WorkflowRepositoryIndex index,
+      PendingDeploymentsStateController pendingDeploymentsStateController,
       ClientTransport managementClient,
       LogStreamWriterImpl logStreamWriter) {
     deploymentTransformer = new DeploymentTransformer(index);
+    this.pendingDeploymentsStateController = pendingDeploymentsStateController;
     this.topologyManager = topologyManager;
     managementApi = managementClient;
     this.logStreamWriter = logStreamWriter;
@@ -71,7 +75,22 @@ public class DeploymentCreateEventProcessor implements TypedRecordProcessor<Depl
     partitionListener = new TopologyPartitionListenerImpl(streamProcessor.getActor());
     topologyManager.addTopologyPartitionListener(partitionListener);
 
-    deploymentDistributor = new DeploymentDistributor(managementApi, partitionListener, actor);
+    deploymentDistributor =
+        new DeploymentDistributor(
+            managementApi, partitionListener, pendingDeploymentsStateController, actor);
+
+    reprocessPendingDeployments();
+  }
+
+  private void reprocessPendingDeployments() {
+    pendingDeploymentsStateController.foreach(
+        ((key, pendingDeploymentDistribution) -> {
+          final ExpandableArrayBuffer buffer = new ExpandableArrayBuffer();
+          final DirectBuffer deployment = pendingDeploymentDistribution.getDeployment();
+          buffer.putBytes(0, deployment, 0, deployment.capacity());
+
+          deploymentCreation(key, pendingDeploymentDistribution.getSourcePosition(), buffer);
+        }));
   }
 
   @Override
@@ -109,15 +128,19 @@ public class DeploymentCreateEventProcessor implements TypedRecordProcessor<Depl
         () -> {
           final ExpandableArrayBuffer buffer = new ExpandableArrayBuffer();
           deploymentEvent.write(buffer, 0);
-          final ActorFuture<Void> pushDeployment =
-              deploymentDistributor.pushDeployment(key, event.getPosition(), buffer);
 
-          actor.runOnCompletion(
-              pushDeployment, (aVoid, throwable) -> writeDeploymentCreatedEvent(key));
+          deploymentCreation(key, event.getPosition(), buffer);
 
           responseWriter.writeEventOnCommand(key, DeploymentIntent.CREATED, event);
           return responseWriter.flush();
         });
+  }
+
+  private void deploymentCreation(long key, long position, DirectBuffer buffer) {
+    final ActorFuture<Void> pushDeployment =
+        deploymentDistributor.pushDeployment(key, position, buffer);
+
+    actor.runOnCompletion(pushDeployment, (aVoid, throwable) -> writeDeploymentCreatedEvent(key));
   }
 
   private void writeDeploymentCreatedEvent(long deploymentKey) {
