@@ -83,5 +83,5 @@ public interface RecordMetadata {
   ValueType getValueType();
 
   /** @return a JSON marshaled representation of the record metadata */
-  String toJson();
+  String toJson() throws Exception;
 }

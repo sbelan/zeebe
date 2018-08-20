@@ -23,5 +23,5 @@ public interface RecordValueWithPayload extends RecordValue {
   String getPayload();
 
   /** @return de-serialized payload as map */
-  Map<String, Object> getPayloadAsMap();
+  Map<String, Object> getPayloadAsMap() throws Exception;
 }

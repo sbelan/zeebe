@@ -13,21 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.zeebe.exporter.record.value;
+package io.zeebe.exporter.record.value.job;
 
-import io.zeebe.exporter.record.RecordValue;
-import io.zeebe.exporter.record.value.deployment.DeployedWorkflow;
-import io.zeebe.exporter.record.value.deployment.DeploymentResource;
-import java.util.List;
+/** represents broker-defined headers associated with this job */
+public interface Headers {
+  String getActivityId();
 
-/**
- * Represents a single deployment event or command.
- *
- * <p>See {@link io.zeebe.protocol.intent.DeploymentIntent} for intents.
- */
-public interface DeploymentRecordValue extends RecordValue {
-  /** @return the resources to deploy */
-  List<DeploymentResource> getResources();
+  long getActivityInstanceKey();
 
-  List<DeployedWorkflow> getDeployedWorkflows();
+  String getBpmnProcessId();
+
+  int getWorkflowDefinitionVersion();
+
+  long getWorkflowInstanceKey();
+
+  long getWorkflowKey();
 }

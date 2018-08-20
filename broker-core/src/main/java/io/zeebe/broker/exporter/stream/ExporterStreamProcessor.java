@@ -19,6 +19,7 @@ package io.zeebe.broker.exporter.stream;
 
 import io.zeebe.broker.Loggers;
 import io.zeebe.broker.exporter.context.ExporterContext;
+import io.zeebe.broker.exporter.record.ExporterRecordMetadata;
 import io.zeebe.broker.exporter.repo.ExporterDescriptor;
 import io.zeebe.broker.logstreams.processor.NoopSnapshotSupport;
 import io.zeebe.exporter.context.Controller;
@@ -116,7 +117,7 @@ public class ExporterStreamProcessor implements StreamProcessor {
     private final Exporter exporter;
     private final long startPosition;
 
-    public ExporterContainer(ExporterDescriptor descriptor) {
+    ExporterContainer(ExporterDescriptor descriptor) {
       context =
           new ExporterContext(
               LoggerFactory.getLogger(String.format(LOGGER_NAME_FORMAT, descriptor.getId())),
@@ -137,45 +138,20 @@ public class ExporterStreamProcessor implements StreamProcessor {
   }
 
   private class Processor implements EventProcessor {
-    private final RecordMetadata metadata = new RecordMetadata();
+    private final RecordMetadata rawMetadata = new RecordMetadata();
 
     private Record record;
     private boolean shouldExecuteSideEffects;
+    private ExporterRecordValueMapper valueMapper = new ExporterRecordValueMapper();
 
     void wrap(LoggedEvent rawEvent) {
-      rawEvent.readMetadata(metadata);
+      rawEvent.readMetadata(rawMetadata);
 
-      shouldExecuteSideEffects = true;
-      switch (metadata.getValueType()) {
-        case JOB:
-          break;
-        case RAFT:
-          break;
-        case SUBSCRIPTION:
-          break;
-        case SUBSCRIBER:
-          break;
-        case DEPLOYMENT:
-          break;
-        case WORKFLOW_INSTANCE:
-          break;
-        case INCIDENT:
-          break;
-        case TOPIC:
-          break;
-        case ID:
-          break;
-        case MESSAGE:
-          break;
-        case MESSAGE_SUBSCRIPTION:
-          break;
-        case WORKFLOW_INSTANCE_SUBSCRIPTION:
-          break;
-        default:
-          shouldExecuteSideEffects = false;
-          // NOOP
-          break;
-      }
+      final ExporterRecordMetadata metadata =
+          new ExporterRecordMetadata(partitionId, rawEvent, rawMetadata);
+
+      record = valueMapper.map(rawEvent, metadata);
+      shouldExecuteSideEffects = record != null;
     }
 
     @Override
@@ -183,8 +159,12 @@ public class ExporterStreamProcessor implements StreamProcessor {
 
     @Override
     public boolean executeSideEffects() {
+      if (!shouldExecuteSideEffects) {
+        return true;
+      }
+
       int exporterIndex = 0;
-      int exportersCount = containers.size();
+      final int exportersCount = containers.size();
 
       // current error handling strategy is simply to repeat forever until the record can be
       // successfully exported.
@@ -208,15 +188,15 @@ public class ExporterStreamProcessor implements StreamProcessor {
     @Override
     public long writeEvent(LogStreamRecordWriter writer) {
       if (shouldCommitPositions()) {
-        final ExporterRecord record = state.newExporterRecord();
+        final ExporterRecordValue record = state.newExporterRecord();
 
-        metadata
+        rawMetadata
             .reset()
             .recordType(RecordType.EVENT)
             .valueType(ValueType.EXPORTER)
             .intent(ExporterIntent.POSITIONS_COMMITTED);
 
-        return writer.positionAsKey().valueWriter(record).metadataWriter(metadata).tryWrite();
+        return writer.positionAsKey().valueWriter(record).metadataWriter(rawMetadata).tryWrite();
       }
 
       return 0;

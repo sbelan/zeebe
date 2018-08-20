@@ -17,20 +17,31 @@
  */
 package io.zeebe.broker.exporter.record.value;
 
-import io.zeebe.broker.clustering.orchestration.id.IdRecord;
 import io.zeebe.broker.exporter.record.RecordValueImpl;
-import io.zeebe.exporter.record.value.IdRecordValue;
+import io.zeebe.broker.exporter.record.value.raft.RaftMemberImpl;
+import io.zeebe.exporter.record.value.RaftRecordValue;
+import io.zeebe.exporter.record.value.raft.RaftMember;
+import io.zeebe.raft.event.RaftConfigurationEvent;
+import java.util.ArrayList;
+import java.util.List;
 
-public class IdRecordValueImpl extends RecordValueImpl implements IdRecordValue {
-  private final IdRecord record;
+public class RaftRecordValueImpl extends RecordValueImpl implements RaftRecordValue {
+  private final RaftConfigurationEvent record;
 
-  public IdRecordValueImpl(final IdRecord record) {
+  private List<RaftMember> members;
+
+  public RaftRecordValueImpl(final RaftConfigurationEvent record) {
     super(record);
     this.record = record;
   }
 
   @Override
-  public int getId() {
-    return record.getId();
+  public List<RaftMember> getMembers() {
+    if (members == null) {
+      members = new ArrayList<>();
+      record.members().forEach(m -> members.add(new RaftMemberImpl(m)));
+    }
+
+    return null;
   }
 }

@@ -39,5 +39,5 @@ public interface Record<T extends RecordValue> {
   T getValue();
 
   /** @return a JSON marshaled representation of this record */
-  String toJson();
+  String toJson() throws Exception;
 }

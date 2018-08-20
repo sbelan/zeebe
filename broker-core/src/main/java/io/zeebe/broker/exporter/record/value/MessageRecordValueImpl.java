@@ -17,20 +17,38 @@
  */
 package io.zeebe.broker.exporter.record.value;
 
-import io.zeebe.broker.clustering.orchestration.id.IdRecord;
-import io.zeebe.broker.exporter.record.RecordValueImpl;
-import io.zeebe.exporter.record.value.IdRecordValue;
+import io.zeebe.broker.exporter.record.RecordValueWithPayloadImpl;
+import io.zeebe.broker.subscription.message.data.MessageRecord;
+import io.zeebe.exporter.record.value.MessageRecordValue;
 
-public class IdRecordValueImpl extends RecordValueImpl implements IdRecordValue {
-  private final IdRecord record;
+public class MessageRecordValueImpl extends RecordValueWithPayloadImpl
+    implements MessageRecordValue {
+  private final MessageRecord record;
 
-  public IdRecordValueImpl(final IdRecord record) {
-    super(record);
+  private String name;
+  private String messageId;
+  private String correlationKey;
+
+  public MessageRecordValueImpl(final MessageRecord record) {
+    super(record, record.getPayload());
     this.record = record;
   }
 
   @Override
-  public int getId() {
-    return record.getId();
+  public String getName() {
+    if (name == null) {
+      name = asString(record.getName());
+    }
+    return null;
+  }
+
+  @Override
+  public String getCorrelationKey() {
+    return null;
+  }
+
+  @Override
+  public String getMessageId() {
+    return null;
   }
 }

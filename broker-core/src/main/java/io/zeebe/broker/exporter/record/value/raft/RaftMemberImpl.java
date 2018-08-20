@@ -15,13 +15,32 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package io.zeebe.broker.exporter.repo;
+package io.zeebe.broker.exporter.record.value.raft;
 
-public class ExporterInstantiationException extends RuntimeException {
-  private static final long serialVersionUID = -7231999951981994615L;
-  private static final String MESSAGE_FORMAT = "Cannot instantiate exporter [%s]";
+import io.zeebe.exporter.record.value.raft.RaftMember;
+import io.zeebe.raft.event.RaftConfigurationEventMember;
+import io.zeebe.util.buffer.BufferUtil;
 
-  public ExporterInstantiationException(final String id, Throwable cause) {
-    super(String.format(MESSAGE_FORMAT, id), cause);
+public class RaftMemberImpl implements RaftMember {
+  private final RaftConfigurationEventMember raftMember;
+
+  private String host;
+
+  public RaftMemberImpl(final RaftConfigurationEventMember raftMember) {
+    this.raftMember = raftMember;
+  }
+
+  @Override
+  public String getHost() {
+    if (host == null) {
+      host = BufferUtil.bufferAsString(raftMember.getHost());
+    }
+
+    return host;
+  }
+
+  @Override
+  public int getPort() {
+    return raftMember.getPort();
   }
 }

@@ -17,5 +17,5 @@ package io.zeebe.exporter.record;
 
 public interface RecordValue {
   /** @return a JSON marshaled representation of the record value */
-  String toJson();
+  String toJson() throws Exception;
 }
