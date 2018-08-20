@@ -28,15 +28,29 @@ message HealthResponse {
   repeated BrokerInfo brokers = 1;
 }
 
-message DeployWorkflowRequest {
-  string topic = 1;
-  string name = 2;
-  bytes definition = 3;
+message WorkflowInfoRequest {
+  string name = 1;
+  bytes definition = 2;
 }
 
-message DeployWorkflowResponse { }
+message DeployWorkflowRequest {
+  repeated WorkflowInfoRequest workflows = 1;
+}
+
+message WorkflowInfoResponse {
+  string bpmnProcessId = 1;
+  int32 version = 2;
+  int64 workflowKey = 3;
+  string resourceName = 4;
+}
+
+message DeployWorkflowResponse {
+  repeated WorkflowInfoResponse workflows = 1;
+}
 
 service Gateway {
-  rpc Health (HealthRequest) returns (HealthResponse) { }
-  rpc DeployWorkflow (DeployWorkflowRequest) returns (DeployWorkflowResponse) { }
+  rpc Health (HealthRequest) returns (HealthResponse) {
+  }
+  rpc DeployWorkflow (DeployWorkflowRequest) returns (DeployWorkflowResponse) {
+  }
 }

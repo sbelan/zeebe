@@ -62,7 +62,7 @@ public class ZeebeClientImpl implements ZeebeClient {
 
   @Override
   public TopicClient topicClient() {
-    return null;
+    return new TopicClientImpl(asyncStub);
   }
 
   @Override

@@ -20,6 +20,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.zeebe.client.api.ZeebeFuture;
 import io.zeebe.client.api.commands.BrokerInfo;
 import io.zeebe.client.api.commands.PartitionBrokerRole;
+import io.zeebe.client.api.events.DeploymentEvent;
+import java.net.URISyntaxException;
 import java.util.stream.Stream;
 import org.junit.Before;
 import org.junit.Rule;
@@ -58,5 +60,21 @@ public class ZeebeClientTest {
                         assertThat(partition.getRole()).isEqualTo(PartitionBrokerRole.LEADER);
                       });
             });
+  }
+
+  @Test
+  public void shouldDeployWorkflow() throws InterruptedException, URISyntaxException {
+    final String filePath =
+        getClass().getResource("/workflows/demo-process.bpmn").toURI().getPath();
+    final DeploymentEvent deploymentResponse =
+        client
+            .topicClient()
+            .workflowClient()
+            .newDeployCommand()
+            .addResourceFile(filePath)
+            .send()
+            .join();
+
+    assertThat(deploymentResponse).isNotNull();
   }
 }

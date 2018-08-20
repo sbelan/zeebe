@@ -17,15 +17,35 @@ package io.zeebe.gateway;
 
 import io.zeebe.gateway.api.commands.PartitionInfo;
 import io.zeebe.gateway.api.commands.Topology;
+import io.zeebe.gateway.api.commands.Workflow;
+import io.zeebe.gateway.api.events.DeploymentEvent;
 import io.zeebe.gateway.cmd.ClientException;
 import io.zeebe.gateway.protocol.GatewayOuterClass.BrokerInfo;
 import io.zeebe.gateway.protocol.GatewayOuterClass.BrokerInfo.Builder;
+import io.zeebe.gateway.protocol.GatewayOuterClass.DeployWorkflowResponse;
 import io.zeebe.gateway.protocol.GatewayOuterClass.HealthResponse;
 import io.zeebe.gateway.protocol.GatewayOuterClass.Partition;
 import io.zeebe.gateway.protocol.GatewayOuterClass.Partition.PartitionBrokerRole;
+import io.zeebe.gateway.protocol.GatewayOuterClass.WorkflowInfoResponse;
 import java.util.ArrayList;
+import java.util.List;
 
 public class ResponseMapper {
+
+  public DeployWorkflowResponse toDeployWorkflowResponse(final DeploymentEvent brokerResponse) {
+    final DeployWorkflowResponse.Builder deployWorkflowBuilder =
+        DeployWorkflowResponse.newBuilder();
+    final List<Workflow> workflows = brokerResponse.getDeployedWorkflows();
+    for (final Workflow workflow : workflows) {
+      final WorkflowInfoResponse.Builder responseWorkflow = WorkflowInfoResponse.newBuilder();
+      responseWorkflow.setBpmnProcessId(workflow.getBpmnProcessId());
+      responseWorkflow.setVersion(workflow.getVersion());
+      responseWorkflow.setWorkflowKey(workflow.getWorkflowKey());
+      responseWorkflow.setResourceName(workflow.getResourceName());
+      deployWorkflowBuilder.addWorkflows(responseWorkflow);
+    }
+    return deployWorkflowBuilder.build();
+  }
 
   private PartitionBrokerRole remapPartitionBrokerRoleEnum(
       final io.zeebe.gateway.api.commands.BrokerInfo brokerInfo, final PartitionInfo partition) {
@@ -43,7 +63,7 @@ public class ResponseMapper {
     }
   }
 
-  public HealthResponse toResponse(final Topology brokerResponse) {
+  public HealthResponse toHealthResponse(final Topology brokerResponse) {
     final HealthResponse.Builder healthResponseBuilder = HealthResponse.newBuilder();
     final ArrayList<BrokerInfo> infos = new ArrayList<>();
 

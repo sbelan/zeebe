@@ -20,12 +20,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
-import io.zeebe.gateway.api.commands.Topology;
-import io.zeebe.gateway.protocol.GatewayOuterClass.BrokerInfo;
-import io.zeebe.gateway.protocol.GatewayOuterClass.HealthRequest;
-import io.zeebe.gateway.protocol.GatewayOuterClass.HealthResponse;
+import io.zeebe.gateway.api.events.DeploymentEvent;
+import io.zeebe.gateway.protocol.GatewayOuterClass.DeployWorkflowRequest;
+import io.zeebe.gateway.protocol.GatewayOuterClass.DeployWorkflowResponse;
 import io.zeebe.gateway.protocol.GatewayOuterClass.Partition;
 import io.zeebe.gateway.protocol.GatewayOuterClass.Partition.PartitionBrokerRole;
+import io.zeebe.gateway.protocol.GatewayOuterClass.WorkflowInfoResponse;
 import io.zeebe.gateway.util.RecordingStreamObserver;
 import io.zeebe.util.sched.future.ActorFuture;
 import io.zeebe.util.sched.future.CompletableActorFuture;
@@ -35,16 +35,16 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mock;
 
-public class HealthCheckEndpointTest {
+public class DeployWorkflowEndpointTest {
 
-  private final HealthRequest request = HealthRequest.getDefaultInstance();
-  private final RecordingStreamObserver<HealthResponse> streamObserver =
+  private final DeployWorkflowRequest request = DeployWorkflowRequest.getDefaultInstance();
+  private final RecordingStreamObserver<DeployWorkflowResponse> streamObserver =
       new RecordingStreamObserver<>();
   @Rule public ControlledActorSchedulerRule actorSchedulerRule = new ControlledActorSchedulerRule();
   @Mock private ResponseMapper responseMapper;
   @Mock private ClusterClient clusterClient;
   private EndpointManager endpointManager;
-  private HealthResponse response;
+  private DeployWorkflowResponse response;
 
   @Before
   public void setUp() {
@@ -60,22 +60,24 @@ public class HealthCheckEndpointTest {
             .build();
 
     this.response =
-        HealthResponse.newBuilder()
-            .addBrokers(
-                BrokerInfo.newBuilder()
-                    .setPort(51015)
-                    .setHost("localhost")
-                    .addPartitions(partition)
+        DeployWorkflowResponse.newBuilder()
+            .addWorkflows(
+                WorkflowInfoResponse.newBuilder()
+                    .setVersion(5)
+                    .setWorkflowKey(123456789L)
+                    .setBpmnProcessId("demoProcess")
+                    .setResourceName("demo-process")
                     .build())
             .build();
-    when(responseMapper.toHealthResponse(any())).thenReturn(response);
+
+    when(responseMapper.toDeployWorkflowResponse(any())).thenReturn(response);
   }
 
   @Test
-  public void healthCheckShouldCheckCorrectInvocation() {
+  public void deployWorkflowShouldCheckCorrectInvocation() {
     // given
-    final ActorFuture<Topology> responseFuture = CompletableActorFuture.completed(null);
-    when(clusterClient.sendHealthRequest(any())).thenReturn(responseFuture);
+    final ActorFuture<DeploymentEvent> responseFuture = CompletableActorFuture.completed(null);
+    when(clusterClient.sendDeployWorkflowRequest(any())).thenReturn(responseFuture);
 
     // when
     sendRequest();
@@ -88,7 +90,7 @@ public class HealthCheckEndpointTest {
   public void healthCheckShouldProduceException() {
     // given
     final RuntimeException exception = new RuntimeException("test");
-    when(clusterClient.sendHealthRequest(any()))
+    when(clusterClient.sendDeployWorkflowRequest(any()))
         .thenReturn(CompletableActorFuture.completedExceptionally(exception));
 
     // when
@@ -99,7 +101,7 @@ public class HealthCheckEndpointTest {
   }
 
   private void sendRequest() {
-    endpointManager.health(this.request, streamObserver);
+    endpointManager.deployWorkflow(this.request, streamObserver);
     actorSchedulerRule.workUntilDone();
   }
 }

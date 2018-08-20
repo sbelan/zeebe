@@ -20,11 +20,13 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import io.zeebe.gateway.api.commands.BrokerInfo;
 import io.zeebe.gateway.api.commands.PartitionInfo;
 import io.zeebe.gateway.api.commands.Topology;
+import io.zeebe.gateway.api.events.DeploymentEvent;
+import io.zeebe.gateway.factories.DeploymentEventFactory;
 import io.zeebe.gateway.factories.TopologyFactory;
-import io.zeebe.gateway.protocol.GatewayOuterClass;
+import io.zeebe.gateway.protocol.GatewayOuterClass.DeployWorkflowResponse;
 import io.zeebe.gateway.protocol.GatewayOuterClass.HealthResponse;
-import io.zeebe.gateway.protocol.GatewayOuterClass.Partition;
-import java.util.List;
+import io.zeebe.gateway.protocol.GatewayOuterClass.WorkflowInfoResponse;
+import java.util.LinkedList;
 import org.junit.Test;
 
 public class ResponseMapperTest {
@@ -33,35 +35,56 @@ public class ResponseMapperTest {
   public void shouldTestHealthCheckMapping() {
     final ResponseMapper responseMapper = new ResponseMapper();
     final Topology topology = new TopologyFactory().getFixture();
-    final List<BrokerInfo> brokers = topology.getBrokers();
 
-    final HealthResponse response = responseMapper.toResponse(topology);
+    final HealthResponse response = responseMapper.toHealthResponse(topology);
+    final LinkedList<BrokerInfo> expectedBrokers = new LinkedList<>(topology.getBrokers());
+    assertThat(response.getBrokersCount()).isEqualTo(expectedBrokers.size());
 
-    assertThat(response.getBrokersCount()).isEqualTo(brokers.size());
+    topology
+        .getBrokers()
+        .forEach(
+            received -> {
+              final BrokerInfo expected = expectedBrokers.pop();
 
-    for (int i = 0; i < topology.getBrokers().size(); i++) {
-      final BrokerInfo expected = brokers.get(i);
-      final GatewayOuterClass.BrokerInfo received = response.getBrokers(i);
+              assertThat(expected.getHost()).isEqualTo(received.getHost());
+              assertThat(expected.getPort()).isEqualTo(received.getPort());
+              assertThat(expected.getAddress())
+                  .isEqualTo(String.format("%s:%d", received.getHost(), received.getPort()));
 
-      assertThat(expected.getHost()).isEqualTo(received.getHost());
-      assertThat(expected.getPort()).isEqualTo(received.getPort());
-      assertThat(expected.getAddress())
-          .isEqualTo(String.format("%s:%d", received.getHost(), received.getPort()));
+              final LinkedList<PartitionInfo> expectedPartitions =
+                  new LinkedList<>(expected.getPartitions());
 
-      final List<PartitionInfo> expectedPartitions = expected.getPartitions();
-      final List<Partition> receivedPartitions = received.getPartitionsList();
-      for (int j = 0; j < expected.getPartitions().size(); j++) {
-        final PartitionInfo expectedPartition = expectedPartitions.get(j);
-        final Partition receivedPartition = receivedPartitions.get(j);
+              received
+                  .getPartitions()
+                  .forEach(
+                      receivedPartition -> {
+                        final PartitionInfo expectedPartition = expectedPartitions.pop();
+                        assertThat(expectedPartition.getPartitionId())
+                            .isEqualTo(receivedPartition.getPartitionId());
 
-        assertThat(expectedPartition.getPartitionId())
-            .isEqualTo(receivedPartition.getPartitionId());
+                        assertThat(expectedPartition.getRole().toString())
+                            .isEqualTo(receivedPartition.getRole().toString());
 
-        assertThat(expectedPartition.getRole().toString())
-            .isEqualTo(receivedPartition.getRole().toString());
+                        assertThat(expectedPartition.getTopicName())
+                            .isEqualTo(receivedPartition.getTopicName());
+                      });
+            });
+  }
 
-        assertThat(expectedPartition.getTopicName()).isEqualTo(receivedPartition.getTopicName());
-      }
-    }
+  @Test
+  public void shouldTestDeployWorkflowMapping() {
+    final ResponseMapper responseMapper = new ResponseMapper();
+    final DeploymentEvent event = new DeploymentEventFactory().getFixture();
+
+    final DeployWorkflowResponse response = responseMapper.toDeployWorkflowResponse(event);
+    final LinkedList<WorkflowInfoResponse> workflows =
+        new LinkedList<>(response.getWorkflowsList());
+
+    assertThat(workflows.size()).isEqualTo(1);
+    final WorkflowInfoResponse workflow = workflows.pop();
+    assertThat(workflow.getBpmnProcessId()).isEqualTo("bpmnProcessId");
+    assertThat(workflow.getResourceName()).isEqualTo("process.bpmn");
+    assertThat(workflow.getVersion()).isEqualTo(5);
+    assertThat(workflow.getWorkflowKey()).isEqualTo(123456789);
   }
 }
