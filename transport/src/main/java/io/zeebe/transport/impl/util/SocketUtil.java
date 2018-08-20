@@ -30,6 +30,7 @@ public class SocketUtil {
   public static final int BASE_PORT = 25600;
   public static final int RANGE_SIZE = 25;
 
+  private static final int TEST_FORK_NUMBER;
   private static final PortRange PORT_RANGE;
 
   static {
@@ -45,6 +46,7 @@ public class SocketUtil {
 
     final int min = BASE_PORT + testForkNumber * RANGE_SIZE;
     final int max = min + RANGE_SIZE;
+    TEST_FORK_NUMBER = testForkNumber;
     PORT_RANGE = new PortRange(DEFAULT_HOST, min, max);
   }
 
@@ -93,6 +95,8 @@ public class SocketUtil {
       do {
         next = basePort + (currentOffset++ % maxOffset);
       } while (!portAvailable(next));
+
+      LOG.debug("Choosing next port {} for test fork {}", next, TEST_FORK_NUMBER);
       return next;
     }
   }
