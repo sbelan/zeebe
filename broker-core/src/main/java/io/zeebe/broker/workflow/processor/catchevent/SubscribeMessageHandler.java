@@ -21,7 +21,7 @@ import io.zeebe.broker.clustering.base.topology.TopologyManager;
 import io.zeebe.broker.logstreams.processor.TypedStreamProcessor;
 import io.zeebe.broker.subscription.command.SubscriptionCommandSender;
 import io.zeebe.broker.workflow.data.WorkflowInstanceRecord;
-import io.zeebe.broker.workflow.model.ExecutableIntermediateMessageCatchEvent;
+import io.zeebe.broker.workflow.model.ExecutableMessageCatchElement;
 import io.zeebe.broker.workflow.processor.BpmnStepContext;
 import io.zeebe.broker.workflow.processor.BpmnStepHandler;
 import io.zeebe.logstreams.log.LogStream;
@@ -34,14 +34,13 @@ import io.zeebe.util.sched.future.ActorFuture;
 import io.zeebe.util.sched.future.CompletableActorFuture;
 import org.agrona.DirectBuffer;
 
-public class SubscribeMessageHandler
-    implements BpmnStepHandler<ExecutableIntermediateMessageCatchEvent> {
+public class SubscribeMessageHandler implements BpmnStepHandler<ExecutableMessageCatchElement> {
 
   private final MsgPackQueryProcessor queryProcessor = new MsgPackQueryProcessor();
 
   private WorkflowInstanceRecord workflowInstance;
   private long activityInstanceKey;
-  private ExecutableIntermediateMessageCatchEvent catchEvent;
+  private ExecutableMessageCatchElement catchEvent;
   private DirectBuffer extractedCorrelationKey;
 
   private SubscriptionCommandSender subscriptionCommandSender;
@@ -74,7 +73,7 @@ public class SubscribeMessageHandler
   }
 
   @Override
-  public void handle(BpmnStepContext<ExecutableIntermediateMessageCatchEvent> context) {
+  public void handle(BpmnStepContext<ExecutableMessageCatchElement> context) {
 
     this.workflowInstance = context.getValue();
     this.activityInstanceKey = context.getRecord().getKey();
@@ -104,8 +103,7 @@ public class SubscribeMessageHandler
     }
   }
 
-  private void onPartitionIdsAvailable(
-      BpmnStepContext<ExecutableIntermediateMessageCatchEvent> context) {
+  private void onPartitionIdsAvailable(BpmnStepContext<ExecutableMessageCatchElement> context) {
     extractedCorrelationKey = extractCorrelationKey();
     context.getSideEffect().accept(this::openMessageSubscription);
   }
