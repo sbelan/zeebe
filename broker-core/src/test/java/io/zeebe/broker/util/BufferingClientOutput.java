@@ -46,27 +46,14 @@ public class BufferingClientOutput implements ClientOutput {
   }
 
   @Override
-  public ActorFuture<ClientResponse> sendRequest(RemoteAddress addr, BufferWriter writer) {
-    return sendRequest(addr, writer, defaultTimeout);
-  }
-
-  @Override
-  public ActorFuture<ClientResponse> sendRequest(int nodeId, BufferWriter writer) {
-    return sendRequest(null, writer, defaultTimeout);
+  public ActorFuture<ClientResponse> sendRequest(Integer nodeId, BufferWriter writer) {
+    return sendRequest(nodeId, writer, defaultTimeout);
   }
 
   @Override
   public ActorFuture<ClientResponse> sendRequest(
-      RemoteAddress addr, BufferWriter writer, Duration timeout) {
-    final Request request = new Request(addr, writer, timeout);
-    sentRequests.add(request);
-    return request.response;
-  }
-
-  @Override
-  public ActorFuture<ClientResponse> sendRequest(
-      int nodeId, BufferWriter writer, Duration timeout) {
-    return sendRequest(null, writer, timeout);
+      Integer nodeId, BufferWriter writer, Duration timeout) {
+    return sendRequestToNodeWithRetry(() -> nodeId, b -> false, writer, timeout);
   }
 
   @Override
@@ -88,7 +75,7 @@ public class BufferingClientOutput implements ClientOutput {
   }
 
   @Override
-  public boolean sendMessage(int nodeId, BufferWriter writer) {
+  public boolean sendMessage(Integer nodeId, BufferWriter writer) {
     throw new UnsupportedOperationException("not yet implemented");
   }
 

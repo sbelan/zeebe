@@ -238,6 +238,7 @@ public class Topology implements ReadableTopology {
     for (NodeInfo member : members) {
       final BrokerDto broker = dto.brokers().add();
       final SocketAddress apiContactPoint = member.getClientApiAddress();
+      broker.setNodeId(member.getNodeId());
       broker.setHost(
           apiContactPoint.getHostBuffer(), 0, apiContactPoint.getHostBuffer().capacity());
       broker.setPort(apiContactPoint.port());

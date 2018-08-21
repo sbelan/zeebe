@@ -48,7 +48,8 @@ public class TopologyClient {
     final ClientResponse response =
         transport
             .getOutput()
-            .sendRequest(remoteAddress, requestHandler, Duration.ofSeconds(5))
+            .sendRequestWithRetry(
+                () -> remoteAddress, b -> false, requestHandler, Duration.ofSeconds(5))
             .join();
     final DirectBuffer responseBuffer = response.getResponseBuffer();
 

@@ -49,8 +49,8 @@ public class PartitionedJobSubscriptionTest {
   public static final String JOB_TYPE = "foo";
 
   public ClientRule clientRule = new ClientRule();
-  public StubBrokerRule broker1 = new StubBrokerRule("localhost", 26501);
-  public StubBrokerRule broker2 = new StubBrokerRule("localhost", 26502);
+  public StubBrokerRule broker1 = new StubBrokerRule(0, "localhost", 26501);
+  public StubBrokerRule broker2 = new StubBrokerRule(1, "localhost", 26502);
 
   protected ZeebeClient client;
 

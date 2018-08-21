@@ -56,8 +56,8 @@ public class MultiRemoteRequestResponseStressTest {
   @Threads(1)
   public void sendBurstSync1(BenchmarkContext ctx) throws InterruptedException {
     final ClientOutput output = ctx.output;
-    final RemoteAddress remote1 = ctx.remote1;
-    final RemoteAddress remote2 = ctx.remote2;
+    final int remote1 = ctx.remote1;
+    final int remote2 = ctx.remote2;
 
     for (int i = 0; i < BURST_SIZE / 2; i++) {
       output.sendRequest(remote1, WRITER).join();
@@ -69,8 +69,8 @@ public class MultiRemoteRequestResponseStressTest {
   @Threads(2)
   public void sendBurstSync2(BenchmarkContext ctx) throws InterruptedException {
     final ClientOutput output = ctx.output;
-    final RemoteAddress remote1 = ctx.remote1;
-    final RemoteAddress remote2 = ctx.remote2;
+    final int remote1 = ctx.remote1;
+    final int remote2 = ctx.remote2;
 
     for (int i = 0; i < BURST_SIZE / 2; i++) {
       output.sendRequest(remote1, WRITER).join();
@@ -82,8 +82,8 @@ public class MultiRemoteRequestResponseStressTest {
   @Threads(8)
   public void sendBurstSync8(BenchmarkContext ctx) throws InterruptedException {
     final ClientOutput output = ctx.output;
-    final RemoteAddress remote1 = ctx.remote1;
-    final RemoteAddress remote2 = ctx.remote2;
+    final int remote1 = ctx.remote1;
+    final int remote2 = ctx.remote2;
 
     for (int i = 0; i < BURST_SIZE / 2; i++) {
       output.sendRequest(remote1, WRITER).join();
@@ -95,8 +95,8 @@ public class MultiRemoteRequestResponseStressTest {
   @Threads(16)
   public void sendBurstSync16(BenchmarkContext ctx) throws InterruptedException {
     final ClientOutput output = ctx.output;
-    final RemoteAddress remote1 = ctx.remote1;
-    final RemoteAddress remote2 = ctx.remote2;
+    final int remote1 = ctx.remote1;
+    final int remote2 = ctx.remote2;
 
     for (int i = 0; i < BURST_SIZE / 2; i++) {
       output.sendRequest(remote1, WRITER).join();
@@ -108,8 +108,8 @@ public class MultiRemoteRequestResponseStressTest {
   @Threads(32)
   public void sendBurstSync32(BenchmarkContext ctx) throws InterruptedException {
     final ClientOutput output = ctx.output;
-    final RemoteAddress remote1 = ctx.remote1;
-    final RemoteAddress remote2 = ctx.remote2;
+    final int remote1 = ctx.remote1;
+    final int remote2 = ctx.remote2;
 
     for (int i = 0; i < BURST_SIZE / 2; i++) {
       output.sendRequest(remote1, WRITER).join();
@@ -121,8 +121,8 @@ public class MultiRemoteRequestResponseStressTest {
   @Threads(1)
   public void sendBurstAsync(BenchmarkContext ctx) throws InterruptedException {
     final ClientOutput output = ctx.output;
-    final RemoteAddress remote1 = ctx.remote1;
-    final RemoteAddress remote2 = ctx.remote2;
+    final int remote1 = ctx.remote1;
+    final int remote2 = ctx.remote2;
 
     for (int k = 0; k < 4; k++) {
       final List<ActorFuture<ClientResponse>> inFlightRequests = new ArrayList<>();
@@ -149,8 +149,8 @@ public class MultiRemoteRequestResponseStressTest {
 
     private ClientOutput output;
 
-    private RemoteAddress remote1;
-    private RemoteAddress remote2;
+    private int remote1;
+    private int remote2;
 
     private ServerTransport serverTransport2;
 
@@ -183,8 +183,13 @@ public class MultiRemoteRequestResponseStressTest {
 
       output = clientTransport.getOutput();
 
-      remote1 = clientTransport.registerRemoteAndAwaitChannel(addr1);
-      remote2 = clientTransport.registerRemoteAndAwaitChannel(addr2);
+      remote1 = 1;
+      clientTransport.registerRemoteAndAwaitChannel(addr1);
+      clientTransport.registerEndpoint(remote1, addr1);
+
+      remote2 = 2;
+      clientTransport.registerRemoteAndAwaitChannel(addr2);
+      clientTransport.registerEndpoint(remote2, addr2);
     }
 
     @TearDown

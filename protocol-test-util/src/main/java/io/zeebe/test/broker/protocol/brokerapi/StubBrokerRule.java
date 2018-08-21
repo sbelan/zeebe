@@ -56,6 +56,7 @@ public class StubBrokerRule extends ExternalResource {
   private ControlledActorClock clock = new ControlledActorClock();
   protected ActorScheduler scheduler;
 
+  protected final int nodeId;
   protected final String host;
   protected final int port;
 
@@ -70,18 +71,19 @@ public class StubBrokerRule extends ExternalResource {
   private final int partitionCount;
 
   public StubBrokerRule() {
-    this("127.0.0.1", 26501, 1);
+    this(1);
   }
 
   public StubBrokerRule(int partitionCount) {
-    this("127.0.0.1", 26501, partitionCount);
+    this(0, "127.0.0.1", 26501, partitionCount);
   }
 
-  public StubBrokerRule(String host, int port) {
-    this(host, port, 1);
+  public StubBrokerRule(int nodeId, String host, int port) {
+    this(nodeId, host, port, 1);
   }
 
-  public StubBrokerRule(String host, int port, int partitionCount) {
+  public StubBrokerRule(int nodeId, String host, int port, int partitionCount) {
+    this.nodeId = nodeId;
     this.host = host;
     this.port = port;
     this.partitionCount = partitionCount;
@@ -104,10 +106,10 @@ public class StubBrokerRule extends ExternalResource {
     bindAddr = new InetSocketAddress(host, port);
 
     final Topology topology = new Topology();
-    topology.addLeader(host, port, Protocol.SYSTEM_TOPIC, Protocol.SYSTEM_PARTITION);
+    topology.addLeader(nodeId, host, port, Protocol.SYSTEM_TOPIC, Protocol.SYSTEM_PARTITION);
 
     for (int i = TEST_PARTITION_ID; i < TEST_PARTITION_ID + partitionCount; i++) {
-      topology.addLeader(host, port, DEFAULT_TOPIC, i);
+      topology.addLeader(nodeId, host, port, DEFAULT_TOPIC, i);
     }
 
     currentTopology.set(topology);
@@ -254,7 +256,7 @@ public class StubBrokerRule extends ExternalResource {
   public void addTopic(String topic, int partition) {
     final Topology newTopology = new Topology(currentTopology.get());
 
-    newTopology.addLeader(host, port, topic, partition);
+    newTopology.addLeader(nodeId, host, port, topic, partition);
     currentTopology.set(newTopology);
   }
 
@@ -438,6 +440,10 @@ public class StubBrokerRule extends ExternalResource {
 
   public DeploymentStubs deployments() {
     return new DeploymentStubs(this);
+  }
+
+  public int getNodeId() {
+    return nodeId;
   }
 
   public String getHost() {
