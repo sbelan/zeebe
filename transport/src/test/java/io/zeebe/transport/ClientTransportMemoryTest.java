@@ -40,7 +40,6 @@ import io.zeebe.transport.util.RecordingMessageHandler;
 import io.zeebe.util.ByteValue;
 import io.zeebe.util.buffer.BufferUtil;
 import io.zeebe.util.buffer.BufferWriter;
-import io.zeebe.util.buffer.DirectBufferWriter;
 import io.zeebe.util.sched.clock.ControlledActorClock;
 import io.zeebe.util.sched.future.ActorFuture;
 import io.zeebe.util.sched.testing.ActorSchedulerRule;
@@ -60,7 +59,7 @@ public class ClientTransportMemoryTest {
   @Rule public RuleChain ruleChain = RuleChain.outerRule(actorSchedulerRule).around(closeables);
 
   public static final DirectBuffer BUF1 = BufferUtil.wrapBytes(1, 2, 3, 4);
-  public static final DirectBufferWriter WRITER1 = writerFor(BUF1);
+  public static final BufferWriter WRITER1 = writerFor(BUF1);
 
   public static final SocketAddress SERVER_ADDRESS1 = new SocketAddress("localhost", 51115);
   public static final int NODE_ID1 = 1;

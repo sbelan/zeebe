@@ -75,8 +75,11 @@ public class ClientTransportTest {
   @Rule public RuleChain ruleChain = RuleChain.outerRule(actorSchedulerRule).around(closeables);
 
   public static final DirectBuffer BUF1 = BufferUtil.wrapBytes(1, 2, 3, 4);
+  public static final BufferWriter WRITER1 = writerFor(BUF1);
+
   public static final SocketAddress SERVER_ADDRESS1 = new SocketAddress("localhost", 51115);
   public static final int NODE_ID1 = 1;
+
   public static final SocketAddress SERVER_ADDRESS2 = new SocketAddress("localhost", 51116);
 
   public static final int REQUEST_POOL_SIZE = 4;
