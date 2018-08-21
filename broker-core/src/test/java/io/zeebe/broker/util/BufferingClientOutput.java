@@ -20,7 +20,6 @@ package io.zeebe.broker.util;
 import io.zeebe.transport.ClientOutput;
 import io.zeebe.transport.ClientResponse;
 import io.zeebe.transport.RemoteAddress;
-import io.zeebe.transport.TransportMessage;
 import io.zeebe.transport.impl.ClientResponseImpl;
 import io.zeebe.transport.impl.IncomingResponse;
 import io.zeebe.util.buffer.BufferWriter;
@@ -85,11 +84,6 @@ public class BufferingClientOutput implements ClientOutput {
       Predicate<DirectBuffer> responseInspector,
       BufferWriter writer,
       Duration timeout) {
-    throw new UnsupportedOperationException("not yet implemented");
-  }
-
-  @Override
-  public boolean sendMessage(TransportMessage transportMessage) {
     throw new UnsupportedOperationException("not yet implemented");
   }
 

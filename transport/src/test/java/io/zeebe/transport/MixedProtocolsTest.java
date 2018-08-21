@@ -18,6 +18,7 @@ package io.zeebe.transport;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.zeebe.test.util.AutoCloseableRule;
+import io.zeebe.transport.impl.TransportHeaderDescriptor;
 import io.zeebe.util.buffer.DirectBufferWriter;
 import io.zeebe.util.sched.future.ActorFuture;
 import io.zeebe.util.sched.testing.ActorSchedulerRule;
@@ -41,7 +42,7 @@ public class MixedProtocolsTest {
 
   @Test
   public void shouldEchoMessages() throws InterruptedException, ExecutionException {
-
+    final int nodeId = 1;
     final SocketAddress addr = new SocketAddress("localhost", 51115);
     final int numRequests = 1000;
 
@@ -58,18 +59,17 @@ public class MixedProtocolsTest {
             .build(handler, handler);
     closeables.manage(serverTransport);
 
-    final RemoteAddress remoteAddress = clientTransport.registerRemoteAndAwaitChannel(addr);
+    clientTransport.registerRemoteAndAwaitChannel(addr);
+    clientTransport.registerEndpoint(nodeId, addr);
 
     for (int i = 0; i < numRequests; i++) {
       requestBuffer.putInt(0, i);
       bufferWriter.wrap(requestBuffer, 0, requestBuffer.capacity());
       final ActorFuture<ClientResponse> responseFuture =
-          clientTransport.getOutput().sendRequest(remoteAddress, bufferWriter);
+          clientTransport.getOutput().sendRequest(nodeId, bufferWriter);
 
       requestBuffer.putInt(0, numRequests - i);
-      message.reset().buffer(requestBuffer).remoteAddress(remoteAddress);
-
-      final boolean success = clientTransport.getOutput().sendMessage(message);
+      final boolean success = clientTransport.getOutput().sendMessage(nodeId, bufferWriter);
       if (!success) {
         throw new RuntimeException("Could not send message");
       }
@@ -81,9 +81,9 @@ public class MixedProtocolsTest {
 
   /**
    * Echos messages by copying to the send buffer, but inverts the order of request-response
-   * messages and single messages. I.e. on a {@link Protocols#REQUEST_RESPONSE} messages, it waits
-   * for the next {@link Protocols#FULL_DUPLEX_SINGLE_MESSAGE} messages, echos this message, and
-   * only then echos the first message.
+   * messages and single messages. I.e. on a {@link TransportHeaderDescriptor#REQUEST_RESPONSE}
+   * messages, it waits for the next {@link TransportHeaderDescriptor#FULL_DUPLEX_SINGLE_MESSAGE}
+   * messages, echos this message, and only then echos the first message.
    */
   public static class ReverseOrderChannelHandler
       implements ServerMessageHandler, ServerRequestHandler {

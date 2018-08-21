@@ -16,6 +16,7 @@
 package io.zeebe.transport;
 
 import static io.zeebe.test.util.TestUtil.waitUntil;
+import static io.zeebe.util.buffer.DirectBufferWriter.writerFor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.fail;
@@ -34,7 +35,6 @@ import io.zeebe.dispatcher.Dispatcher;
 import io.zeebe.dispatcher.Dispatchers;
 import io.zeebe.test.util.AutoCloseableRule;
 import io.zeebe.transport.impl.memory.NonBlockingMemoryPool;
-import io.zeebe.transport.util.ControllableServerTransport;
 import io.zeebe.transport.util.EchoRequestResponseHandler;
 import io.zeebe.transport.util.RecordingMessageHandler;
 import io.zeebe.util.ByteValue;
@@ -61,6 +61,7 @@ public class ClientTransportMemoryTest {
 
   public static final DirectBuffer BUF1 = BufferUtil.wrapBytes(1, 2, 3, 4);
   public static final SocketAddress SERVER_ADDRESS1 = new SocketAddress("localhost", 51115);
+  public static final int NODE_ID1 = 1;
 
   protected ClientTransport clientTransport;
 
@@ -80,12 +81,6 @@ public class ClientTransportMemoryTest {
             .defaultMessageRetryTimeout(Duration.ofMillis(100))
             .build();
     closeables.manage(clientTransport);
-  }
-
-  protected ControllableServerTransport buildControllableServerTransport() {
-    final ControllableServerTransport serverTransport = new ControllableServerTransport();
-    closeables.manage(serverTransport);
-    return serverTransport;
   }
 
   protected ServerTransport buildServerTransport(
@@ -118,8 +113,7 @@ public class ClientTransportMemoryTest {
         output.sendRequest(remote, new DirectBufferWriter().wrap(BUF1), Duration.ofMillis(500));
 
     // then
-    assertThatThrownBy(() -> responseFuture.join())
-        .hasMessageContaining("Request timed out after PT0.5S");
+    assertThatThrownBy(responseFuture::join).hasMessageContaining("Request timed out after PT0.5S");
     verify(requestMemoryPoolSpy, times(1)).allocate(anyInt());
     verify(requestMemoryPoolSpy, timeout(500).times(1))
         .reclaim(any()); // released after future is completed
@@ -192,18 +186,11 @@ public class ClientTransportMemoryTest {
     final RecordingMessageHandler messageHandler = new RecordingMessageHandler();
 
     buildServerTransport(
-        b -> {
-          return b.bindAddress(SERVER_ADDRESS1.toInetSocketAddress()).build(messageHandler, null);
-        });
+        b -> b.bindAddress(SERVER_ADDRESS1.toInetSocketAddress()).build(messageHandler, null));
 
-    final RemoteAddress remote = clientTransport.registerRemoteAndAwaitChannel(SERVER_ADDRESS1);
+    clientTransport.registerEndpoint(NODE_ID1, SERVER_ADDRESS1);
 
-    final TransportMessage message = new TransportMessage();
-
-    message.writer(writer);
-    message.remoteAddress(remote);
-
-    clientTransport.getOutput().sendMessage(message);
+    clientTransport.getOutput().sendMessage(NODE_ID1, writer);
 
     waitUntil(() -> messageHandler.numReceivedMessages() == 1);
 
@@ -218,15 +205,10 @@ public class ClientTransportMemoryTest {
     when(writer.getLength()).thenReturn(16);
 
     // no channel open
-    final RemoteAddress remote = clientTransport.registerRemoteAddress(SERVER_ADDRESS1);
-
-    final TransportMessage message = new TransportMessage();
-
-    message.writer(writer);
-    message.remoteAddress(remote);
+    clientTransport.registerEndpoint(NODE_ID1, SERVER_ADDRESS1);
 
     // when
-    clientTransport.getOutput().sendMessage(message);
+    clientTransport.getOutput().sendMessage(NODE_ID1, writer);
 
     // then
     verify(messageMemoryPoolSpy, times(1)).allocate(anyInt());
@@ -240,15 +222,10 @@ public class ClientTransportMemoryTest {
     when(writer.getLength()).thenReturn(16);
     doThrow(RuntimeException.class).when(writer).write(any(), anyInt());
 
-    final RemoteAddress remote = clientTransport.registerRemoteAddress(SERVER_ADDRESS1);
-
-    final TransportMessage message = new TransportMessage();
-
-    message.writer(writer);
-    message.remoteAddress(remote);
+    clientTransport.registerEndpoint(NODE_ID1, SERVER_ADDRESS1);
 
     try {
-      clientTransport.getOutput().sendMessage(message);
+      clientTransport.getOutput().sendMessage(NODE_ID1, writer);
       fail("expected exception");
     } catch (Exception e) {
       // expected
@@ -262,12 +239,11 @@ public class ClientTransportMemoryTest {
   public void shouldRejectMessageWhenBufferPoolExhaused() {
     // given
     final ClientOutput output = clientTransport.getOutput();
-    final TransportMessage message = new TransportMessage().buffer(BUF1).remoteStreamId(0);
 
     doReturn(null).when(messageMemoryPoolSpy).allocate(anyInt());
 
     // when
-    final boolean success = output.sendMessage(message);
+    final boolean success = output.sendMessage(NODE_ID1, writerFor(BUF1));
 
     // then
     assertThat(success).isFalse();

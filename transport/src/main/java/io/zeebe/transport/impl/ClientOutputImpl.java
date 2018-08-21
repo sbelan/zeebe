@@ -19,7 +19,6 @@ import io.zeebe.transport.ClientOutput;
 import io.zeebe.transport.ClientResponse;
 import io.zeebe.transport.EndpointRegistry;
 import io.zeebe.transport.RemoteAddress;
-import io.zeebe.transport.TransportMessage;
 import io.zeebe.transport.impl.sender.OutgoingMessage;
 import io.zeebe.transport.impl.sender.OutgoingRequest;
 import io.zeebe.transport.impl.sender.Sender;
@@ -49,14 +48,6 @@ public class ClientOutputImpl implements ClientOutput {
     this.requestManager = requestManager;
     this.defaultRequestRetryTimeout = defaultRequestRetryTimeout;
     this.defaultMessageRetryTimeoutInMillis = defaultMessageRetryTimeout.toMillis();
-  }
-
-  @Override
-  public boolean sendMessage(TransportMessage transportMessage) {
-    final int remoteStreamId = transportMessage.getRemoteStreamId();
-    final BufferWriter writer = transportMessage.getWriter();
-
-    return sendTransportMessage(remoteStreamId, writer);
   }
 
   @Override

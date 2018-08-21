@@ -18,6 +18,7 @@ package io.zeebe.transport;
 import static io.zeebe.test.util.BufferAssert.assertThatBuffer;
 import static io.zeebe.test.util.TestUtil.doRepeatedly;
 import static io.zeebe.test.util.TestUtil.waitUntil;
+import static io.zeebe.util.buffer.DirectBufferWriter.writerFor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
@@ -28,7 +29,6 @@ import static org.mockito.Mockito.when;
 
 import io.zeebe.dispatcher.Dispatcher;
 import io.zeebe.dispatcher.Dispatchers;
-import io.zeebe.dispatcher.FragmentHandler;
 import io.zeebe.test.util.AutoCloseableRule;
 import io.zeebe.test.util.TestUtil;
 import io.zeebe.test.util.io.FailingBufferWriter;
@@ -76,12 +76,11 @@ public class ClientTransportTest {
 
   public static final DirectBuffer BUF1 = BufferUtil.wrapBytes(1, 2, 3, 4);
   public static final SocketAddress SERVER_ADDRESS1 = new SocketAddress("localhost", 51115);
+  public static final int NODE_ID1 = 1;
   public static final SocketAddress SERVER_ADDRESS2 = new SocketAddress("localhost", 51116);
 
   public static final int REQUEST_POOL_SIZE = 4;
   public static final ByteValue BUFFER_SIZE = ByteValue.ofKilobytes(16);
-  public static final int MESSAGES_REQUIRED_TO_SATURATE_SEND_BUFFER =
-      (int) BUFFER_SIZE.toBytes() / BUF1.capacity();
 
   protected Dispatcher clientReceiveBuffer;
 
@@ -309,17 +308,9 @@ public class ClientTransportTest {
         clientTransport
             .openSubscription(
                 "foo",
-                new ClientMessageHandler() {
-                  @Override
-                  public boolean onMessage(
-                      ClientOutput output,
-                      RemoteAddress remoteAddress,
-                      DirectBuffer buffer,
-                      int offset,
-                      int length) {
-                    numInvocations.incrementAndGet();
-                    return consumeMessage.getAndSet(true);
-                  }
+                (output, remoteAddress, buffer, offset, length) -> {
+                  numInvocations.incrementAndGet();
+                  return consumeMessage.getAndSet(true);
                 })
             .join();
 
@@ -328,7 +319,7 @@ public class ClientTransportTest {
 
     // then handler has been invoked twice, once when the message was postponed, and once when it
     // was consumed
-    doRepeatedly(() -> subscription.poll()).until(i -> i != 0);
+    doRepeatedly(subscription::poll).until(i -> i != 0);
     assertThat(numInvocations.get()).isEqualTo(2);
   }
 
@@ -355,10 +346,8 @@ public class ClientTransportTest {
         clientTransport.openSubscription("foo", clientHandler).join();
 
     // triggering the server pushing a the messages
-    final RemoteAddress remote = clientTransport.registerRemoteAndAwaitChannel(SERVER_ADDRESS1);
-    clientTransport
-        .getOutput()
-        .sendMessage(new TransportMessage().remoteAddress(remote).buffer(BUF1));
+    clientTransport.registerEndpoint(NODE_ID1, SERVER_ADDRESS1);
+    clientTransport.getOutput().sendMessage(NODE_ID1, writerFor(BUF1));
 
     TransportTestUtil.waitUntilExhausted(clientReceiveBuffer);
     Thread.sleep(200L); // give transport a bit of time to try to push more messages on top
@@ -642,19 +631,12 @@ public class ClientTransportTest {
     final RecordingMessageHandler messageHandler = new RecordingMessageHandler();
 
     buildServerTransport(
-        b -> {
-          return b.bindAddress(SERVER_ADDRESS1.toInetSocketAddress()).build(messageHandler, null);
-        });
+        b -> b.bindAddress(SERVER_ADDRESS1.toInetSocketAddress()).build(messageHandler, null));
 
-    final RemoteAddress remote = clientTransport.registerRemoteAndAwaitChannel(SERVER_ADDRESS1);
+    clientTransport.registerEndpoint(NODE_ID1, SERVER_ADDRESS1);
 
     for (int i = 0; i < 10; i++) {
-      final TransportMessage message = new TransportMessage();
-
-      message.writer(writer);
-      message.remoteAddress(remote);
-
-      clientTransport.getOutput().sendMessage(message);
+      clientTransport.getOutput().sendMessage(NODE_ID1, writer);
     }
 
     waitUntil(() -> messageHandler.numReceivedMessages() == 10);
@@ -681,7 +663,7 @@ public class ClientTransportTest {
     doRepeatedly(() -> clock.addTime(Duration.ofSeconds(10)))
         .until((v) -> clientRequestActorFuture.isDone());
 
-    assertThatThrownBy(() -> clientRequestActorFuture.join())
+    assertThatThrownBy(clientRequestActorFuture::join)
         .hasMessageContaining("Request timed out after PT10S");
   }
 
@@ -745,19 +727,11 @@ public class ClientTransportTest {
     final RecordingMessageHandler messageHandler = new RecordingMessageHandler();
 
     buildServerTransport(
-        b -> {
-          return b.bindAddress(SERVER_ADDRESS1.toInetSocketAddress()).build(messageHandler, null);
-        });
+        b -> b.bindAddress(SERVER_ADDRESS1.toInetSocketAddress()).build(messageHandler, null));
 
     // when
-    final TransportMessage message = new TransportMessage();
-    message.writer(writer);
-
-    // don't wait until the channel is opened
-    final RemoteAddress remote = clientTransport.registerRemoteAddress(SERVER_ADDRESS1);
-    message.remoteAddress(remote);
-
-    clientTransport.getOutput().sendMessage(message);
+    clientTransport.registerEndpoint(NODE_ID1, SERVER_ADDRESS1);
+    clientTransport.getOutput().sendMessage(NODE_ID1, writer);
 
     // then
     waitUntil(() -> messageHandler.numReceivedMessages() == 1);
@@ -793,7 +767,7 @@ public class ClientTransportTest {
               clientTransport.close();
               transportClosed.set(true);
             });
-    waitUntil(() -> requestReceived.get());
+    waitUntil(requestReceived::get);
 
     // when
     closerThread.start();
@@ -843,7 +817,7 @@ public class ClientTransportTest {
                 new DirectBufferWriter().wrap(BUF1),
                 Duration.ofSeconds(30));
 
-    waitUntil(() -> isWaiting.get());
+    waitUntil(isWaiting::get);
 
     // when
     final ActorFuture<Void> closeFuture = clientTransport.closeAsync();
@@ -860,7 +834,7 @@ public class ClientTransportTest {
     }
 
     // then
-    waitUntil(() -> closeFuture.isDone());
+    waitUntil(closeFuture::isDone);
 
     assertThat(closeFuture).isDone();
     assertThat(responseFuture).isDone();
@@ -1074,22 +1048,6 @@ public class ClientTransportTest {
 
   private boolean containsServerAddress1(final RemoteAddress remoteAddress) {
     return SERVER_ADDRESS1.equals(remoteAddress.getAddress());
-  }
-
-  protected class CountFragmentsHandler implements FragmentHandler {
-
-    protected AtomicInteger i = new AtomicInteger(0);
-
-    @Override
-    public int onFragment(
-        DirectBuffer buffer, int offset, int length, int streamId, boolean isMarkedFailed) {
-      i.incrementAndGet();
-      return FragmentHandler.CONSUME_FRAGMENT_RESULT;
-    }
-
-    public int getCount() {
-      return i.get();
-    }
   }
 
   protected class SendMessagesHandler implements ServerMessageHandler {

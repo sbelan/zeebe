@@ -23,13 +23,6 @@ import java.util.function.Supplier;
 import org.agrona.DirectBuffer;
 
 public interface ClientOutput {
-  /**
-   * Sends a message according to the single message protocol.
-   *
-   * <p>Returns false if the message cannot be currently written due to exhausted capacity. Throws
-   * an exception if the request is not sendable at all (e.g. buffer writer throws exception).
-   */
-  boolean sendMessage(TransportMessage transportMessage);
 
   /**
    * Sends a message according to the single message protocol.
