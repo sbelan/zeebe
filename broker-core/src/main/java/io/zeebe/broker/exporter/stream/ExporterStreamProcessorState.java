@@ -17,7 +17,7 @@
  */
 package io.zeebe.broker.exporter.stream;
 
-import io.zeebe.broker.exporter.stream.ExporterRecordValue.ExporterPosition;
+import io.zeebe.broker.exporter.stream.ExporterRecord.ExporterPosition;
 import io.zeebe.logstreams.state.StateController;
 import io.zeebe.util.LangUtil;
 import io.zeebe.util.buffer.BufferUtil;
@@ -68,8 +68,8 @@ public class ExporterStreamProcessorState extends StateController {
     return position;
   }
 
-  public ExporterRecordValue newExporterRecord() {
-    final ExporterRecordValue record = new ExporterRecordValue();
+  public ExporterRecord newExporterRecord() {
+    final ExporterRecord record = new ExporterRecord();
 
     try (final RocksIterator iterator = getDb().newIterator()) {
       for (iterator.seekToFirst(); iterator.isValid(); iterator.next()) {

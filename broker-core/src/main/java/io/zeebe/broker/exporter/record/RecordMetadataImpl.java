@@ -36,9 +36,9 @@ import java.time.Instant;
 
 @JsonAutoDetect(fieldVisibility = Visibility.NONE, getterVisibility = Visibility.PUBLIC_ONLY)
 @JsonInclude(Include.NON_NULL)
-public class ExporterRecordMetadata implements io.zeebe.exporter.record.RecordMetadata {
+public class RecordMetadataImpl implements io.zeebe.exporter.record.RecordMetadata {
   private static final ObjectWriter JSON_WRITER =
-      new ObjectMapper().writerFor(ExporterRecordMetadata.class);
+      new ObjectMapper().writerFor(RecordMetadataImpl.class);
 
   private final int partitionId;
   private final LoggedEvent event;
@@ -47,7 +47,7 @@ public class ExporterRecordMetadata implements io.zeebe.exporter.record.RecordMe
   private Instant timestamp;
   private String rejectionReason;
 
-  public ExporterRecordMetadata(
+  public RecordMetadataImpl(
       final int partitionId, final LoggedEvent event, final RecordMetadata metadata) {
     this.partitionId = partitionId;
     this.event = event;

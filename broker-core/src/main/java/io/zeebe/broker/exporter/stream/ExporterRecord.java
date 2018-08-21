@@ -23,14 +23,14 @@ import io.zeebe.msgpack.property.LongProperty;
 import io.zeebe.msgpack.property.StringProperty;
 import io.zeebe.msgpack.value.ValueArray;
 
-public class ExporterRecordValue extends UnpackedObject {
+public class ExporterRecord extends UnpackedObject {
   public static final long POSITION_UNKNOWN = -1L;
   public static final String ID_UNKNOWN = "";
 
   private ArrayProperty<ExporterPosition> positionsProperty =
       new ArrayProperty<>("positions", new ExporterPosition());
 
-  public ExporterRecordValue() {
+  public ExporterRecord() {
     this.declareProperty(positionsProperty);
   }
 

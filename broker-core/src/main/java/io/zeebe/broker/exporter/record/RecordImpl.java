@@ -21,11 +21,11 @@ import io.zeebe.exporter.record.Record;
 import io.zeebe.exporter.record.RecordMetadata;
 import io.zeebe.exporter.record.RecordValue;
 
-public class ExporterRecord<T extends RecordValue> implements Record<T> {
-  private final ExporterRecordMetadata metadata;
+public class RecordImpl<T extends RecordValue> implements Record<T> {
+  private final RecordMetadataImpl metadata;
   private final T value;
 
-  public ExporterRecord(final ExporterRecordMetadata metadata, T value) {
+  public RecordImpl(final RecordMetadataImpl metadata, T value) {
     this.metadata = metadata;
     this.value = value;
   }

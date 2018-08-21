@@ -15,12 +15,10 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package io.zeebe.broker.exporter.stream;
+package io.zeebe.broker.exporter.record;
 
 import io.zeebe.broker.clustering.orchestration.id.IdRecord;
 import io.zeebe.broker.clustering.orchestration.topic.TopicRecord;
-import io.zeebe.broker.exporter.record.ExporterRecord;
-import io.zeebe.broker.exporter.record.ExporterRecordMetadata;
 import io.zeebe.broker.exporter.record.value.DeploymentRecordValueImpl;
 import io.zeebe.broker.exporter.record.value.IdRecordValueImpl;
 import io.zeebe.broker.exporter.record.value.IncidentRecordValueImpl;
@@ -42,66 +40,66 @@ import io.zeebe.logstreams.log.LoggedEvent;
 import io.zeebe.raft.event.RaftConfigurationEvent;
 import io.zeebe.util.buffer.BufferReader;
 
-public class ExporterRecordValueMapper {
-  public ExporterRecord map(final LoggedEvent event, final ExporterRecordMetadata metadata) {
-    final ExporterRecord record;
+public class RecordValueMapper {
+  public RecordImpl map(final LoggedEvent event, final RecordMetadataImpl metadata) {
+    final RecordImpl record;
 
     switch (metadata.getValueType()) {
       case JOB:
         record =
-            new ExporterRecord<>(
+            new RecordImpl<>(
                 metadata, new JobRecordValueImpl(readRecordValue(event, new JobRecord())));
         break;
       case RAFT:
         record =
-            new ExporterRecord<>(
+            new RecordImpl<>(
                 metadata,
                 new RaftRecordValueImpl(readRecordValue(event, new RaftConfigurationEvent())));
         break;
       case DEPLOYMENT:
         record =
-            new ExporterRecord<>(
+            new RecordImpl<>(
                 metadata,
                 new DeploymentRecordValueImpl(readRecordValue(event, new DeploymentRecord())));
         break;
       case WORKFLOW_INSTANCE:
         record =
-            new ExporterRecord<>(
+            new RecordImpl<>(
                 metadata,
                 new WorkflowInstanceRecordValueImpl(
                     readRecordValue(event, new WorkflowInstanceRecord())));
         break;
       case INCIDENT:
         record =
-            new ExporterRecord<>(
+            new RecordImpl<>(
                 metadata,
                 new IncidentRecordValueImpl(readRecordValue(event, new IncidentRecord())));
         break;
       case TOPIC:
         record =
-            new ExporterRecord<>(
+            new RecordImpl<>(
                 metadata, new TopicRecordValueImpl(readRecordValue(event, new TopicRecord())));
         break;
       case ID:
         record =
-            new ExporterRecord<>(
+            new RecordImpl<>(
                 metadata, new IdRecordValueImpl(readRecordValue(event, new IdRecord())));
         break;
       case MESSAGE:
         record =
-            new ExporterRecord<>(
+            new RecordImpl<>(
                 metadata, new MessageRecordValueImpl(readRecordValue(event, new MessageRecord())));
         break;
       case MESSAGE_SUBSCRIPTION:
         record =
-            new ExporterRecord<>(
+            new RecordImpl<>(
                 metadata,
                 new MessageSubscriptionRecordValueImpl(
                     readRecordValue(event, new MessageSubscriptionRecord())));
         break;
       case WORKFLOW_INSTANCE_SUBSCRIPTION:
         record =
-            new ExporterRecord<>(
+            new RecordImpl<>(
                 metadata,
                 new WorkflowInstanceSubscriptionRecordValueImpl(
                     readRecordValue(event, new WorkflowInstanceSubscriptionRecord())));

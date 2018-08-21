@@ -17,9 +17,9 @@
  */
 package io.zeebe.broker.exporter.stream;
 
-import io.zeebe.broker.Loggers;
 import io.zeebe.broker.exporter.context.ExporterContext;
-import io.zeebe.broker.exporter.record.ExporterRecordMetadata;
+import io.zeebe.broker.exporter.record.RecordMetadataImpl;
+import io.zeebe.broker.exporter.record.RecordValueMapper;
 import io.zeebe.broker.exporter.repo.ExporterDescriptor;
 import io.zeebe.broker.logstreams.processor.NoopSnapshotSupport;
 import io.zeebe.exporter.context.Controller;
@@ -27,7 +27,6 @@ import io.zeebe.exporter.record.Record;
 import io.zeebe.exporter.spi.Exporter;
 import io.zeebe.logstreams.log.LogStreamRecordWriter;
 import io.zeebe.logstreams.log.LoggedEvent;
-import io.zeebe.logstreams.processor.EventLifecycleContext;
 import io.zeebe.logstreams.processor.EventProcessor;
 import io.zeebe.logstreams.processor.StreamProcessor;
 import io.zeebe.logstreams.processor.StreamProcessorContext;
@@ -41,14 +40,11 @@ import io.zeebe.util.sched.ActorControl;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ExporterStreamProcessor implements StreamProcessor {
-  private static final Logger LOG = Loggers.EXPORTER_LOGGER;
   private static final SnapshotSupport NONE = new NoopSnapshotSupport();
 
-  private ExporterContainer currentExporter;
   private final List<ExporterContainer> containers;
   private final int partitionId;
 
@@ -96,6 +92,7 @@ public class ExporterStreamProcessor implements StreamProcessor {
   public void onRecovered() {
     for (final ExporterContainer container : containers) {
       container.exporter.open(container);
+      container.position = state.getPosition(container.getId());
     }
   }
 
@@ -115,7 +112,7 @@ public class ExporterStreamProcessor implements StreamProcessor {
 
     private final ExporterContext context;
     private final Exporter exporter;
-    private final long startPosition;
+    private long position;
 
     ExporterContainer(ExporterDescriptor descriptor) {
       context =
@@ -123,17 +120,24 @@ public class ExporterStreamProcessor implements StreamProcessor {
               LoggerFactory.getLogger(String.format(LOGGER_NAME_FORMAT, descriptor.getId())),
               descriptor.getConfiguration());
       exporter = descriptor.newInstance();
-      startPosition = state.getPosition(descriptor.getId());
     }
 
     @Override
     public void updateLastExportedRecordPosition(final long position) {
-      actorControl.run(() -> state.setPosition(context.getConfiguration().getId(), position));
+      actorControl.run(
+          () -> {
+            state.setPosition(getId(), position);
+            this.position = position;
+          });
     }
 
     @Override
     public void scheduleTask(final Duration delay, final Runnable task) {
       actorControl.runDelayed(delay, task);
+    }
+
+    private String getId() {
+      return context.getConfiguration().getId();
     }
   }
 
@@ -142,20 +146,17 @@ public class ExporterStreamProcessor implements StreamProcessor {
 
     private Record record;
     private boolean shouldExecuteSideEffects;
-    private ExporterRecordValueMapper valueMapper = new ExporterRecordValueMapper();
+    private RecordValueMapper valueMapper = new RecordValueMapper();
 
     void wrap(LoggedEvent rawEvent) {
       rawEvent.readMetadata(rawMetadata);
 
-      final ExporterRecordMetadata metadata =
-          new ExporterRecordMetadata(partitionId, rawEvent, rawMetadata);
+      final RecordMetadataImpl metadata =
+          new RecordMetadataImpl(partitionId, rawEvent, rawMetadata);
 
       record = valueMapper.map(rawEvent, metadata);
       shouldExecuteSideEffects = record != null;
     }
-
-    @Override
-    public void processEvent(EventLifecycleContext ctx) {}
 
     @Override
     public boolean executeSideEffects() {
@@ -172,13 +173,14 @@ public class ExporterStreamProcessor implements StreamProcessor {
         final ExporterContainer container = containers.get(exporterIndex);
 
         try {
-          if (container.startPosition < record.getMetadata().getPosition()) {
+          if (container.position < record.getMetadata().getPosition()) {
             container.exporter.export(record);
           }
 
           exporterIndex++;
         } catch (final Exception ex) {
           container.context.getLogger().error("Error exporting record {}", record, ex);
+          return false;
         }
       }
 
@@ -188,7 +190,7 @@ public class ExporterStreamProcessor implements StreamProcessor {
     @Override
     public long writeEvent(LogStreamRecordWriter writer) {
       if (shouldCommitPositions()) {
-        final ExporterRecordValue record = state.newExporterRecord();
+        final ExporterRecord record = state.newExporterRecord();
 
         rawMetadata
             .reset()
