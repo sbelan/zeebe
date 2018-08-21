@@ -56,8 +56,8 @@ public class EndpointRegistryImpl implements EndpointRegistry {
    * @return the remote address for the endpoint of the node or null if non is set
    */
   @Override
-  public RemoteAddress getEndpoint(final int nodeId) {
-    return endpoints.get(nodeId);
+  public RemoteAddress getEndpoint(final Integer nodeId) {
+    return nodeId != null ? endpoints.get(nodeId) : null;
   }
 
   /**

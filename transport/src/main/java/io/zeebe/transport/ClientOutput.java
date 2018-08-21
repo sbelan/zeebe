@@ -31,49 +31,61 @@ public interface ClientOutput {
    * exhausted capacity. Throws an exception if the request is not sendable at all (e.g. buffer
    * writer throws exception).
    */
-  boolean sendMessage(int nodeId, BufferWriter writer);
+  boolean sendMessage(Integer nodeId, BufferWriter writer);
 
   /**
-   * Same as {@link #sendRequest(RemoteAddress, BufferWriter, Duration)} where the timeout is set to
-   * the configured default timeout.
+   * Like {@link #sendRequest(Integer, BufferWriter, Duration)} where the timeout is set to the
+   * configured default timeout.
    *
    * @return the response future or null in case no memory is currently available to allocate the
    *     request
    */
-  ActorFuture<ClientResponse> sendRequest(RemoteAddress addr, BufferWriter writer);
+  ActorFuture<ClientResponse> sendRequest(Integer nodeId, BufferWriter writer);
 
   /**
-   * Like {@link #sendRequest(RemoteAddress, BufferWriter)} with a lookup of the current endpoint
-   * for the given node id.
+   * Like {@link #sendRequestToNodeWithRetry(Supplier, Predicate, BufferWriter, Duration)} with a
+   * static remote and no response inspection (i.e. first response is accepted).
    *
    * @return the response future or null in case no memory is currently available to allocate the
    *     request
    */
-  ActorFuture<ClientResponse> sendRequest(int nodeId, BufferWriter writer);
+  ActorFuture<ClientResponse> sendRequest(Integer nodeId, BufferWriter writer, Duration timeout);
 
   /**
-   * Like {@link #sendRequestWithRetry(Supplier, Predicate, BufferWriter, Duration)} with a static
-   * remote and no response inspection (i.e. first response is accepted).
+   * Send a request to a node with retries if there is no current connection or the node is not
+   * resolvable. Makes this method more robust in the presence of short intermittent disconnects.
    *
-   * @return the response future or null in case no memory is currently available to allocate the
-   *     request
-   */
-  ActorFuture<ClientResponse> sendRequest(
-      RemoteAddress addr, BufferWriter writer, Duration timeout);
-
-  /**
-   * Like {@link #sendRequest(RemoteAddress, BufferWriter, Duration)} with a lookup of the current
-   * endpoint for the given node id.
+   * <p>Guarantees:
    *
-   * @return the response future or null in case no memory is currently available to allocate the
-   *     request
+   * <ul>
+   *   <li>Not garbage-free
+   *   <li>n intermediary copies of the request (one local copy for making retries, one copy on the
+   *       send buffer per try)
+   *
+   * @param nodeIdSupplier supplier for the node id the retries are executed against (retries may be
+   *     executed against different nodes). The supplier may resolve to <code>null
+   *     </code> to signal that a node id can not be determined. In that case, the request is
+   *     retried after resubmit timeout.
+   * @param responseInspector function getting the response and returning a boolean. If the function
+   *     returns true, the request will be retried: usecase: in a system like zeebe, we may send a
+   *     request to the wrong node. The node will send a response indicating that it is not able to
+   *     handle this request. In this case we want to do a retry and send the request to a different
+   *     node, based on the content of the response
+   * @param timeout The timeout until the returned future fails if no response is received.
+   * @return a future carrying the response that was accepted or null in case no memory is currently
+   *     available to allocate the request. Can complete exceptionally in failure cases such as
+   *     timeout.
    */
-  ActorFuture<ClientResponse> sendRequest(int nodeId, BufferWriter writer, Duration timeout);
+  ActorFuture<ClientResponse> sendRequestToNodeWithRetry(
+      Supplier<Integer> nodeIdSupplier,
+      Predicate<DirectBuffer> responseInspector,
+      BufferWriter writer,
+      Duration timeout);
 
   /**
-   * Like {@link #sendRequest(RemoteAddress, BufferWriter)} but retries the request if there is no
-   * current connection. Makes this method more robust in the presence of short intermittent
-   * disconnects.
+   * Like {@link #sendRequestToNodeWithRetry(Supplier, Predicate, BufferWriter, Duration)} but uses
+   * a remote address supplier in case endpoints are not registered yet. Use case: initial gossip
+   * join.
    *
    * <p>Guarantees:
    *
@@ -98,19 +110,6 @@ public interface ClientOutput {
    */
   ActorFuture<ClientResponse> sendRequestWithRetry(
       Supplier<RemoteAddress> remoteAddressSupplier,
-      Predicate<DirectBuffer> responseInspector,
-      BufferWriter writer,
-      Duration timeout);
-
-  /**
-   * Like {@link #sendRequestWithRetry(Supplier, Predicate, BufferWriter, Duration)} with a lookup
-   * of the current endpoint for the given node id.
-   *
-   * @return the response future or null in case no memory is currently available to allocate the
-   *     request
-   */
-  ActorFuture<ClientResponse> sendRequestToNodeWithRetry(
-      Supplier<Integer> nodeIdSupplier,
       Predicate<DirectBuffer> responseInspector,
       BufferWriter writer,
       Duration timeout);

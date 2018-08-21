@@ -19,7 +19,7 @@ public interface EndpointRegistry {
 
   String getName();
 
-  RemoteAddress getEndpoint(int nodeId);
+  RemoteAddress getEndpoint(Integer nodeId);
 
   SocketAddress setEndpoint(int nodeId, SocketAddress socketAddress);
 

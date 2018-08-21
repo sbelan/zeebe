@@ -51,7 +51,7 @@ public class ClientOutputImpl implements ClientOutput {
   }
 
   @Override
-  public boolean sendMessage(int nodeId, BufferWriter writer) {
+  public boolean sendMessage(Integer nodeId, BufferWriter writer) {
     final RemoteAddress remoteAddress = endpointRegistry.getEndpoint(nodeId);
     if (remoteAddress != null) {
       return sendTransportMessage(remoteAddress.getStreamId(), writer);
@@ -88,25 +88,27 @@ public class ClientOutputImpl implements ClientOutput {
   }
 
   @Override
-  public ActorFuture<ClientResponse> sendRequest(RemoteAddress addr, BufferWriter writer) {
-    return sendRequest(addr, writer, defaultRequestRetryTimeout);
-  }
-
-  @Override
-  public ActorFuture<ClientResponse> sendRequest(int nodeId, BufferWriter writer) {
+  public ActorFuture<ClientResponse> sendRequest(Integer nodeId, BufferWriter writer) {
     return sendRequest(nodeId, writer, defaultRequestRetryTimeout);
   }
 
   @Override
   public ActorFuture<ClientResponse> sendRequest(
-      RemoteAddress addr, BufferWriter writer, Duration timeout) {
-    return sendRequestWithRetry(() -> addr, (b) -> false, writer, timeout);
+      Integer nodeId, BufferWriter writer, Duration timeout) {
+    return sendRequestToNodeWithRetry(() -> nodeId, (b) -> false, writer, timeout);
   }
 
   @Override
-  public ActorFuture<ClientResponse> sendRequest(
-      int nodeId, BufferWriter writer, Duration timeout) {
-    return sendRequestToNodeWithRetry(() -> nodeId, (b) -> false, writer, timeout);
+  public ActorFuture<ClientResponse> sendRequestToNodeWithRetry(
+      Supplier<Integer> nodeIdSupplier,
+      Predicate<DirectBuffer> responseInspector,
+      BufferWriter writer,
+      Duration timeout) {
+    return sendRequestWithRetry(
+        () -> endpointRegistry.getEndpoint(nodeIdSupplier.get()),
+        responseInspector,
+        writer,
+        timeout);
   }
 
   @Override
@@ -136,21 +138,5 @@ public class ClientOutputImpl implements ClientOutput {
     } else {
       return null;
     }
-  }
-
-  @Override
-  public ActorFuture<ClientResponse> sendRequestToNodeWithRetry(
-      Supplier<Integer> nodeIdSupplier,
-      Predicate<DirectBuffer> responseInspector,
-      BufferWriter writer,
-      Duration timeout) {
-    return sendRequestWithRetry(
-        () -> {
-          final Integer nodeId = nodeIdSupplier.get();
-          return nodeId == null ? null : endpointRegistry.getEndpoint(nodeId);
-        },
-        responseInspector,
-        writer,
-        timeout);
   }
 }

@@ -55,7 +55,7 @@ public class RequestResponseStressTest {
   @Threads(1)
   public void sendBurstSync1(BenchmarkContext ctx) throws InterruptedException {
     final ClientOutput output = ctx.output;
-    final RemoteAddress remote = ctx.remote;
+    final int remote = ctx.remote;
 
     for (int i = 0; i < BURST_SIZE; i++) {
       final ActorFuture<ClientResponse> responseFuture = output.sendRequest(remote, WRITER);
@@ -67,7 +67,7 @@ public class RequestResponseStressTest {
   @Threads(2)
   public void sendBurstSync2(BenchmarkContext ctx) throws InterruptedException {
     final ClientOutput output = ctx.output;
-    final RemoteAddress remote = ctx.remote;
+    final int remote = ctx.remote;
 
     for (int i = 0; i < BURST_SIZE; i++) {
       final ActorFuture<ClientResponse> responseFuture = output.sendRequest(remote, WRITER);
@@ -79,7 +79,7 @@ public class RequestResponseStressTest {
   @Threads(8)
   public void sendBurstSync8(BenchmarkContext ctx) throws InterruptedException {
     final ClientOutput output = ctx.output;
-    final RemoteAddress remote = ctx.remote;
+    final int remote = ctx.remote;
 
     for (int i = 0; i < BURST_SIZE; i++) {
       final ActorFuture<ClientResponse> responseFuture = output.sendRequest(remote, WRITER);
@@ -91,7 +91,7 @@ public class RequestResponseStressTest {
   @Threads(16)
   public void sendBurstSync16(BenchmarkContext ctx) throws InterruptedException {
     final ClientOutput output = ctx.output;
-    final RemoteAddress remote = ctx.remote;
+    final int remote = ctx.remote;
 
     for (int i = 0; i < BURST_SIZE; i++) {
       final ActorFuture<ClientResponse> responseFuture = output.sendRequest(remote, WRITER);
@@ -103,7 +103,7 @@ public class RequestResponseStressTest {
   @Threads(32)
   public void sendBurstSync32(BenchmarkContext ctx) throws InterruptedException {
     final ClientOutput output = ctx.output;
-    final RemoteAddress remote = ctx.remote;
+    final int remote = ctx.remote;
 
     for (int i = 0; i < BURST_SIZE; i++) {
       final ActorFuture<ClientResponse> responseFuture = output.sendRequest(remote, WRITER);
@@ -115,7 +115,7 @@ public class RequestResponseStressTest {
   @Threads(1)
   public void sendBurstAsync(BenchmarkContext ctx) throws InterruptedException {
     final ClientOutput output = ctx.output;
-    final RemoteAddress remote = ctx.remote;
+    final int remote = ctx.remote;
 
     for (int k = 0; k < 4; k++) {
       final List<ActorFuture<ClientResponse>> inFlightRequests = new ArrayList<>();
@@ -142,7 +142,7 @@ public class RequestResponseStressTest {
 
     private ClientOutput output;
 
-    private RemoteAddress remote;
+    private int remote;
 
     @Setup
     public void setUp() {
@@ -164,7 +164,9 @@ public class RequestResponseStressTest {
 
       output = clientTransport.getOutput();
 
-      remote = clientTransport.registerRemoteAndAwaitChannel(addr);
+      remote = 1;
+      clientTransport.registerRemoteAndAwaitChannel(addr);
+      clientTransport.registerEndpoint(remote, addr);
     }
 
     @TearDown

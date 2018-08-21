@@ -129,6 +129,7 @@ public class GossipEventSender {
 
     return clientTransport
         .getOutput()
-        .sendRequest(remoteAddress, gossipFailureDetectionEvent, timeout);
+        .sendRequestWithRetry(
+            () -> remoteAddress, (r) -> false, gossipFailureDetectionEvent, timeout);
   }
 }
