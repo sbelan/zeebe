@@ -91,8 +91,6 @@ public class ServerTransportTest {
   @Test
   public void shouldNotSendMessagesForPreviousStreamIdAfterReconnect() {
     // given
-    final TransportMessage message = new TransportMessage();
-
     final ServerOutput serverOutput = serverTransport.getOutput();
     final ClientOutput clientOutput = clientTransport.getOutput();
 
@@ -122,12 +120,10 @@ public class ServerTransportTest {
 
     // when
     // sending server message with previous stream id
-    message.buffer(BUF1).remoteStreamId(firstRemote.getStreamId());
-    serverOutput.sendMessage(message);
+    serverOutput.sendMessage(firstRemote.getStreamId(), writerFor(BUF1));
 
     // and sending server message with new stream id
-    message.buffer(BUF2).remoteStreamId(secondRemote.getStreamId());
-    serverOutput.sendMessage(message);
+    serverOutput.sendMessage(secondRemote.getStreamId(), writerFor(BUF2));
 
     // then
     // first message has not been received by client

@@ -15,6 +15,7 @@
  */
 package io.zeebe.transport;
 
+import static io.zeebe.util.buffer.DirectBufferWriter.writerFor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
@@ -74,12 +75,11 @@ public class ServerTransportMemoryPoolTest {
   public void shouldRejectMessageWhenBufferPoolExhaused() {
     // given
     final ServerOutput output = serverTransport.getOutput();
-    final TransportMessage message = new TransportMessage().buffer(BUF1).remoteStreamId(0);
 
     doReturn(null).when(messageMemoryPool).allocate(anyInt());
 
     // when
-    final boolean success = output.sendMessage(message);
+    final boolean success = output.sendMessage(0, writerFor(BUF1));
 
     // then
     assertThat(success).isFalse();
@@ -138,13 +138,11 @@ public class ServerTransportMemoryPoolTest {
     when(writer.getLength()).thenReturn(16);
     doThrow(RuntimeException.class).when(writer).write(any(), anyInt());
 
-    final TransportMessage message = new TransportMessage().writer(writer).remoteStreamId(0);
-
     doReturn(ByteBuffer.allocate(50)).when(messageMemoryPool).allocate(anyInt());
 
     // when
     try {
-      output.sendMessage(message);
+      output.sendMessage(0, writer);
       fail("expected exception");
     } catch (Exception e) {
       // expected

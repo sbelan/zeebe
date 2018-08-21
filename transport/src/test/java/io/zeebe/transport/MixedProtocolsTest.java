@@ -38,8 +38,6 @@ public class MixedProtocolsTest {
   protected final UnsafeBuffer requestBuffer = new UnsafeBuffer(new byte[1024]);
   protected final DirectBufferWriter bufferWriter = new DirectBufferWriter();
 
-  protected final TransportMessage message = new TransportMessage();
-
   @Test
   public void shouldEchoMessages() throws InterruptedException, ExecutionException {
     final int nodeId = 1;
@@ -89,7 +87,6 @@ public class MixedProtocolsTest {
     protected UnsafeBuffer requestResponseMessageBuffer;
 
     protected final ServerResponse response = new ServerResponse();
-    protected final TransportMessage message = new TransportMessage();
 
     public ReverseOrderChannelHandler() {
       this.requestResponseMessageBuffer = new UnsafeBuffer(new byte[1024 * 1024]);
@@ -119,9 +116,8 @@ public class MixedProtocolsTest {
         DirectBuffer buffer,
         int offset,
         int length) {
-      message.reset().buffer(buffer, offset, length).remoteAddress(remoteAddress);
-
-      return output.sendMessage(message);
+      return output.sendMessage(
+          remoteAddress.getStreamId(), new DirectBufferWriter().wrap(buffer, offset, length));
     }
   }
 }

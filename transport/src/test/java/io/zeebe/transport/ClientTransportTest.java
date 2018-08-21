@@ -994,12 +994,12 @@ public class ClientTransportTest {
   protected class SendMessagesHandler implements ServerMessageHandler {
     final int numMessagesToSend;
     int messagesSent;
-    final TransportMessage message;
+    BufferWriter writer;
 
     public SendMessagesHandler(int numMessagesToSend, DirectBuffer messageToSend) {
       this.numMessagesToSend = numMessagesToSend;
       this.messagesSent = 0;
-      this.message = new TransportMessage().buffer(messageToSend);
+      this.writer = writerFor(messageToSend);
     }
 
     @Override
@@ -1009,9 +1009,10 @@ public class ClientTransportTest {
         DirectBuffer buffer,
         int offset,
         int length) {
-      message.remoteAddress(remoteAddress);
+
+      final int remoteStreamId = remoteAddress.getStreamId();
       for (int i = messagesSent; i < numMessagesToSend; i++) {
-        if (output.sendMessage(message)) {
+        if (output.sendMessage(remoteStreamId, writer)) {
           messagesSent++;
         } else {
           return false;

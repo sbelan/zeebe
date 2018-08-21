@@ -60,7 +60,6 @@ import io.zeebe.transport.ServerMessageHandler;
 import io.zeebe.transport.ServerOutput;
 import io.zeebe.transport.ServerRequestHandler;
 import io.zeebe.transport.ServerResponse;
-import io.zeebe.transport.TransportMessage;
 import io.zeebe.transport.impl.actor.Receiver;
 import io.zeebe.util.LogUtil;
 import io.zeebe.util.buffer.BufferWriter;
