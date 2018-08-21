@@ -295,12 +295,12 @@ public class ClusteringRule extends ExternalResource {
       final BrokerCfg brokerCfg = TomlConfigurationReader.read(config);
       EmbeddedBrokerRule.assignSocketAddresses(brokerCfg);
 
-      if (brokerId > 0) {
+      if (brokerCfgs[0] != null) {
         brokerCfg
             .getCluster()
             .setInitialContactPoints(
                 new String[] {
-                  brokerCfgs[brokerId - 1].getNetwork().getManagement().toSocketAddress().toString()
+                  brokerCfgs[0].getNetwork().getManagement().toSocketAddress().toString()
                 });
       }
 
