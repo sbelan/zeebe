@@ -24,9 +24,6 @@ import io.zeebe.broker.system.management.topics.FetchCreatedTopicsResponse;
 import io.zeebe.protocol.impl.SubscriptionUtil;
 import io.zeebe.transport.ClientResponse;
 import io.zeebe.transport.ClientTransport;
-import io.zeebe.transport.RemoteAddress;
-import io.zeebe.transport.SocketAddress;
-import io.zeebe.transport.TransportMessage;
 import io.zeebe.util.buffer.BufferWriter;
 import io.zeebe.util.sched.ActorControl;
 import io.zeebe.util.sched.future.ActorFuture;
@@ -50,8 +47,6 @@ public class SubscriptionCommandSender {
   private final CorrelateWorkflowInstanceSubscriptionCommand
       correlateWorkflowInstanceSubscriptionCommand =
           new CorrelateWorkflowInstanceSubscriptionCommand();
-
-  private final TransportMessage subscriptionMessage = new TransportMessage();
 
   private final TopologyPartitionListenerImpl partitionListener;
 
@@ -120,7 +115,6 @@ public class SubscriptionCommandSender {
     correlateWorkflowInstanceSubscriptionCommand.setActivityInstanceKey(activityInstanceKey);
     correlateWorkflowInstanceSubscriptionCommand.getMessageName().wrap(messageName);
     correlateWorkflowInstanceSubscriptionCommand.getPayload().wrap(payload);
-    subscriptionMessage.writer(correlateWorkflowInstanceSubscriptionCommand);
 
     return sendSubscriptionCommand(
         workflowInstancePartitionId, correlateWorkflowInstanceSubscriptionCommand);
@@ -136,13 +130,7 @@ public class SubscriptionCommandSender {
       return false;
     }
 
-    final SocketAddress subscriptionApiAddress = partitionLeader.getSubscriptionApiAddress();
-    final RemoteAddress remoteAddress =
-        subscriptionClient.registerRemoteAddress(subscriptionApiAddress);
-    subscriptionMessage.remoteAddress(remoteAddress);
-    subscriptionMessage.writer(command);
-
-    return subscriptionClient.getOutput().sendMessage(subscriptionMessage);
+    return subscriptionClient.getOutput().sendMessage(partitionLeader.getNodeId(), command);
   }
 
   public boolean hasPartitionIds() {
@@ -168,14 +156,12 @@ public class SubscriptionCommandSender {
   }
 
   private ActorFuture<ClientResponse> sendFetchCreatedTopicsRequest() {
-    final SocketAddress systemPartitionLeader = partitionListener.getSystemPartitionLeader();
-    final RemoteAddress remoteAddress =
-        managementClient.registerRemoteAddress(systemPartitionLeader);
+    final Integer systemPartitionLeaderId = partitionListener.getSystemPartitionLeaderId();
 
     return managementClient
         .getOutput()
-        .sendRequestWithRetry(
-            () -> remoteAddress,
+        .sendRequestToNodeWithRetry(
+            () -> systemPartitionLeaderId,
             b -> !fetchCreatedTopicsResponse.tryWrap(b),
             fetchCreatedTopicsRequest,
             Duration.ofSeconds(15));
