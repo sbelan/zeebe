@@ -39,16 +39,30 @@ public class MessageRecordValueImpl extends RecordValueWithPayloadImpl
     if (name == null) {
       name = asString(record.getName());
     }
-    return null;
+
+    return name;
   }
 
   @Override
   public String getCorrelationKey() {
-    return null;
+    if (correlationKey == null) {
+      correlationKey = asString(record.getCorrelationKey());
+    }
+
+    return correlationKey;
   }
 
   @Override
   public String getMessageId() {
-    return null;
+    if (messageId == null) {
+      messageId = asString(record.getMessageId());
+    }
+
+    return messageId;
+  }
+
+  @Override
+  public long getTimeToLive() {
+    return record.getTimeToLive();
   }
 }

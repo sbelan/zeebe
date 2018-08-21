@@ -65,4 +65,9 @@ public class WorkflowInstanceRecordValueImpl extends RecordValueWithPayloadImpl
   public long getWorkflowInstanceKey() {
     return record.getWorkflowInstanceKey();
   }
+
+  @Override
+  public long getScopeInstanceKey() {
+    return record.getScopeInstanceKey();
+  }
 }
