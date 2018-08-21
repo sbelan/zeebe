@@ -117,4 +117,28 @@ public class BrokerCfg {
   public void setTopics(List<TopicCfg> topics) {
     this.topics = topics;
   }
+
+  @Override
+  public String toString() {
+    return "BrokerCfg{"
+        + "bootstrap="
+        + bootstrap
+        + ", network="
+        + network
+        + ", cluster="
+        + cluster
+        + ", threads="
+        + threads
+        + ", metrics="
+        + metrics
+        + ", data="
+        + data
+        + ", gossip="
+        + gossip
+        + ", raft="
+        + raft
+        + ", topics="
+        + topics
+        + '}';
+  }
 }
