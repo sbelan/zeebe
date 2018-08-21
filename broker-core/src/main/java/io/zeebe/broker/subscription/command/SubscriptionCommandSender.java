@@ -160,7 +160,7 @@ public class SubscriptionCommandSender {
 
     return managementClient
         .getOutput()
-        .sendRequestToNodeWithRetry(
+        .sendRequestWithRetry(
             () -> systemPartitionLeaderId,
             b -> !fetchCreatedTopicsResponse.tryWrap(b),
             fetchCreatedTopicsRequest,

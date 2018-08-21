@@ -36,7 +36,6 @@ import io.zeebe.gossip.protocol.GossipEventSender;
 import io.zeebe.gossip.protocol.GossipRequestHandler;
 import io.zeebe.transport.BufferingServerTransport;
 import io.zeebe.transport.ClientTransport;
-import io.zeebe.transport.RemoteAddress;
 import io.zeebe.transport.ServerInputSubscription;
 import io.zeebe.transport.SocketAddress;
 import io.zeebe.util.buffer.BufferUtil;
@@ -45,7 +44,6 @@ import io.zeebe.util.sched.future.ActorFuture;
 import io.zeebe.util.sched.future.CompletableActorFuture;
 import java.time.Duration;
 import java.util.List;
-import java.util.stream.Collectors;
 import org.agrona.DirectBuffer;
 import org.slf4j.Logger;
 
@@ -200,13 +198,7 @@ public class Gossip extends Actor implements GossipController, GossipEventPublis
   @Override
   public ActorFuture<Void> join(List<SocketAddress> contactPoints) {
     final CompletableActorFuture<Void> future = new CompletableActorFuture<>();
-    final List<RemoteAddress> remoteAddresses =
-        contactPoints
-            .stream()
-            .map(clientTransport::registerRemoteAddress)
-            .collect(Collectors.toList());
-
-    actor.call(() -> joinController.join(remoteAddresses, future));
+    actor.call(() -> joinController.join(contactPoints, future));
 
     return future;
   }

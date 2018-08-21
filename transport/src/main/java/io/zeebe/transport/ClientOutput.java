@@ -43,8 +43,8 @@ public interface ClientOutput {
   ActorFuture<ClientResponse> sendRequest(Integer nodeId, BufferWriter writer);
 
   /**
-   * Like {@link #sendRequestToNodeWithRetry(Supplier, Predicate, BufferWriter, Duration)} with a
-   * static remote and no response inspection (i.e. first response is accepted).
+   * Like {@link #sendRequestWithRetry(Supplier, Predicate, BufferWriter, Duration)} with a static
+   * remote and no response inspection (i.e. first response is accepted).
    *
    * @return the response future or null in case no memory is currently available to allocate the
    *     request
@@ -76,40 +76,8 @@ public interface ClientOutput {
    *     available to allocate the request. Can complete exceptionally in failure cases such as
    *     timeout.
    */
-  ActorFuture<ClientResponse> sendRequestToNodeWithRetry(
-      Supplier<Integer> nodeIdSupplier,
-      Predicate<DirectBuffer> responseInspector,
-      BufferWriter writer,
-      Duration timeout);
-
-  /**
-   * Like {@link #sendRequestToNodeWithRetry(Supplier, Predicate, BufferWriter, Duration)} but uses
-   * a remote address supplier in case endpoints are not registered yet. Use case: initial gossip
-   * join.
-   *
-   * <p>Guarantees:
-   *
-   * <ul>
-   *   <li>Not garbage-free
-   *   <li>n intermediary copies of the request (one local copy for making retries, one copy on the
-   *       send buffer per try)
-   *
-   * @param remoteAddressSupplier supplier for the remote address the retries are executed against
-   *     (retries may be executed against different remotes). The future may resolve to <code>null
-   *     </code> to signal that a remote can not be determined. In that case, the request is retried
-   *     after resubmit timeout.
-   * @param responseInspector function getting the response and returning a boolean. If the function
-   *     returns true, the request will be retried: usecase: in a system like zeebe, we may send a
-   *     request to the wrong node. The node will send a response indicating that it is not able to
-   *     handle this request. In this case we want to do a retry and send the request to a different
-   *     node, based on the content of the response
-   * @param timeout The timeout until the returned future fails if no response is received.
-   * @return a future carrying the response that was accepted or null in case no memory is currently
-   *     available to allocate the request. Can complete exceptionally in failure cases such as
-   *     timeout.
-   */
   ActorFuture<ClientResponse> sendRequestWithRetry(
-      Supplier<RemoteAddress> remoteAddressSupplier,
+      Supplier<Integer> nodeIdSupplier,
       Predicate<DirectBuffer> responseInspector,
       BufferWriter writer,
       Duration timeout);

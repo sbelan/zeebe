@@ -170,7 +170,7 @@ public class DeploymentDistributor {
     final ActorFuture<ClientResponse> pushResponseFuture =
         managementApi
             .getOutput()
-            .sendRequestToNodeWithRetry(
+            .sendRequestWithRetry(
                 () -> partitionLeaderId,
                 (response) -> !pushDeploymentResponse.tryWrap(response),
                 pushDeploymentRequest,
@@ -229,7 +229,7 @@ public class DeploymentDistributor {
       final ActorFuture<ClientResponse> future =
           managementApi
               .getOutput()
-              .sendRequestToNodeWithRetry(
+              .sendRequestWithRetry(
                   () -> systemPartitionLeaderId,
                   b -> !fetchCreatedTopicsResponse.tryWrap(b),
                   fetchCreatedTopicsRequest,

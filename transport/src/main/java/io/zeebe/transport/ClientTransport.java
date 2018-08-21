@@ -70,31 +70,18 @@ public class ClientTransport implements AutoCloseable {
   }
 
   /**
-   * Resolve a socket address as a remote to which data can be sent. The return value identifies the
-   * remote and remains stable throughout the lifetime of this {@link ClientTransport} object, i.e.
-   * can be cached. Transport will make sure to keep an open channel to this remote until the
-   * address is deactivated or retired.
-   */
-  public RemoteAddress registerRemoteAddress(SocketAddress addr) {
-    return remoteAddressList.register(addr);
-  }
-
-  /**
    * DO NOT USE in production code as it involves blocking the current thread.
    *
    * <p>Not thread-safe
    *
-   * <p>Like {@link #registerRemoteAddress(SocketAddress)} but blockingly waits for the
+   * <p>Like {@link #registerEndpoint(int, SocketAddress)} but blockingly waits for the
    * corresponding channel to be opened such that it is probable that subsequent requests/messages
    * can be sent. This saves test code the need to retry sending.
    */
-  public RemoteAddress registerRemoteAndAwaitChannel(SocketAddress addr) {
+  public void registerEndpointAndAwaitChannel(final int nodeId, SocketAddress addr) {
     final RemoteAddress remoteAddress = getRemoteAddress(addr);
 
-    if (remoteAddress != null) {
-      // already registered; assuming a channel is open then
-      return remoteAddress;
-    } else {
+    if (remoteAddress == null) {
       final Object monitor = new Object();
 
       synchronized (monitor) {
@@ -116,14 +103,12 @@ public class ClientTransport implements AutoCloseable {
 
         transportActorContext.registerListener(listener).join();
 
-        final RemoteAddress registeredAddress = registerRemoteAddress(addr);
+        registerEndpoint(nodeId, addr);
         try {
           monitor.wait(Duration.ofSeconds(10).toMillis());
         } catch (InterruptedException e) {
           throw new RuntimeException(e);
         }
-
-        return registeredAddress;
       }
     }
   }

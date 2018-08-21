@@ -42,7 +42,6 @@ import org.openjdk.jmh.annotations.Warmup;
 @Warmup(iterations = 5, time = 1, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 5, time = 1, timeUnit = TimeUnit.SECONDS)
 public class SingleMessageStressTest {
-  static final AtomicInteger THREAD_ID = new AtomicInteger(0);
   private static final int BURST_SIZE = 1_000;
 
   private static final MutableDirectBuffer MSG = new UnsafeBuffer(new byte[576]);
@@ -120,8 +119,7 @@ public class SingleMessageStressTest {
       output = clientTransport.getOutput();
       remoteId = 1;
 
-      clientTransport.registerRemoteAndAwaitChannel(addr);
-      clientTransport.registerEndpoint(remoteId, addr);
+      clientTransport.registerEndpointAndAwaitChannel(remoteId, addr);
     }
 
     @TearDown

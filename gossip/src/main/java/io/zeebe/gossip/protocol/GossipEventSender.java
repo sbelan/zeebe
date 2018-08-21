@@ -23,10 +23,13 @@ import io.zeebe.transport.ClientTransport;
 import io.zeebe.transport.RemoteAddress;
 import io.zeebe.transport.ServerResponse;
 import io.zeebe.transport.ServerTransport;
+import io.zeebe.transport.SocketAddress;
 import io.zeebe.util.sched.future.ActorFuture;
 import java.time.Duration;
 
 public class GossipEventSender {
+
+  public static final int INITIAL_CONTACT_POINT_ID = -128;
   private final ServerResponse serverResponse = new ServerResponse();
 
   private final ClientTransport clientTransport;
@@ -121,15 +124,16 @@ public class GossipEventSender {
   }
 
   /** Only use if node id is not known, i.e. on initial join with contact points */
-  public ActorFuture<ClientResponse> sendPing(RemoteAddress remoteAddress, Duration timeout) {
+  public ActorFuture<ClientResponse> sendPing(SocketAddress socketAddress, Duration timeout) {
     gossipFailureDetectionEvent
         .reset()
         .eventType(GossipEventType.PING)
         .senderId(membershipList.self().getId());
 
+    clientTransport.registerEndpoint(INITIAL_CONTACT_POINT_ID, socketAddress);
+
     return clientTransport
         .getOutput()
-        .sendRequestWithRetry(
-            () -> remoteAddress, (r) -> false, gossipFailureDetectionEvent, timeout);
+        .sendRequest(INITIAL_CONTACT_POINT_ID, gossipFailureDetectionEvent, timeout);
   }
 }

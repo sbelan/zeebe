@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.concurrent.UnsafeBuffer;
@@ -184,16 +183,14 @@ public class MultiRemoteRequestResponseStressTest {
       output = clientTransport.getOutput();
 
       remote1 = 1;
-      clientTransport.registerRemoteAndAwaitChannel(addr1);
-      clientTransport.registerEndpoint(remote1, addr1);
+      clientTransport.registerEndpointAndAwaitChannel(remote1, addr1);
 
       remote2 = 2;
-      clientTransport.registerRemoteAndAwaitChannel(addr2);
-      clientTransport.registerEndpoint(remote2, addr2);
+      clientTransport.registerEndpointAndAwaitChannel(remote2, addr2);
     }
 
     @TearDown
-    public void tearDown() throws InterruptedException, ExecutionException, TimeoutException {
+    public void tearDown() throws InterruptedException, ExecutionException {
       serverTransport1.close();
       serverTransport2.close();
       clientTransport.close();

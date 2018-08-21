@@ -184,7 +184,7 @@ public class TransportChannelListenerTest {
     serverTransport.close();
 
     // when
-    clientTransport.registerRemoteAddress(ADDRESS); // triggering connection attempts
+    clientTransport.registerEndpoint(NODE_ID, ADDRESS); // triggering connection attempts
 
     // then
     waitUntil(
@@ -205,7 +205,7 @@ public class TransportChannelListenerTest {
     clientTransport.registerChannelListener(clientListener);
 
     // when
-    clientTransport.registerRemoteAddress(ADDRESS); // triggering connection attempts
+    clientTransport.registerEndpoint(NODE_ID, ADDRESS); // triggering connection attempts
     waitUntil(
         () ->
             clientListener.getEvents().size()

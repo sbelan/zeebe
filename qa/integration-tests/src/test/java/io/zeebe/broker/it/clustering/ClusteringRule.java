@@ -45,6 +45,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import one.util.streamex.EntryStream;
 import org.assertj.core.util.Files;
 import org.junit.rules.ExternalResource;
 
@@ -453,14 +454,12 @@ public class ClusteringRule extends ExternalResource {
   public void waitForTopology(final Function<List<BrokerInfo>, Boolean> topologyPredicate) {
     waitUntil(
         () ->
-            brokers
-                .keySet()
-                .stream()
+            EntryStream.of(brokers)
                 .allMatch(
-                    socketAddress -> {
+                    entry -> {
                       final List<BrokerInfo> topology =
-                          topologyClient.requestTopologyFromBroker(socketAddress);
-                      // printTopology(topology);
+                          topologyClient.requestTopologyFromBroker(
+                              entry.getValue().getConfig().getNodeId(), entry.getKey());
                       return topologyPredicate.apply(topology);
                     }),
         250);

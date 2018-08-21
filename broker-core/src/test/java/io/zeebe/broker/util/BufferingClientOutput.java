@@ -19,7 +19,6 @@ package io.zeebe.broker.util;
 
 import io.zeebe.transport.ClientOutput;
 import io.zeebe.transport.ClientResponse;
-import io.zeebe.transport.RemoteAddress;
 import io.zeebe.transport.impl.ClientResponseImpl;
 import io.zeebe.transport.impl.IncomingResponse;
 import io.zeebe.util.buffer.BufferWriter;
@@ -53,20 +52,11 @@ public class BufferingClientOutput implements ClientOutput {
   @Override
   public ActorFuture<ClientResponse> sendRequest(
       Integer nodeId, BufferWriter writer, Duration timeout) {
-    return sendRequestToNodeWithRetry(() -> nodeId, b -> false, writer, timeout);
+    return sendRequestWithRetry(() -> nodeId, b -> false, writer, timeout);
   }
 
   @Override
   public ActorFuture<ClientResponse> sendRequestWithRetry(
-      Supplier<RemoteAddress> remoteAddressSupplier,
-      Predicate<DirectBuffer> responseInspector,
-      BufferWriter writer,
-      Duration timeout) {
-    throw new UnsupportedOperationException("not yet implemented");
-  }
-
-  @Override
-  public ActorFuture<ClientResponse> sendRequestToNodeWithRetry(
       Supplier<Integer> nodeIdSupplier,
       Predicate<DirectBuffer> responseInspector,
       BufferWriter writer,

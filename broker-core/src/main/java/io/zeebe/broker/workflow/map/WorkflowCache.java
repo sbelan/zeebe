@@ -80,7 +80,7 @@ public class WorkflowCache implements TopologyPartitionListener {
 
     return clientTransport
         .getOutput()
-        .sendRequestToNodeWithRetry(
+        .sendRequestWithRetry(
             this::systemTopicLeader, this::checkResponse, fetchRequest, FETCH_WORKFLOW_TIMEOUT);
   }
 
@@ -90,7 +90,7 @@ public class WorkflowCache implements TopologyPartitionListener {
 
     return clientTransport
         .getOutput()
-        .sendRequestToNodeWithRetry(
+        .sendRequestWithRetry(
             this::systemTopicLeader, this::checkResponse, fetchRequest, FETCH_WORKFLOW_TIMEOUT);
   }
 
@@ -100,7 +100,7 @@ public class WorkflowCache implements TopologyPartitionListener {
 
     return clientTransport
         .getOutput()
-        .sendRequestToNodeWithRetry(
+        .sendRequestWithRetry(
             this::systemTopicLeader, this::checkResponse, fetchRequest, FETCH_WORKFLOW_TIMEOUT);
   }
 

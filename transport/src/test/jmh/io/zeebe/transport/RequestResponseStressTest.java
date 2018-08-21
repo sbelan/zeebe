@@ -165,8 +165,7 @@ public class RequestResponseStressTest {
       output = clientTransport.getOutput();
 
       remote = 1;
-      clientTransport.registerRemoteAndAwaitChannel(addr);
-      clientTransport.registerEndpoint(remote, addr);
+      clientTransport.registerEndpointAndAwaitChannel(remote, addr);
     }
 
     @TearDown

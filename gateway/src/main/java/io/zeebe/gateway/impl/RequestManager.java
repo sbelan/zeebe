@@ -83,7 +83,7 @@ public class RequestManager extends Actor {
     final Supplier<Integer> remoteProvider = determineRemoteProvider(requestHandler);
 
     final ActorFuture<ClientResponse> responseFuture =
-        output.sendRequestToNodeWithRetry(
+        output.sendRequestWithRetry(
             remoteProvider, RequestManager::shouldRetryRequest, requestHandler, requestTimeout);
 
     if (responseFuture != null) {

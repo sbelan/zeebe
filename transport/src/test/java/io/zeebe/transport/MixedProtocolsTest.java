@@ -59,8 +59,7 @@ public class MixedProtocolsTest {
             .build(handler, handler);
     closeables.manage(serverTransport);
 
-    clientTransport.registerRemoteAndAwaitChannel(addr);
-    clientTransport.registerEndpoint(nodeId, addr);
+    clientTransport.registerEndpointAndAwaitChannel(nodeId, addr);
 
     for (int i = 0; i < numRequests; i++) {
       requestBuffer.putInt(0, i);

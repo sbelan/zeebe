@@ -29,6 +29,7 @@ import io.zeebe.gossip.protocol.GossipEventFactory;
 import io.zeebe.gossip.protocol.GossipEventSender;
 import io.zeebe.transport.ClientResponse;
 import io.zeebe.transport.RemoteAddress;
+import io.zeebe.transport.SocketAddress;
 import io.zeebe.util.sched.ActorControl;
 import io.zeebe.util.sched.future.ActorFuture;
 import io.zeebe.util.sched.future.CompletableActorFuture;
@@ -56,7 +57,7 @@ public class JoinController {
   private final GossipEvent ackResponse;
   private final GossipEvent syncResponse;
 
-  private List<RemoteAddress> contactPoints;
+  private List<SocketAddress> contactPoints;
 
   private boolean isJoined;
   private CompletableActorFuture<Void> joinFuture;
@@ -76,7 +77,7 @@ public class JoinController {
     this.syncResponse = gossipEventFactory.createSyncResponse();
   }
 
-  public void join(List<RemoteAddress> contactPoints, CompletableActorFuture<Void> future) {
+  public void join(List<SocketAddress> contactPoints, CompletableActorFuture<Void> future) {
     if (isJoined) {
       future.completeExceptionally(new IllegalStateException("Already joined."));
     } else if (contactPoints == null || contactPoints.isEmpty()) {
@@ -97,7 +98,7 @@ public class JoinController {
 
     self.getTerm().increment();
 
-    for (RemoteAddress contactPoint : contactPoints) {
+    for (SocketAddress contactPoint : contactPoints) {
       LOG.trace("Spread JOIN event to contact point '{}'", contactPoint);
 
       disseminationComponent

@@ -95,25 +95,12 @@ public class ClientOutputImpl implements ClientOutput {
   @Override
   public ActorFuture<ClientResponse> sendRequest(
       Integer nodeId, BufferWriter writer, Duration timeout) {
-    return sendRequestToNodeWithRetry(() -> nodeId, (b) -> false, writer, timeout);
-  }
-
-  @Override
-  public ActorFuture<ClientResponse> sendRequestToNodeWithRetry(
-      Supplier<Integer> nodeIdSupplier,
-      Predicate<DirectBuffer> responseInspector,
-      BufferWriter writer,
-      Duration timeout) {
-    return sendRequestWithRetry(
-        () -> endpointRegistry.getEndpoint(nodeIdSupplier.get()),
-        responseInspector,
-        writer,
-        timeout);
+    return sendRequestWithRetry(() -> nodeId, (b) -> false, writer, timeout);
   }
 
   @Override
   public ActorFuture<ClientResponse> sendRequestWithRetry(
-      Supplier<RemoteAddress> remoteAddressSupplier,
+      Supplier<Integer> nodeIdSupplier,
       Predicate<DirectBuffer> responseInspector,
       BufferWriter writer,
       Duration timeout) {
@@ -126,7 +113,11 @@ public class ClientOutputImpl implements ClientOutput {
       try {
         final UnsafeBuffer bufferView = new UnsafeBuffer(allocatedBuffer);
         final OutgoingRequest request =
-            new OutgoingRequest(remoteAddressSupplier, responseInspector, bufferView, timeout);
+            new OutgoingRequest(
+                () -> endpointRegistry.getEndpoint(nodeIdSupplier.get()),
+                responseInspector,
+                bufferView,
+                timeout);
 
         request.getHeaderWriter().wrapRequest(bufferView, writer);
 
