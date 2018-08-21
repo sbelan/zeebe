@@ -60,6 +60,8 @@ public class ClientTransportMemoryTest {
   @Rule public RuleChain ruleChain = RuleChain.outerRule(actorSchedulerRule).around(closeables);
 
   public static final DirectBuffer BUF1 = BufferUtil.wrapBytes(1, 2, 3, 4);
+  public static final DirectBufferWriter WRITER1 = writerFor(BUF1);
+
   public static final SocketAddress SERVER_ADDRESS1 = new SocketAddress("localhost", 51115);
   public static final int NODE_ID1 = 1;
 
@@ -104,13 +106,13 @@ public class ClientTransportMemoryTest {
   @Test
   public void shouldReclaimRequestMemoryOnRequestTimeout() {
     // given
-    final RemoteAddress remote = clientTransport.registerRemoteAddress(SERVER_ADDRESS1);
+    registerEndpoint();
 
     final ClientOutput output = clientTransport.getOutput();
 
     // when
     final ActorFuture<ClientResponse> responseFuture =
-        output.sendRequest(remote, new DirectBufferWriter().wrap(BUF1), Duration.ofMillis(500));
+        output.sendRequest(NODE_ID1, WRITER1, Duration.ofMillis(500));
 
     // then
     assertThatThrownBy(responseFuture::join).hasMessageContaining("Request timed out after PT0.5S");
@@ -122,10 +124,10 @@ public class ClientTransportMemoryTest {
   @Test
   public void shouldReclaimRequestMemoryIfFutureCompleteFails() {
     // given
-    final RemoteAddress remote = clientTransport.registerRemoteAddress(SERVER_ADDRESS1);
+    registerEndpoint();
     final ClientOutput output = clientTransport.getOutput();
     final ActorFuture<ClientResponse> responseFuture =
-        output.sendRequest(remote, new DirectBufferWriter().wrap(BUF1), Duration.ofMillis(500));
+        output.sendRequest(NODE_ID1, WRITER1, Duration.ofMillis(500));
 
     // when
 
@@ -139,7 +141,7 @@ public class ClientTransportMemoryTest {
   }
 
   @Test
-  public void shouldReclaimRequestMemoryOnResponse() throws InterruptedException {
+  public void shouldReclaimRequestMemoryOnResponse() {
     // given
     final BufferWriter writer = mock(BufferWriter.class);
     when(writer.getLength()).thenReturn(16);
@@ -149,9 +151,9 @@ public class ClientTransportMemoryTest {
             b.bindAddress(SERVER_ADDRESS1.toInetSocketAddress())
                 .build(null, new EchoRequestResponseHandler()));
 
-    final RemoteAddress remote = clientTransport.registerRemoteAddress(SERVER_ADDRESS1);
+    registerEndpoint();
 
-    clientTransport.getOutput().sendRequest(remote, writer).join();
+    clientTransport.getOutput().sendRequest(NODE_ID1, writer).join();
 
     verify(requestMemoryPoolSpy, times(1)).allocate(anyInt());
     verify(requestMemoryPoolSpy, timeout(500).times(1))
@@ -159,16 +161,16 @@ public class ClientTransportMemoryTest {
   }
 
   @Test
-  public void shouldReclaimRequestMemoryOnRequestWriterException() throws InterruptedException {
+  public void shouldReclaimRequestMemoryOnRequestWriterException() {
     // given
     final BufferWriter writer = mock(BufferWriter.class);
     when(writer.getLength()).thenReturn(16);
     doThrow(RuntimeException.class).when(writer).write(any(), anyInt());
 
-    final RemoteAddress remote = clientTransport.registerRemoteAddress(SERVER_ADDRESS1);
+    registerEndpoint();
 
     try {
-      clientTransport.getOutput().sendRequest(remote, writer);
+      clientTransport.getOutput().sendRequest(NODE_ID1, writer);
     } catch (RuntimeException e) {
       // expected
     }
@@ -178,7 +180,7 @@ public class ClientTransportMemoryTest {
   }
 
   @Test
-  public void shouldReclaimOnMessageSend() throws InterruptedException {
+  public void shouldReclaimOnMessageSend() {
     // given
     final BufferWriter writer = mock(BufferWriter.class);
     when(writer.getLength()).thenReturn(16);
@@ -199,7 +201,7 @@ public class ClientTransportMemoryTest {
   }
 
   @Test
-  public void shouldReclaimOnMessageSendFailed() throws InterruptedException {
+  public void shouldReclaimOnMessageSendFailed() {
     // given
     final BufferWriter writer = mock(BufferWriter.class);
     when(writer.getLength()).thenReturn(16);
@@ -216,7 +218,7 @@ public class ClientTransportMemoryTest {
   }
 
   @Test
-  public void shouldReclaimOnMessageWriterException() throws InterruptedException {
+  public void shouldReclaimOnMessageWriterException() {
     // given
     final BufferWriter writer = mock(BufferWriter.class);
     when(writer.getLength()).thenReturn(16);
@@ -243,7 +245,7 @@ public class ClientTransportMemoryTest {
     doReturn(null).when(messageMemoryPoolSpy).allocate(anyInt());
 
     // when
-    final boolean success = output.sendMessage(NODE_ID1, writerFor(BUF1));
+    final boolean success = output.sendMessage(NODE_ID1, WRITER1);
 
     // then
     assertThat(success).isFalse();
@@ -253,15 +255,18 @@ public class ClientTransportMemoryTest {
   public void shouldRejectRequestWhenBufferPoolExhaused() {
     // given
     final ClientOutput output = clientTransport.getOutput();
-    final RemoteAddress addr = clientTransport.registerRemoteAddress(SERVER_ADDRESS1);
+    registerEndpoint();
 
     doReturn(null).when(requestMemoryPoolSpy).allocate(anyInt());
 
     // when
-    final ActorFuture<ClientResponse> reqFuture =
-        output.sendRequest(addr, new DirectBufferWriter().wrap(BUF1));
+    final ActorFuture<ClientResponse> reqFuture = output.sendRequest(NODE_ID1, WRITER1);
 
     // then
     assertThat(reqFuture).isNull();
+  }
+
+  private void registerEndpoint() {
+    clientTransport.registerEndpoint(NODE_ID1, SERVER_ADDRESS1);
   }
 }

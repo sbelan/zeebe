@@ -174,8 +174,8 @@ public class ClientTransportTest {
     final RemoteAddress remote = clientTransport.registerRemoteAndAwaitChannel(SERVER_ADDRESS1);
 
     final ClientOutput output = clientTransport.getOutput();
-    output.sendRequest(remote, new DirectBufferWriter().wrap(BUF1));
-    output.sendRequest(remote, new DirectBufferWriter().wrap(BUF1));
+    output.sendRequest(remote, WRITER1);
+    output.sendRequest(remote, WRITER1);
 
     final AtomicInteger messageCounter = serverTransport.acceptNextConnection(SERVER_ADDRESS1);
 
@@ -198,8 +198,8 @@ public class ClientTransportTest {
     final RemoteAddress remote1 = clientTransport.registerRemoteAndAwaitChannel(SERVER_ADDRESS1);
     final RemoteAddress remote2 = clientTransport.registerRemoteAndAwaitChannel(SERVER_ADDRESS2);
 
-    output.sendRequest(remote1, new DirectBufferWriter().wrap(BUF1));
-    output.sendRequest(remote2, new DirectBufferWriter().wrap(BUF1));
+    output.sendRequest(remote1, WRITER1);
+    output.sendRequest(remote2, WRITER1);
 
     // when
     final AtomicInteger messageCounter1 = serverTransport.acceptNextConnection(SERVER_ADDRESS1);
@@ -273,7 +273,7 @@ public class ClientTransportTest {
 
     // when
     final ActorFuture<ClientResponse> responseFuture =
-        output.sendRequest(remote, new DirectBufferWriter().wrap(BUF1), Duration.ofMillis(500));
+        output.sendRequest(remote, WRITER1, Duration.ofMillis(500));
 
     // then
     assertThatThrownBy(() -> responseFuture.join())
@@ -287,12 +287,12 @@ public class ClientTransportTest {
     final RemoteAddress remoteAddress = clientTransport.registerRemoteAddress(SERVER_ADDRESS1);
 
     for (int i = 0; i < REQUEST_POOL_SIZE; i++) {
-      clientOutput.sendRequest(remoteAddress, new DirectBufferWriter().wrap(BUF1));
+      clientOutput.sendRequest(remoteAddress, WRITER1);
     }
 
     // when
     final ActorFuture<ClientResponse> responseFuture =
-        clientOutput.sendRequest(remoteAddress, new DirectBufferWriter().wrap(BUF1));
+        clientOutput.sendRequest(remoteAddress, WRITER1);
 
     // then
     assertThat(responseFuture).isNotNull();
@@ -379,8 +379,8 @@ public class ClientTransportTest {
     final ClientOutput output = clientTransport.getOutput();
 
     // when
-    output.sendRequest(remote2, new DirectBufferWriter().wrap(BUF1));
-    output.sendRequest(remote1, new DirectBufferWriter().wrap(BUF1));
+    output.sendRequest(remote2, WRITER1);
+    output.sendRequest(remote1, WRITER1);
 
     // then blocked request 1 should not block sending request 2
     doRepeatedly(() -> serverTransport.receive(SERVER_ADDRESS1))
@@ -494,9 +494,7 @@ public class ClientTransportTest {
 
     // when
     final ActorFuture<ClientResponse> request =
-        clientTransport
-            .getOutput()
-            .sendRequest(remote1, new DirectBufferWriter().wrap(BUF1), Duration.ofSeconds(10));
+        clientTransport.getOutput().sendRequest(remote1, WRITER1, Duration.ofSeconds(10));
 
     // then
     final ClientResponse response = request.join();
@@ -588,7 +586,7 @@ public class ClientTransportTest {
   @Test
   public void shouldProvideResponseProperties() throws InterruptedException {
     // given
-    final BufferWriter writer = new DirectBufferWriter().wrap(BUF1);
+    final BufferWriter writer = WRITER1;
 
     final AtomicLong capturedRequestId = new AtomicLong();
 
@@ -685,11 +683,7 @@ public class ClientTransportTest {
     final ActorFuture<ClientResponse> responseFuture =
         clientTransport
             .getOutput()
-            .sendRequestWithRetry(
-                addressSupplier,
-                b -> false,
-                new DirectBufferWriter().wrap(BUF1),
-                Duration.ofSeconds(2));
+            .sendRequestWithRetry(addressSupplier, b -> false, WRITER1, Duration.ofSeconds(2));
 
     final ClientResponse response = responseFuture.join();
     assertThatBuffer(response.getResponseBuffer()).hasBytes(BUF1);
@@ -709,9 +703,7 @@ public class ClientTransportTest {
     final RemoteAddress remote = clientTransport.registerRemoteAddress(SERVER_ADDRESS1);
 
     final ActorFuture<ClientResponse> responseFuture =
-        clientTransport
-            .getOutput()
-            .sendRequest(remote, new DirectBufferWriter().wrap(BUF1), Duration.ofSeconds(2));
+        clientTransport.getOutput().sendRequest(remote, WRITER1, Duration.ofSeconds(2));
 
     // then
     final ClientResponse response = responseFuture.join();
@@ -811,11 +803,7 @@ public class ClientTransportTest {
     final ActorFuture<ClientResponse> responseFuture =
         clientTransport
             .getOutput()
-            .sendRequestWithRetry(
-                () -> remote,
-                blockingInspector,
-                new DirectBufferWriter().wrap(BUF1),
-                Duration.ofSeconds(30));
+            .sendRequestWithRetry(() -> remote, blockingInspector, WRITER1, Duration.ofSeconds(30));
 
     waitUntil(isWaiting::get);
 
@@ -902,7 +890,7 @@ public class ClientTransportTest {
 
     // when
     final ActorFuture<ClientResponse> request =
-        clientTransport.getOutput().sendRequest(nodeId, new DirectBufferWriter().wrap(BUF1));
+        clientTransport.getOutput().sendRequest(nodeId, WRITER1);
 
     // then
     final ClientResponse response = request.join();
@@ -922,9 +910,7 @@ public class ClientTransportTest {
 
     // when
     final ActorFuture<ClientResponse> request =
-        clientTransport
-            .getOutput()
-            .sendRequest(nodeId, new DirectBufferWriter().wrap(BUF1), Duration.ofSeconds(10));
+        clientTransport.getOutput().sendRequest(nodeId, WRITER1, Duration.ofSeconds(10));
 
     // then
     final ClientResponse response = request.join();
@@ -938,7 +924,7 @@ public class ClientTransportTest {
 
     // when
     final ActorFuture<ClientResponse> responseFuture =
-        output.sendRequest(123, new DirectBufferWriter().wrap(BUF1), Duration.ofMillis(500));
+        output.sendRequest(123, WRITER1, Duration.ofMillis(500));
 
     // then
     assertThatThrownBy(responseFuture::join).hasMessageContaining("Request timed out after PT0.5S");
@@ -970,11 +956,7 @@ public class ClientTransportTest {
     final ActorFuture<ClientResponse> responseFuture =
         clientTransport
             .getOutput()
-            .sendRequestToNodeWithRetry(
-                nodeIdSupplier,
-                b -> false,
-                new DirectBufferWriter().wrap(BUF1),
-                Duration.ofSeconds(2));
+            .sendRequestToNodeWithRetry(nodeIdSupplier, b -> false, WRITER1, Duration.ofSeconds(2));
 
     final ClientResponse response = responseFuture.join();
     assertThatBuffer(response.getResponseBuffer()).hasBytes(BUF1);
