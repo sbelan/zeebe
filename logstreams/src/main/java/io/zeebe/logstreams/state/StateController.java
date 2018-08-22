@@ -20,10 +20,11 @@ import io.zeebe.util.ByteValue;
 import io.zeebe.util.LangUtil;
 import io.zeebe.util.buffer.BufferWriter;
 import java.io.File;
-import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.List;
 import org.agrona.CloseHelper;
+import org.agrona.MutableDirectBuffer;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.rocksdb.BlockBasedTableConfig;
 import org.rocksdb.BloomFilter;
@@ -54,7 +55,7 @@ import org.slf4j.Logger;
 public class StateController implements AutoCloseable {
   private static final Logger LOG = Loggers.ROCKSDB_LOGGER;
 
-  private final ByteBuffer dbLongBuffer = ByteBuffer.allocate(Long.BYTES);
+  private final MutableDirectBuffer dbLongBuffer = new UnsafeBuffer(new byte[Long.BYTES]);
   private boolean isOpened = false;
   private RocksDB db;
   protected File dbDirectory;
@@ -162,10 +163,14 @@ public class StateController implements AutoCloseable {
     return db;
   }
 
+  private void setKey(long key) {
+    dbLongBuffer.putLong(0, key, ByteOrder.LITTLE_ENDIAN);
+  }
+
   public void put(long key, byte[] valueBuffer) {
-    dbLongBuffer.putLong(0, key);
+    setKey(key);
     try {
-      db.put(dbLongBuffer.array(), valueBuffer);
+      db.put(dbLongBuffer.byteArray(), valueBuffer);
     } catch (RocksDBException e) {
       LangUtil.rethrowUnchecked(e);
     }
@@ -178,7 +183,7 @@ public class StateController implements AutoCloseable {
    * @param valueWriter
    */
   public void put(long key, BufferWriter valueWriter) {
-    dbLongBuffer.putLong(0, key);
+    setKey(key);
     final int length = valueWriter.getLength();
     final byte[] bytes = new byte[length];
     final UnsafeBuffer buffer = new UnsafeBuffer(bytes);
@@ -186,7 +191,7 @@ public class StateController implements AutoCloseable {
     valueWriter.write(buffer, 0);
 
     try {
-      db.put(dbLongBuffer.array(), bytes);
+      db.put(dbLongBuffer.byteArray(), bytes);
     } catch (RocksDBException e) {
       LangUtil.rethrowUnchecked(e);
     }
@@ -201,9 +206,9 @@ public class StateController implements AutoCloseable {
   }
 
   public void delete(long key) {
-    dbLongBuffer.putLong(0, key);
+    setKey(key);
     try {
-      db.delete(dbLongBuffer.array());
+      db.delete(dbLongBuffer.byteArray());
     } catch (RocksDBException e) {
       LangUtil.rethrowUnchecked(e);
     }
@@ -224,11 +229,11 @@ public class StateController implements AutoCloseable {
    * @return
    */
   public byte[] get(long key) {
-    dbLongBuffer.putLong(0, key);
+    setKey(key);
 
     byte[] bytes = null;
     try {
-      bytes = getDb().get(dbLongBuffer.array());
+      bytes = getDb().get(dbLongBuffer.byteArray());
     } catch (RocksDBException e) {
       LangUtil.rethrowUnchecked(e);
     }
@@ -237,8 +242,9 @@ public class StateController implements AutoCloseable {
   }
 
   public boolean tryGet(long key, byte[] valueBuffer) {
-    dbLongBuffer.putLong(0, key);
-    return tryGet(dbLongBuffer.array(), valueBuffer);
+    setKey(key);
+
+    return tryGet(dbLongBuffer.byteArray(), valueBuffer);
   }
 
   public boolean tryGet(final byte[] keyBuffer, final byte[] valueBuffer) {

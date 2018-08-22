@@ -19,26 +19,17 @@ package io.zeebe.broker.system.workflow.repository.processor.state;
 
 import io.zeebe.broker.system.workflow.repository.processor.PendingDeploymentDistribution;
 import io.zeebe.logstreams.state.StateController;
+import java.nio.ByteOrder;
 import java.util.function.BiConsumer;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.rocksdb.RocksIterator;
 
 public class PendingDeploymentsStateController extends StateController {
-  //
-  //  private static final String KEY_VALUE_LENGTH_PREFIX = "length-";
-  //  private static final int KEY_VALUE_LENGTH_PREFIX_LENGTH = KEY_VALUE_LENGTH_PREFIX.length();
-  //  private static final int KEY_VALUE_LENGTH_LENGTH = KEY_VALUE_LENGTH_PREFIX_LENGTH +
-  // Long.BYTES;
 
-  //  private final ByteBuffer keyValueLengthBuffer;
-  //  private final ByteBuffer valueLengthBuffer;
   private final PendingDeploymentDistribution pendingDeploymentDistribution;
   private final UnsafeBuffer buffer;
 
   public PendingDeploymentsStateController() {
-    //    keyValueLengthBuffer = ByteBuffer.allocate(KEY_VALUE_LENGTH_LENGTH);
-    //    keyValueLengthBuffer.put(KEY_VALUE_LENGTH_PREFIX.getBytes());
-    //    valueLengthBuffer = ByteBuffer.allocate(Integer.BYTES);
     pendingDeploymentDistribution = new PendingDeploymentDistribution(new UnsafeBuffer(0, 0), -1);
     buffer = new UnsafeBuffer(0, 0);
   }
@@ -51,10 +42,6 @@ public class PendingDeploymentsStateController extends StateController {
     final byte[] bytes = new byte[length];
     buffer.wrap(bytes);
     pendingDeploymentDistribution.write(buffer, 0);
-
-    //    keyValueLengthBuffer.putLong(KEY_VALUE_LENGTH_PREFIX_LENGTH, key);
-    //    valueLengthBuffer.putInt(0, length);
-    //    put(keyValueLengthBuffer.array(), valueLengthBuffer.array());
 
     put(key, bytes);
   }
@@ -98,7 +85,7 @@ public class PendingDeploymentsStateController extends StateController {
 
       final byte[] keyBytes = rocksIterator.key();
       readBuffer.wrap(keyBytes);
-      final long longKey = readBuffer.getLong(0);
+      final long longKey = readBuffer.getLong(0, ByteOrder.LITTLE_ENDIAN);
 
       final byte[] valueBytes = rocksIterator.value();
       readBuffer.wrap(valueBytes);

@@ -21,41 +21,43 @@ import static io.zeebe.util.StringUtil.getBytes;
 
 import io.zeebe.broker.logstreams.processor.KeyGenerator;
 import io.zeebe.logstreams.state.StateController;
-import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import org.agrona.MutableDirectBuffer;
+import org.agrona.concurrent.UnsafeBuffer;
 
 public class JobInstanceStateController extends StateController {
   private static final byte[] LATEST_JOB_KEY_BUFFER = getBytes("latestJobKey");
-  private final ByteBuffer dbLongBuffer = ByteBuffer.allocate(Long.BYTES);
-  private final ByteBuffer dbShortBuffer = ByteBuffer.allocate(Short.BYTES);
+  private final MutableDirectBuffer dbLongBuffer = new UnsafeBuffer(new byte[Long.BYTES]);
+  private final MutableDirectBuffer dbShortBuffer = new UnsafeBuffer(new byte[Short.BYTES]);
 
   public void recoverLatestJobKey(KeyGenerator keyGenerator) {
     ensureIsOpened("recoverLatestJobKey");
 
-    if (tryGet(LATEST_JOB_KEY_BUFFER, dbLongBuffer.array())) {
-      keyGenerator.setKey(dbLongBuffer.getLong(0));
+    if (tryGet(LATEST_JOB_KEY_BUFFER, dbLongBuffer.byteArray())) {
+      keyGenerator.setKey(dbLongBuffer.getLong(0, ByteOrder.LITTLE_ENDIAN));
     }
   }
 
   public void putLatestJobKey(long key) {
     ensureIsOpened("putLatestJobKey");
 
-    dbLongBuffer.putLong(0, key);
-    put(LATEST_JOB_KEY_BUFFER, dbLongBuffer.array());
+    dbLongBuffer.putLong(0, key, ByteOrder.LITTLE_ENDIAN);
+    put(LATEST_JOB_KEY_BUFFER, dbLongBuffer.byteArray());
   }
 
   public void putJobState(long key, short state) {
     ensureIsOpened("putJobState");
 
-    dbShortBuffer.putShort(0, state);
-    put(key, dbShortBuffer.array());
+    dbShortBuffer.putShort(0, state, ByteOrder.LITTLE_ENDIAN);
+    put(key, dbShortBuffer.byteArray());
   }
 
   public short getJobState(long key) {
     ensureIsOpened("getJobState");
 
     short state = -1;
-    if (tryGet(key, dbShortBuffer.array())) {
-      state = dbShortBuffer.getShort(0);
+    if (tryGet(key, dbShortBuffer.byteArray())) {
+      state = dbShortBuffer.getShort(0, ByteOrder.LITTLE_ENDIAN);
     }
 
     return state;
