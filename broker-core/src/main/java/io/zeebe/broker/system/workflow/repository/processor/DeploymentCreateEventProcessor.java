@@ -17,6 +17,7 @@
  */
 package io.zeebe.broker.system.workflow.repository.processor;
 
+import io.zeebe.broker.Loggers;
 import io.zeebe.broker.clustering.base.topology.TopologyManager;
 import io.zeebe.broker.clustering.base.topology.TopologyPartitionListenerImpl;
 import io.zeebe.broker.logstreams.processor.SideEffectProducer;
@@ -79,12 +80,13 @@ public class DeploymentCreateEventProcessor implements TypedRecordProcessor<Depl
         new DeploymentDistributor(
             managementApi, partitionListener, pendingDeploymentsStateController, actor);
 
-    reprocessPendingDeployments();
+    actor.submit(this::reprocessPendingDeployments);
   }
 
   private void reprocessPendingDeployments() {
     pendingDeploymentsStateController.foreach(
         ((key, pendingDeploymentDistribution) -> {
+          Loggers.WORKFLOW_REPOSITORY_LOGGER.debug("Reprocess pendings");
           final ExpandableArrayBuffer buffer = new ExpandableArrayBuffer();
           final DirectBuffer deployment = pendingDeploymentDistribution.getDeployment();
           buffer.putBytes(0, deployment, 0, deployment.capacity());

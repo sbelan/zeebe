@@ -106,6 +106,7 @@ public class PendingDeploymentsStateController extends StateController {
       pendingDeploymentDistribution.wrap(readBuffer, 0, valueBytes.length);
 
       consumer.accept(longKey, pendingDeploymentDistribution);
+      rocksIterator.next();
     }
   }
 }
